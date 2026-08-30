@@ -1,0 +1,23 @@
+data_mixed
+_cell_length_a 5
+_cell_length_b 5
+_cell_length_c 5
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_disorder_assembly
+_atom_site_disorder_group
+_atom_site_Wyckoff_symbol
+_atom_site_symmetry_multiplicity
+La1 La 0 0 0 0.6 A 1 1a 1
+Zr1 Zr 0 0 0 0.4 A 1 1a 1

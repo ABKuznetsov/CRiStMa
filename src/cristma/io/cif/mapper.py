@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from itertools import chain
+import math
+
+import numpy as np
 
 from cristma.chemistry.elements import normalize_element
 from cristma.core.cell import UnitCell
-from cristma.core.structure import Crystal, IndependentSite, SiteComponent
+from cristma.core.structure import (
+    Crystal,
+    DisplacementParameters,
+    IndependentSite,
+    SiteComponent,
+)
 from cristma.core.values import MeasuredValue, parse_measured_value
 from cristma.io.diagnostics import Diagnostic, Severity
 from cristma.symmetry.affine import parse_xyz_operation
@@ -182,6 +191,230 @@ def _symmetry(
     )
 
 
+def _optional_measured(
+    token: CifToken | None,
+    *,
+    unit: str | None = None,
+) -> MeasuredValue | None:
+    if token is None or token.value in {"?", "."}:
+        return None
+    return parse_measured_value(token.raw, unit=unit)
+
+
+def _optional_text(token: CifToken | None) -> str | None:
+    if token is None or token.value in {"?", "."}:
+        return None
+    return token.value
+
+
+def _optional_integer(token: CifToken | None) -> int | None:
+    if token is None or token.value in {"?", "."}:
+        return None
+    value = float(token.value)
+    if not value.is_integer():
+        raise ValueError(f"Expected integer, got {token.value!r}")
+    return int(value)
+
+
+def _label_identity(site: IndependentSite) -> str:
+    identity = site.label
+    for component in site.components:
+        if identity.casefold().startswith(component.element.casefold()):
+            identity = identity[len(component.element) :]
+            break
+    return identity.casefold()
+
+
+def _coincident(
+    left: IndependentSite,
+    right: IndependentSite,
+    tolerance: float = 1e-8,
+) -> bool:
+    return all(
+        abs((float(a.value) - float(b.value) + 0.5) % 1.0 - 0.5) <= tolerance
+        for a, b in zip(left.fractional, right.fractional, strict=True)
+    )
+
+
+def _can_merge_mixed(group: list[IndependentSite], candidate: IndependentSite) -> bool:
+    sites = [*group, candidate]
+    components = [component for site in sites for component in site.components]
+    if len({component.element for component in components}) != len(components):
+        return False
+    if any(
+        component.occupancy.raw is None
+        or component.occupancy.value is None
+        or not 0 <= component.occupancy.value < 1
+        for component in components
+    ):
+        return False
+    if math.fsum(float(component.occupancy.value) for component in components) > 1.0 + 1e-6:
+        return False
+    if len({site.displacement for site in sites}) > 1:
+        return False
+
+    assemblies = {site.disorder_assembly for site in sites}
+    groups = {site.disorder_group for site in sites}
+    explicit_disorder = None not in assemblies and len(assemblies) == 1 and len(groups) == 1
+    matching_identity = len({_label_identity(site) for site in sites}) == 1
+    return explicit_disorder or matching_identity
+
+
+def _merge_coincident_sites(
+    sites: tuple[IndependentSite, ...],
+    diagnostics: list[Diagnostic],
+) -> tuple[IndependentSite, ...]:
+    consumed: set[int] = set()
+    merged: list[IndependentSite] = []
+    for index, site in enumerate(sites):
+        if index in consumed:
+            continue
+        group = [site]
+        for candidate_index in range(index + 1, len(sites)):
+            if candidate_index in consumed:
+                continue
+            candidate = sites[candidate_index]
+            if not _coincident(site, candidate):
+                continue
+            if _can_merge_mixed(group, candidate):
+                group.append(candidate)
+                consumed.add(candidate_index)
+            else:
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.WARNING,
+                        "cif.map.coincident_sites_unmerged",
+                        f"Coincident sites {site.label} and {candidate.label} were not merged",
+                    )
+                )
+
+        if len(group) == 1:
+            merged.append(site)
+            continue
+        wyckoff_values = {item.wyckoff for item in group}
+        multiplicities = {item.reported_multiplicity for item in group}
+        source_rows = tuple(item.metadata["source_row"] for item in group)
+        merged.append(
+            replace(
+                site,
+                id=f"{site.id.rsplit(':', 1)[0]}:mixed:{','.join(map(str, source_rows))}",
+                label="/".join(item.label for item in group),
+                components=tuple(
+                    component
+                    for item in group
+                    for component in item.components
+                ),
+                wyckoff=next(iter(wyckoff_values)) if len(wyckoff_values) == 1 else None,
+                reported_multiplicity=(
+                    next(iter(multiplicities)) if len(multiplicities) == 1 else None
+                ),
+                metadata={"source_rows": source_rows},
+            )
+        )
+    return tuple(merged)
+
+
+def _attach_anisotropic_displacements(
+    block: CifBlock,
+    sites: tuple[IndependentSite, ...],
+    diagnostics: list[Diagnostic],
+) -> tuple[IndependentSite, ...]:
+    required = (
+        names.ANISO_LABEL[0],
+        names.ANISO_U11[0],
+        names.ANISO_U22[0],
+        names.ANISO_U33[0],
+        names.ANISO_U12[0],
+        names.ANISO_U13[0],
+        names.ANISO_U23[0],
+    )
+    loop = _find_loop(block, required)
+    if loop is None:
+        return sites
+
+    by_label: dict[str, tuple[tuple[MeasuredValue, ...], CifToken]] = {}
+    for row in loop.row_tokens:
+        label_token = _token(row, loop, names.ANISO_LABEL)
+        if label_token is None:
+            continue
+        value_tokens = tuple(
+            _token(row, loop, aliases)
+            for aliases in (
+                names.ANISO_U11,
+                names.ANISO_U22,
+                names.ANISO_U33,
+                names.ANISO_U12,
+                names.ANISO_U13,
+                names.ANISO_U23,
+            )
+        )
+        try:
+            values = tuple(
+                parse_measured_value(token.raw, unit="angstrom^2")
+                for token in value_tokens
+                if token is not None
+            )
+        except ValueError as exc:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.ERROR,
+                    "cif.map.adp_invalid",
+                    str(exc),
+                    label_token.span,
+                )
+            )
+            continue
+        if len(values) != 6 or any(value.value is None for value in values):
+            diagnostics.append(
+                Diagnostic(
+                    Severity.ERROR,
+                    "cif.map.adp_incomplete",
+                    f"Anisotropic tensor is incomplete for {label_token.value}",
+                    label_token.span,
+                )
+            )
+            continue
+        by_label[label_token.value.casefold()] = (values, label_token)
+
+    updated = []
+    for site in sites:
+        item = by_label.get(site.label.casefold())
+        if item is None:
+            updated.append(site)
+            continue
+        values, label_token = item
+        u11, u22, u33, u12, u13, u23 = values
+        tensor = (
+            (u11, u12, u13),
+            (u12, u22, u23),
+            (u13, u23, u33),
+        )
+        numeric = np.array(
+            [[float(value.value) for value in row] for row in tensor],
+            dtype=float,
+        )
+        if float(np.linalg.eigvalsh(numeric).min()) < -1e-12:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "cif.map.adp_not_positive_semidefinite",
+                    f"Reported anisotropic tensor is not positive semidefinite for {site.label}",
+                    label_token.span,
+                )
+            )
+        updated.append(
+            replace(
+                site,
+                displacement=DisplacementParameters(
+                    kind="U_aniso",
+                    tensor=tensor,
+                    reported_kind="U",
+                ),
+            )
+        )
+    return tuple(updated)
+
+
 def _sites(
     block: CifBlock,
     diagnostics: list[Diagnostic],
@@ -297,6 +530,41 @@ def _sites(
                 block_failed = True
                 continue
 
+        oxidation_token = _token(row, atom_loop, names.OXIDATION)
+        multiplicity_token = _token(row, atom_loop, names.MULTIPLICITY)
+        u_iso_token = _token(row, atom_loop, names.U_ISO)
+        b_iso_token = _token(row, atom_loop, names.B_ISO)
+        try:
+            oxidation = _optional_measured(oxidation_token)
+            reported_multiplicity = _optional_integer(multiplicity_token)
+            u_iso = _optional_measured(u_iso_token, unit="angstrom^2")
+            b_iso = _optional_measured(b_iso_token, unit="angstrom^2")
+        except ValueError as exc:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.ERROR,
+                    "cif.map.site_value_invalid",
+                    f"Invalid reported value for {label}: {exc}",
+                    label_token.span,
+                )
+            )
+            block_failed = True
+            continue
+
+        displacement = None
+        if u_iso is not None:
+            displacement = DisplacementParameters(
+                kind="U_iso",
+                isotropic=u_iso,
+                reported_kind="U",
+            )
+        elif b_iso is not None:
+            displacement = DisplacementParameters(
+                kind="B_iso",
+                isotropic=b_iso,
+                reported_kind="B",
+            )
+
         try:
             sites.append(
                 IndependentSite(
@@ -306,6 +574,7 @@ def _sites(
                         SiteComponent(
                             element,
                             occupancy,
+                            oxidation_state=oxidation,
                             metadata={
                                 "reported_type_symbol": type_token.value
                                 if type_token is not None
@@ -314,6 +583,15 @@ def _sites(
                         ),
                     ),
                     fractional=coordinates,
+                    wyckoff=_optional_text(_token(row, atom_loop, names.WYCKOFF)),
+                    reported_multiplicity=reported_multiplicity,
+                    disorder_assembly=_optional_text(
+                        _token(row, atom_loop, names.DISORDER_ASSEMBLY)
+                    ),
+                    disorder_group=_optional_text(
+                        _token(row, atom_loop, names.DISORDER_GROUP)
+                    ),
+                    displacement=displacement,
                     metadata={"source_row": row_index},
                 )
             )
@@ -328,7 +606,14 @@ def _sites(
             )
             block_failed = True
 
-    return None if block_failed else tuple(sites)
+    if block_failed:
+        return None
+    with_anisotropic = _attach_anisotropic_displacements(
+        block,
+        tuple(sites),
+        diagnostics,
+    )
+    return _merge_coincident_sites(with_anisotropic, diagnostics)
 
 
 def _metadata(block: CifBlock) -> dict[str, object]:
@@ -359,12 +644,31 @@ def map_cif_structures(
         sites = _sites(block, diagnostics)
         if sites is None:
             continue
-        expanded = tuple(
-            chain.from_iterable(
-                expand_orbit(site, symmetry.operations)
-                for site in sites
+        checked_sites: list[IndependentSite] = []
+        expanded_by_site = []
+        for site in sites:
+            orbit = expand_orbit(site, symmetry.operations)
+            calculated_multiplicity = len(orbit)
+            checked_site = replace(
+                site,
+                calculated_multiplicity=calculated_multiplicity,
             )
-        )
+            if (
+                site.reported_multiplicity is not None
+                and site.reported_multiplicity != calculated_multiplicity
+            ):
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.WARNING,
+                        "cif.map.multiplicity_mismatch",
+                        f"{site.label}: reported multiplicity {site.reported_multiplicity}, "
+                        f"calculated {calculated_multiplicity}",
+                    )
+                )
+            checked_sites.append(checked_site)
+            expanded_by_site.append(orbit)
+        sites = tuple(checked_sites)
+        expanded = tuple(chain.from_iterable(expanded_by_site))
         structures.append(
             Crystal(
                 name=block.name,
