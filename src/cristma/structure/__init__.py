@@ -9,7 +9,13 @@ from .collection import (
     StructureSequence,
     StructureSeries,
 )
-from .identity import ExpandedAtom, SourceReference, StructureProvenance, SymmetryImageProvenance
+from .identity import (
+    ExpandedAtom,
+    PeriodicAtomRef,
+    SourceReference,
+    StructureProvenance,
+    SymmetryImageProvenance,
+)
 from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
 from .occupation import SiteComponent
 from .position import AtomicPosition
@@ -31,6 +37,7 @@ __all__ = [
     "MolecularBond",
     "MolecularGroup",
     "MolecularStructure",
+    "PeriodicAtomRef",
     "SiteComponent",
     "SourceReference",
     "StructureProvenance",

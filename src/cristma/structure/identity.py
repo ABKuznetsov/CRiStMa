@@ -58,8 +58,26 @@ class ExpandedAtom:
         return self.source_site_id
 
 
+@dataclass(frozen=True, slots=True)
+class PeriodicAtomRef:
+    """Reference to one lattice-translated image of an expanded atom."""
+
+    atom_id: str
+    cell_translation: tuple[int, int, int]
+
+    def __post_init__(self) -> None:
+        if not self.atom_id:
+            raise ValueError("periodic atom reference ID must not be empty")
+        if len(self.cell_translation) != 3 or any(
+            isinstance(value, bool) or not isinstance(value, int)
+            for value in self.cell_translation
+        ):
+            raise ValueError("cell translation must contain three integers")
+
+
 __all__ = [
     "ExpandedAtom",
+    "PeriodicAtomRef",
     "SourceReference",
     "StructureProvenance",
     "SymmetryImageProvenance",

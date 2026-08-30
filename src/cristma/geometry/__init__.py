@@ -1,7 +1,14 @@
 """Independent crystallographic geometry tools."""
 
 from .finder import NeighborFinder
-from .neighbors import Neighbor, NeighborGraph, NeighborGraphLike, NeighborLike
+from .neighbors import (
+    Neighbor,
+    NeighborGraph,
+    NeighborGraphLike,
+    NeighborLike,
+    PeriodicNeighbor,
+    PeriodicNeighborGraph,
+)
 
 __all__ = [
     "Neighbor",
@@ -9,4 +16,6 @@ __all__ = [
     "NeighborGraph",
     "NeighborGraphLike",
     "NeighborLike",
+    "PeriodicNeighbor",
+    "PeriodicNeighborGraph",
 ]
