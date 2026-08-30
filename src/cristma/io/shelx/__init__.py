@@ -1,63 +1,50 @@
-"""Native SHELX source documents and structure I/O."""
+"""Native SHELX source documents and structure I/O with lazy public exports."""
 
-from .document import (
-    ShelxAtomRecord,
-    ShelxBlankRecord,
-    ShelxCommentRecord,
-    ShelxDocument,
-    ShelxInstructionRecord,
-    ShelxPhysicalLine,
-    ShelxQPeakRecord,
-    ShelxRecord,
-    ShelxSourceEdit,
-    ShelxUnknownRecord,
-)
-from .parser import parse_shelx
-from .mapper import map_shelx_structures
-from .occupancy import ShelxOccupancyExpression
-from .records import (
-    ShelxCellInstruction,
-    ShelxEndInstruction,
-    ShelxFvarInstruction,
-    ShelxHklfInstruction,
-    ShelxLattInstruction,
-    ShelxPartInstruction,
-    ShelxResiInstruction,
-    ShelxSfacInstruction,
-    ShelxSymmInstruction,
-    ShelxZerrInstruction,
-)
-from .symmetry import build_shelx_operations, parse_shelx_symmetry
-from .sfac import ShelxScatteringEntry, extract_sfac_entries
-from .writer import write_shelx_document
+from __future__ import annotations
 
-__all__ = [
-    "ShelxAtomRecord",
-    "ShelxBlankRecord",
-    "ShelxCommentRecord",
-    "ShelxDocument",
-    "ShelxInstructionRecord",
-    "ShelxPhysicalLine",
-    "ShelxQPeakRecord",
-    "ShelxRecord",
-    "ShelxSourceEdit",
-    "ShelxUnknownRecord",
-    "ShelxCellInstruction",
-    "ShelxEndInstruction",
-    "ShelxFvarInstruction",
-    "ShelxHklfInstruction",
-    "ShelxLattInstruction",
-    "ShelxOccupancyExpression",
-    "ShelxPartInstruction",
-    "ShelxResiInstruction",
-    "ShelxSfacInstruction",
-    "ShelxSymmInstruction",
-    "ShelxScatteringEntry",
-    "ShelxZerrInstruction",
-    "build_shelx_operations",
-    "extract_sfac_entries",
-    "map_shelx_structures",
-    "parse_shelx",
-    "parse_shelx_symmetry",
-    "write_shelx_document",
-]
+from importlib import import_module
+
+
+_EXPORTS = {
+    "ShelxAtomRecord": ("document", "ShelxAtomRecord"),
+    "ShelxBlankRecord": ("document", "ShelxBlankRecord"),
+    "ShelxCellInstruction": ("records", "ShelxCellInstruction"),
+    "ShelxCommentRecord": ("document", "ShelxCommentRecord"),
+    "ShelxDocument": ("document", "ShelxDocument"),
+    "ShelxEndInstruction": ("records", "ShelxEndInstruction"),
+    "ShelxFvarInstruction": ("records", "ShelxFvarInstruction"),
+    "ShelxHklfInstruction": ("records", "ShelxHklfInstruction"),
+    "ShelxInstructionRecord": ("document", "ShelxInstructionRecord"),
+    "ShelxLattInstruction": ("records", "ShelxLattInstruction"),
+    "ShelxOccupancyExpression": ("occupancy", "ShelxOccupancyExpression"),
+    "ShelxPartInstruction": ("records", "ShelxPartInstruction"),
+    "ShelxPhysicalLine": ("document", "ShelxPhysicalLine"),
+    "ShelxQPeakRecord": ("document", "ShelxQPeakRecord"),
+    "ShelxRecord": ("document", "ShelxRecord"),
+    "ShelxResiInstruction": ("records", "ShelxResiInstruction"),
+    "ShelxScatteringEntry": ("sfac", "ShelxScatteringEntry"),
+    "ShelxSfacInstruction": ("records", "ShelxSfacInstruction"),
+    "ShelxSourceEdit": ("document", "ShelxSourceEdit"),
+    "ShelxSymmInstruction": ("records", "ShelxSymmInstruction"),
+    "ShelxUnknownRecord": ("document", "ShelxUnknownRecord"),
+    "ShelxZerrInstruction": ("records", "ShelxZerrInstruction"),
+    "build_shelx_operations": ("symmetry", "build_shelx_operations"),
+    "extract_sfac_entries": ("sfac", "extract_sfac_entries"),
+    "map_shelx_structures": ("mapper", "map_shelx_structures"),
+    "parse_shelx": ("parser", "parse_shelx"),
+    "parse_shelx_symmetry": ("symmetry", "parse_shelx_symmetry"),
+    "probe_shelx": ("probe", "probe_shelx"),
+    "write_shelx_document": ("writer", "write_shelx_document"),
+}
+
+__all__ = sorted(_EXPORTS)
+
+
+def __getattr__(name: str):
+    try:
+        module_name, attribute_name = _EXPORTS[name]
+    except KeyError as error:
+        raise AttributeError(name) from error
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute_name)
+    globals()[name] = value
+    return value

@@ -61,10 +61,17 @@ def _cif_handler() -> FormatHandler:
     return CifFormatHandler()
 
 
+def _shelx_handler() -> FormatHandler:
+    from .shelx.handler import ShelxFormatHandler
+
+    return ShelxFormatHandler()
+
+
 def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
     """Return built-ins without importing their parser or mapper modules."""
 
     from .cif.probe import probe_cif
+    from .shelx.probe import probe_shelx
 
     return (
         FormatDescriptor(
@@ -75,6 +82,15 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
             probe=probe_cif,
             factory=_cif_handler,
             capabilities=FormatCapabilities(text=True, multiple=True),
+        ),
+        FormatDescriptor(
+            name="shelx",
+            aliases=("res", "ins"),
+            suffixes=(".res", ".ins"),
+            basenames=(),
+            probe=probe_shelx,
+            factory=_shelx_handler,
+            capabilities=FormatCapabilities(text=True, multiple=False),
         ),
     )
 
