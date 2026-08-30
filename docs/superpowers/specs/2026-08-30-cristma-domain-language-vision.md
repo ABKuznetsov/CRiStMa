@@ -18,27 +18,32 @@ The governing boundary is:
 > **Consumers own workflow and context. CRiStMa owns reusable
 > crystallographic concepts and calculations.**
 
-CRiStMa is installable and usable independently of Sci and any consumer.
+CRiStMa is distributed as a standalone Python package through PyPI and is
+installable with the standard Python packaging toolchain:
 
-## 2. Direction of dependencies
-
-Sci is the shared platform and distribution layer for the application family.
-CRiStMa is a separate scientific package distributed through that environment.
-
-```text
-Applications -> Sci
-Applications -> CRiStMa
-Sci          -> CRiStMa
-CRiStMa      -X-> Sci or Applications
+```bash
+pip install cristma
 ```
 
-Sci may install and pin a tested CRiStMa release for every application. This
-does not make Sci part of CRiStMa's API. CRiStMa never imports Sci, exposes Sci
-types, or assumes that Sci is installed.
+## 2. Distribution and direction of dependencies
 
-CRiStMa declares only dependencies required by its own scientific
-implementation. Sci owns the wider application environment, common dependency
-constraints, runtime validation, launchers, and deployment policy.
+CRiStMa has a public, consumer-neutral Python API. Any script, notebook,
+scientific package, desktop application, or service may depend on it directly.
+
+```text
+Python consumer       -> CRiStMa
+Optional distribution -> CRiStMa
+CRiStMa               -X-> consumers or distributions
+```
+
+Published releases use semantic versions and declare only dependencies required
+by CRiStMa's own scientific implementation. Large integrations and specialized
+format bridges are provided through optional extras or separate adapter
+packages, so the base installation remains usable on its own.
+
+Sci may install and pin a tested PyPI release for a coordinated application
+environment. This is one ordinary use of CRiStMa's public package and has no
+special status in its architecture or API.
 
 ## 3. Package shape
 
@@ -334,8 +339,8 @@ tools over the same canonical structure model. Adding `BondValenceAnalyzer`,
 require redesigning existing tools or adding methods to `CrystalStructure`.
 
 Backward-compatible public APIs are preferred. Breaking scientific semantics
-requires an explicit version boundary and migration notes. Sci pins a tested
-CRiStMa release so that downstream upgrades occur deliberately.
+requires an explicit version boundary and migration notes. Release notes state
+scientific as well as API changes so consumers can pin or upgrade deliberately.
 
 ## 14. Scientific verification
 
