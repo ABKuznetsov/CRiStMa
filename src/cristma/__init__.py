@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .core.structure import Crystal
+from .structure import CrystalStructure
 from .io.cif.document import CifDocument
 from .io.cif.handler import CifFormatHandler
 from .io.cif.writer import write_cif_document, write_crystal_cif
@@ -44,7 +44,7 @@ def read_text(
 
 
 def write(
-    value: CifDocument | Crystal,
+    value: CifDocument | CrystalStructure,
     path: str | Path,
     *,
     mode: str | None = None,
@@ -56,7 +56,7 @@ def write(
         if selected_mode != "preserve":
             raise ValueError("CifDocument write mode must be 'preserve'")
         rendered = write_cif_document(value, mode=selected_mode)
-    elif isinstance(value, Crystal):
+    elif isinstance(value, CrystalStructure):
         selected_mode = "canonical" if mode is None else mode
         if selected_mode != "canonical":
             raise ValueError("Crystal write mode must be 'canonical'")

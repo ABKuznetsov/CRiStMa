@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from cristma.io.result import ReadResult
+from cristma.structure import StructureCollection
 
 from .lexer import lex_cif
 from .mapper import map_cif_structures
@@ -42,6 +43,6 @@ class CifFormatHandler:
         structures, mapping_diagnostics = map_cif_structures(parsed.document)
         return replace(
             parsed,
-            structures=structures,
+            structures=StructureCollection.from_structures(structures),
             diagnostics=(*parsed.diagnostics, *mapping_diagnostics),
         )

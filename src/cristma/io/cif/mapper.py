@@ -10,8 +10,8 @@ import numpy as np
 
 from cristma.chemistry.elements import normalize_element
 from cristma.core.cell import UnitCell
-from cristma.core.structure import (
-    Crystal,
+from cristma.structure import (
+    CrystalStructure,
     DisplacementParameters,
     IndependentSite,
     SiteComponent,
@@ -627,10 +627,10 @@ def _metadata(block: CifBlock) -> dict[str, object]:
 
 def map_cif_structures(
     document: CifDocument,
-) -> tuple[tuple[Crystal, ...], tuple[Diagnostic, ...]]:
+) -> tuple[tuple[CrystalStructure, ...], tuple[Diagnostic, ...]]:
     """Map every structural CIF block to a canonical asymmetric-unit crystal."""
 
-    structures: list[Crystal] = []
+    structures: list[CrystalStructure] = []
     diagnostics: list[Diagnostic] = []
     for block in document.blocks:
         if not _looks_structural(block):
@@ -644,10 +644,15 @@ def map_cif_structures(
         sites = _sites(block, diagnostics)
         if sites is None:
             continue
+        structure_id = f"cif:{block.name}"
         checked_sites: list[IndependentSite] = []
         expanded_by_site = []
         for site in sites:
-            orbit = expand_orbit(site, symmetry.operations)
+            orbit = expand_orbit(
+                site,
+                symmetry.operations,
+                structure_id=structure_id,
+            )
             calculated_multiplicity = len(orbit)
             checked_site = replace(
                 site,
@@ -670,10 +675,11 @@ def map_cif_structures(
         sites = tuple(checked_sites)
         expanded = tuple(chain.from_iterable(expanded_by_site))
         structures.append(
-            Crystal(
+            CrystalStructure(
                 name=block.name,
                 cell=cell,
                 sites=sites,
+                id=structure_id,
                 space_group=symmetry,
                 formula=_scalar_text(block, names.FORMULA),
                 metadata=_metadata(block),

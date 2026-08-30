@@ -5,7 +5,7 @@ from __future__ import annotations
 from fractions import Fraction
 import re
 
-from cristma.core.structure import Crystal, IndependentSite
+from cristma.structure import CrystalStructure, IndependentSite
 from cristma.core.values import MeasuredValue
 from cristma.symmetry.affine import AffineOperation
 
@@ -125,7 +125,7 @@ def _component_labels(site: IndependentSite) -> tuple[str, ...]:
     )
 
 
-def _metadata_lines(crystal: Crystal) -> list[str]:
+def _metadata_lines(crystal: CrystalStructure) -> list[str]:
     tag_by_key = {
         "mineral_name": "_chemical_name_mineral",
         "common_name": "_chemical_name_common",
@@ -145,7 +145,7 @@ def _metadata_lines(crystal: Crystal) -> list[str]:
     ]
 
 
-def _atom_headers(crystal: Crystal) -> list[tuple[str, str]]:
+def _atom_headers(crystal: CrystalStructure) -> list[tuple[str, str]]:
     headers = [
         ("label", "_atom_site_label"),
         ("element", "_atom_site_type_symbol"),
@@ -175,7 +175,7 @@ def _atom_headers(crystal: Crystal) -> list[tuple[str, str]]:
 
 
 def _atom_rows(
-    crystal: Crystal,
+    crystal: CrystalStructure,
     headers: list[tuple[str, str]],
 ) -> list[list[str]]:
     rows: list[list[str]] = []
@@ -224,7 +224,7 @@ def _atom_rows(
     return rows
 
 
-def _anisotropic_lines(crystal: Crystal) -> list[str]:
+def _anisotropic_lines(crystal: CrystalStructure) -> list[str]:
     sites = [
         site
         for site in crystal.sites
@@ -260,7 +260,7 @@ def _anisotropic_lines(crystal: Crystal) -> list[str]:
 
 
 def write_crystal_cif(
-    crystal: Crystal,
+    crystal: CrystalStructure,
     *,
     block_name: str | None = None,
 ) -> str:

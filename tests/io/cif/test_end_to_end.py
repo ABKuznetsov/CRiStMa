@@ -23,6 +23,18 @@ def test_public_read_maps_real_inorganic_cif():
     assert result.source_info.format == "cif"
 
 
+def test_public_read_maps_user_provided_large_cod_cif():
+    result = cristma.read(FIXTURES / "cod_3000098_barium_borate.cif")
+
+    assert result.ok
+    assert len(result.structures) == 1
+    structure = result.structures[0]
+    assert structure.id == "cif:3000098"
+    assert structure.formula == "B2 Ba O4"
+    assert len(structure.sites) == 7
+    assert len(structure.expanded_sites) == 126
+
+
 def test_public_read_text_probes_cif_and_maps_structure():
     source = (FIXTURES / "lithium_triborate.cif").read_text(encoding="utf-8")
 

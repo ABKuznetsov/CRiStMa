@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from cristma.structure import Structure, StructureCollection, StructureSequence
+
 from .diagnostics import Diagnostic, Severity
 
 
@@ -22,9 +24,17 @@ class ReadResult:
     """Parsed document, mapped structures, and all emitted diagnostics."""
 
     document: object | None
-    structures: tuple[object, ...] = ()
+    structures: StructureCollection | StructureSequence | tuple[Structure, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     source_info: SourceInfo | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.structures, tuple):
+            object.__setattr__(
+                self,
+                "structures",
+                StructureCollection.from_structures(self.structures),
+            )
 
     @property
     def ok(self) -> bool:
