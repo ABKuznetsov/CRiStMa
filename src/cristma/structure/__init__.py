@@ -9,7 +9,7 @@ from .collection import (
     StructureSequence,
     StructureSeries,
 )
-from .identity import ExpandedAtomRef, ExpandedSite, SourceReference, StructureProvenance
+from .identity import ExpandedAtom, SourceReference, StructureProvenance, SymmetryImageProvenance
 from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
 from .occupation import SiteComponent
 from .properties import AtomicProperty, AtomicPropertyTable, PropertyProvenance
@@ -19,8 +19,7 @@ __all__ = [
     "Crystal",
     "CrystalStructure",
     "DisplacementParameters",
-    "ExpandedAtomRef",
-    "ExpandedSite",
+    "ExpandedAtom",
     "FrameReference",
     "IndependentSite",
     "AtomicProperty",
@@ -33,6 +32,7 @@ __all__ = [
     "SiteComponent",
     "SourceReference",
     "StructureProvenance",
+    "SymmetryImageProvenance",
     "Structure",
     "StructureCollection",
     "StructureEntry",

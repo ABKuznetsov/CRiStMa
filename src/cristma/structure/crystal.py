@@ -11,7 +11,7 @@ from cristma.chemistry.species import UnknownSpecies
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
 
-from .identity import ExpandedAtomRef, StructureProvenance
+from .identity import ExpandedAtom, StructureProvenance
 from .occupation import SiteComponent
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ class CrystalStructure:
     periodic: tuple[bool, bool, bool] = (True, True, True)
     provenance: StructureProvenance = field(default_factory=StructureProvenance)
     metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
-    expanded_sites: tuple[ExpandedAtomRef, ...] | None = field(default=None, compare=False, repr=False)
+    expanded_sites: tuple[ExpandedAtom, ...] | None = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not any(self.periodic):
@@ -131,6 +131,7 @@ class CrystalStructure:
                 for atom in expand_orbit(
                     site,
                     self.space_group.operations,
+                    cell=self.cell,
                     structure_id=self.id,
                 )
             )

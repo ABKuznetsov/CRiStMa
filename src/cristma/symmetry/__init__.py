@@ -1,12 +1,14 @@
 """Exact crystallographic symmetry and derived orbits."""
 
 from .affine import AffineOperation, parse_xyz_operation
-from .orbit import ExpandedSite, SpaceGroupDefinition, expand_orbit
+from .displacement import SymmetryConsistencyError, transform_displacement
+from .orbit import SpaceGroupDefinition, expand_orbit
 
 __all__ = [
     "AffineOperation",
-    "ExpandedSite",
     "SpaceGroupDefinition",
+    "SymmetryConsistencyError",
     "expand_orbit",
     "parse_xyz_operation",
+    "transform_displacement",
 ]

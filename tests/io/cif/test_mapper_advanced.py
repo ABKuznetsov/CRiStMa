@@ -169,3 +169,42 @@ def test_non_positive_anisotropic_tensor_is_retained_with_warning(read_fixture):
     assert "cif.map.adp_not_positive_semidefinite" in {
         item.code for item in diagnostics
     }
+
+
+def test_symmetry_inconsistent_anisotropic_tensor_rejects_cif_block() -> None:
+    source = """data_inconsistent_adp
+_cell_length_a 5
+_cell_length_b 5
+_cell_length_c 5
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+'y,x,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+X1 Si 0 0 0 1
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+X1 0.01 0.02 0.03 0 0 0
+"""
+
+    structures, diagnostics = map_cif_structures(parse_cif(source).document)
+
+    assert not structures
+    assert "cif.map.adp_symmetry_inconsistent" in {
+        item.code for item in diagnostics
+    }

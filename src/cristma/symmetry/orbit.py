@@ -6,10 +6,14 @@ from dataclasses import dataclass, replace
 import math
 from typing import Literal
 
+import numpy as np
+
+from cristma.core.cell import UnitCell
 from cristma.structure.crystal import IndependentSite
-from cristma.structure.identity import ExpandedAtomRef, ExpandedSite
+from cristma.structure.identity import ExpandedAtom, SymmetryImageProvenance
 
 from .affine import AffineOperation
+from .displacement import SymmetryConsistencyError, displacements_close, transform_displacement
 
 
 SymmetryProvenance = Literal[
@@ -70,13 +74,13 @@ def _wrap_with_translation(
     for value in raw:
         nearest = round(value)
         normalized_value = float(nearest) if math.isclose(value, nearest, abs_tol=tolerance) else value
-        translation = math.floor(normalized_value)
-        coordinate = normalized_value - translation
+        normalization_translation = -math.floor(normalized_value)
+        coordinate = normalized_value + normalization_translation
         if math.isclose(coordinate, 1.0, abs_tol=tolerance):
             coordinate = 0.0
-            translation += 1
+            normalization_translation -= 1
         wrapped.append(0.0 if math.isclose(coordinate, 0.0, abs_tol=tolerance) else coordinate)
-        translations.append(int(translation))
+        translations.append(int(normalization_translation))
     return tuple(wrapped), tuple(translations)
 
 
@@ -96,14 +100,15 @@ def expand_orbit(
     operations: tuple[AffineOperation, ...],
     tolerance: float = 1e-8,
     *,
+    cell: UnitCell,
     structure_id: str | None = None,
-) -> tuple[ExpandedSite, ...]:
+) -> tuple[ExpandedAtom, ...]:
     """Expand one independent site and merge equivalent special positions."""
 
     if tolerance <= 0:
         raise ValueError("orbit tolerance must be positive")
     coordinates = tuple(float(value.value) for value in site.fractional)
-    expanded: list[ExpandedSite] = []
+    expanded: list[ExpandedAtom] = []
 
     for index, operation in enumerate(operations, start=1):
         operation_id = operation.id or f"operation:{index}"
@@ -111,29 +116,37 @@ def expand_orbit(
             _raw_coordinates(operation, coordinates),
             tolerance,
         )
+        image = SymmetryImageProvenance(operation_id, translation)
+        displacement = transform_displacement(site.displacement, operation)
         for existing_index, existing in enumerate(expanded):
             if _periodically_equal(existing.fractional, fractional, tolerance):
+                if not displacements_close(existing.displacement, displacement, tolerance):
+                    raise SymmetryConsistencyError(
+                        f"site {site.label!r} has inconsistent anisotropic displacement "
+                        "at symmetry-equivalent images"
+                    )
                 expanded[existing_index] = replace(
                     existing,
-                    equivalent_operation_ids=(
-                        *existing.equivalent_operation_ids,
-                        operation_id,
-                    ),
+                    equivalent_images=(*existing.equivalent_images, image),
                 )
                 break
         else:
+            cartesian = tuple(float(value) for value in np.asarray(fractional) @ cell.matrix)
+            position_key = tuple(round(value / tolerance) for value in fractional)
             expanded.append(
-                ExpandedAtomRef(
+                ExpandedAtom(
                     id=(
                         f"expanded:{structure_id or 'unassigned'}:{site.id}:"
-                        f"{operation_id}:{','.join(map(str, translation))}"
+                        f"{','.join(map(str, position_key))}"
                     ),
                     structure_id=structure_id,
-                    fractional=fractional,
                     source_site_id=site.id,
-                    representative_operation_id=operation_id,
-                    equivalent_operation_ids=(operation_id,),
-                    cell_translation=translation,
+                    fractional=fractional,
+                    cartesian=cartesian,
+                    components=site.components,
+                    displacement=displacement,
+                    representative_image=image,
+                    equivalent_images=(image,),
                 )
             )
 

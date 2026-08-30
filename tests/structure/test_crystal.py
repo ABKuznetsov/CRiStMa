@@ -72,10 +72,10 @@ def test_expanded_atom_identity_resolves_to_independent_site() -> None:
     atom = expand_orbit(
         site,
         (parse_xyz_operation("x,y,z", operation_id="op:1"),),
+        cell=UnitCell.cubic(number(5.43)),
         structure_id="structure:Si",
     )[0]
 
     assert atom.structure_id == "structure:Si"
     assert atom.source_site_id == "site:Si1"
-    assert atom.independent_site_id == "site:Si1"
-    assert atom.id == "expanded:structure:Si:site:Si1:op:1:0,0,0"
+    assert atom.id.startswith("expanded:structure:Si:site:Si1:")

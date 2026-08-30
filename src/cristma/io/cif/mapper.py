@@ -19,6 +19,7 @@ from cristma.structure import (
 from cristma.core.values import MeasuredValue, parse_measured_value
 from cristma.io.diagnostics import Diagnostic, Severity
 from cristma.symmetry.affine import parse_xyz_operation
+from cristma.symmetry.displacement import SymmetryConsistencyError
 from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit
 
 from . import names
@@ -688,12 +689,25 @@ def map_cif_structures(
         structure_id = f"cif:{block.name}"
         checked_sites: list[IndependentSite] = []
         expanded_by_site = []
+        block_failed = False
         for site in sites:
-            orbit = expand_orbit(
-                site,
-                symmetry.operations,
-                structure_id=structure_id,
-            )
+            try:
+                orbit = expand_orbit(
+                    site,
+                    symmetry.operations,
+                    cell=cell,
+                    structure_id=structure_id,
+                )
+            except SymmetryConsistencyError as error:
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.ERROR,
+                        "cif.map.adp_symmetry_inconsistent",
+                        f"{block.name}: {error}",
+                    )
+                )
+                block_failed = True
+                break
             calculated_multiplicity = len(orbit)
             checked_site = replace(
                 site,
@@ -713,6 +727,8 @@ def map_cif_structures(
                 )
             checked_sites.append(checked_site)
             expanded_by_site.append(orbit)
+        if block_failed:
+            continue
         sites = tuple(checked_sites)
         expanded = tuple(chain.from_iterable(expanded_by_site))
         structures.append(

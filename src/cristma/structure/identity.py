@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .crystal import DisplacementParameters
+    from .occupation import SiteComponent
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,25 +30,37 @@ class StructureProvenance:
 
 
 @dataclass(frozen=True, slots=True)
-class ExpandedAtomRef:
-    """A symmetry-derived atom with resolvable asymmetric-unit provenance."""
+class SymmetryImageProvenance:
+    """How one symmetry operation was normalized into the reference cell."""
+
+    operation_id: str
+    normalization_translation: tuple[int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class ExpandedAtom:
+    """One finite symmetry-expanded geometric position in the reference cell."""
 
     id: str
     structure_id: str | None
-    fractional: tuple[float, float, float]
     source_site_id: str
-    representative_operation_id: str
-    equivalent_operation_ids: tuple[str, ...]
-    cell_translation: tuple[int, int, int]
+    fractional: tuple[float, float, float]
+    cartesian: tuple[float, float, float]
+    components: tuple[SiteComponent, ...]
+    displacement: DisplacementParameters | None
+    representative_image: SymmetryImageProvenance
+    equivalent_images: tuple[SymmetryImageProvenance, ...]
 
     @property
     def independent_site_id(self) -> str:
-        """Compatibility name for the source asymmetric-unit site."""
+        """Return the source asymmetric-unit site identity."""
 
         return self.source_site_id
 
 
-ExpandedSite = ExpandedAtomRef
-
-
-__all__ = ["ExpandedAtomRef", "ExpandedSite", "SourceReference", "StructureProvenance"]
+__all__ = [
+    "ExpandedAtom",
+    "SourceReference",
+    "StructureProvenance",
+    "SymmetryImageProvenance",
+]
