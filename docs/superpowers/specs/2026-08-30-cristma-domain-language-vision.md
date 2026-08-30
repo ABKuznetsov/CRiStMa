@@ -7,20 +7,18 @@ Status: canonical architectural contract
 ## 1. Mission
 
 > **CRiStMa is an independent crystallographic toolbox. It provides reusable
-> scientific data types, functions, and configurable tools. It does not own
-> application workflows, projects, samples, experimental history, or
-> orchestration.**
+> scientific data types, functions, and configurable tools. Consumer context
+> and orchestration remain outside its scientific API.**
 
-CRiStMa exists so that Finder, Rietveld Manager, Crystal Blocks, Comparison
-Manager, future single-crystal software, and third-party Python programs do not
-implement the same crystallographic mathematics independently.
+CRiStMa provides one tested implementation of reusable crystallographic
+mathematics for independent scientific software.
 
 The governing boundary is:
 
-> **Applications own workflow and context. CRiStMa owns reusable
+> **Consumers own workflow and context. CRiStMa owns reusable
 > crystallographic concepts and calculations.**
 
-CRiStMa is installable and usable without any of those applications.
+CRiStMa is installable and usable independently of Sci and any consumer.
 
 ## 2. Direction of dependencies
 
@@ -63,7 +61,7 @@ cristma
 
 The presence of one domain never makes every other domain mandatory. A powder
 calculator does not need hierarchy support. A topology analyzer does not need
-refinement. Applications import only the tools they use.
+refinement. Consumers import only the tools they use.
 
 Existing public namespaces such as `cristma.structure`, `cristma.symmetry`,
 and `cristma.io` remain stable. Package rearrangement is not required merely to
@@ -122,19 +120,11 @@ Use a tool class when an algorithm has configuration, alternative methods, or
 reusable scientific policy. Use a transform object when an operation must be
 inspected, serialized, repeated, composed, inverted, or differentiated.
 
-A tool stores configuration, not execution history:
+A tool stores inspectable configuration and remains reusable and re-entrant:
 
 ```python
 finder.get_config()
 finder.clone(tolerance=0.2)
-```
-
-It does not retain hidden application state:
-
-```text
-finder.last_result       forbidden
-finder.current_crystal   forbidden
-refiner.accepted_state   forbidden
 ```
 
 Tool classes do not require a common superclass. Consistent conventions and
@@ -164,8 +154,7 @@ recoverable source defects, approximations, excluded observations, and
 scientific warnings are represented as diagnostics.
 
 Operation provenance records the algorithm, version, settings, assumptions,
-and source-to-result mapping needed to understand the calculation. It is not a
-project audit trail or experimental-history database.
+and source-to-result mapping needed to understand the calculation.
 
 ## 7. Composition without a mandatory pipeline
 
@@ -176,7 +165,7 @@ a global pipeline such as:
 neighbors -> polyhedra -> hierarchy -> topology -> mechanics -> diffraction
 ```
 
-An application may choose that composition, skip steps, replace an
+The caller may choose that composition, skip steps, replace an
 intermediate representation, or invoke a tool independently:
 
 ```text
@@ -194,7 +183,7 @@ PolyhedronBuilder   TopologyAnalyzer
 
 A tool may require another tool's result only when that input is a real
 mathematical requirement. It depends on the result type, not on the producer
-instance or its workflow.
+instance.
 
 ## 8. Structural transforms
 
@@ -239,9 +228,9 @@ refinement parameterizations.
 
 ## 9. Hierarchy, topology, and kinematics
 
-Hierarchy and topology are reusable scientific representations, not project
-trees. They may describe polyhedra, rings, blocks, chains, layers, frameworks,
-periodic nets, dimensionality, hinges, and building units.
+Hierarchy and topology are reusable scientific representations. They may
+describe polyhedra, rings, blocks, chains, layers, frameworks, periodic nets,
+dimensionality, hinges, and building units.
 
 Structural entities resolve to canonical expanded atoms and independent sites.
 Shared atoms remain unique. Overlap and connectivity are explicit relations,
@@ -289,8 +278,7 @@ convolution belong to the powder model. Measured-HKL matching, Friedel policy,
 and single-crystal observation corrections belong to the single-crystal model.
 
 A multiphase powder request may contain local `PhaseContribution` values with
-a crystal and scale. This is calculation input, not a persistent model of a
-sample or material.
+a crystal and scale.
 
 ## 11. Refinement
 
@@ -316,10 +304,6 @@ Powder and single-crystal objectives share parameters, dependencies,
 constraints, covariance tools, and optimization helpers while retaining their
 own observation models.
 
-CRiStMa does not accept a result into a project, manage undo/redo, remember a
-scenario, schedule a series, or decide which refinement is authoritative. The
-application owns those choices.
-
 ## 12. I/O and external adapters
 
 Native readers map CIF, RES/INS, and other structure files into compact CRiStMa
@@ -328,45 +312,21 @@ round-tripping but do not discover neighboring files without an explicit
 resolver.
 
 `StructureCollection` and lazy `StructureSequence` represent finite
-multi-model documents and indexed trajectory/frame sources. They are I/O and
-data-container concepts, not application experiment-series workflows.
+multi-model documents and indexed trajectory/frame sources.
 
 Optional adapters may map to Gemmi, ASE, pymatgen, RDKit, GSAS-II, or other
-ecosystems. No external object becomes authoritative CRiStMa state, and a
-specialized adapter does not become a mandatory dependency merely because one
-application uses it.
+ecosystems. CRiStMa objects remain the canonical inputs and outputs of its
+scientific API, and every adapter remains an optional dependency.
 
-## 13. Application-owned concepts
-
-The following are outside the CRiStMa core unless a future, demonstrated,
-workflow-independent mathematical need proves otherwise:
-
-- projects and project trees;
-- samples and sample databases;
-- `StructureModel`, `StructuralState`, and `MaterialState` as research-context
-  containers;
-- phase hypotheses and accepted results;
-- `EvidenceLink` as a research-history relationship;
-- experimental narratives, corrections made by users, and audit trails;
-- application temperature/composition series and comparison slices;
-- refinement scenarios, branches, pause/accept/undo workflows;
-- Viewer selection state and display modes;
-- users, publications, reports, and UI state.
-
-Small physical value objects such as temperature, pressure, radiation, or
-measurement geometry belong in CRiStMa only when an algorithm needs their
-numerical meaning. CRiStMa does not record how an application inferred,
-corrected, approved, or stored those values.
-
-## 14. Evolution rule
+## 13. Evolution rule
 
 The inclusion test is:
 
 > **Scientific + reusable + workflow-independent = CRiStMa candidate.**
 
-A capability does not need to be used by two applications before inclusion.
-It must be a coherent crystallographic representation, transformation, or
-calculation that can stand independently of an application workflow.
+A capability does not need multiple consumers before inclusion. It must be a
+coherent crystallographic representation, transformation, or calculation with
+an independent scientific API.
 
 CRiStMa grows by adding new functions, compact data types, and independent
 tools over the same canonical structure model. Adding `BondValenceAnalyzer`,
@@ -375,9 +335,9 @@ require redesigning existing tools or adding methods to `CrystalStructure`.
 
 Backward-compatible public APIs are preferred. Breaking scientific semantics
 requires an explicit version boundary and migration notes. Sci pins a tested
-CRiStMa release so that application upgrades occur deliberately.
+CRiStMa release so that downstream upgrades occur deliberately.
 
-## 15. Scientific verification
+## 14. Scientific verification
 
 Each tool is tested independently against the strongest available reference:
 
@@ -390,9 +350,8 @@ Each tool is tested independently against the strongest available reference:
 - real structure-file fixtures with recorded provenance;
 - round-trip and installed-wheel tests for public I/O.
 
-CRiStMa tests do not import application projects. Applications separately test
-their workflows against supported CRiStMa releases.
+The test suite validates CRiStMa through its public scientific API and built
+distribution artifacts.
 
-This architecture makes CRiStMa a shared scientific toolbox rather than a
-shared application framework: one implementation of crystallographic
-mathematics, many independent ways to use it.
+This architecture provides one implementation of crystallographic mathematics
+with many independent ways to use it.
