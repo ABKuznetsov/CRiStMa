@@ -2,6 +2,7 @@
 
 from .crystal import Crystal, CrystalStructure, DisplacementParameters, IndependentSite, SiteComponent
 from .identity import ExpandedAtomRef, ExpandedSite, SourceReference, StructureProvenance
+from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
 
 __all__ = [
     "Crystal",
@@ -10,7 +11,12 @@ __all__ = [
     "ExpandedAtomRef",
     "ExpandedSite",
     "IndependentSite",
+    "MolecularAtom",
+    "MolecularBond",
+    "MolecularGroup",
+    "MolecularStructure",
     "SiteComponent",
     "SourceReference",
     "StructureProvenance",
+    "Structure",
 ]
