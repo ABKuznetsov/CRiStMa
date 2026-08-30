@@ -13,6 +13,7 @@ from .document import (
     ShelxUnknownRecord,
 )
 from .parser import parse_shelx
+from .occupancy import ShelxOccupancyExpression
 from .records import (
     ShelxCellInstruction,
     ShelxEndInstruction,
@@ -26,6 +27,7 @@ from .records import (
     ShelxZerrInstruction,
 )
 from .symmetry import build_shelx_operations, parse_shelx_symmetry
+from .sfac import ShelxScatteringEntry, extract_sfac_entries
 from .writer import write_shelx_document
 
 __all__ = [
@@ -44,12 +46,15 @@ __all__ = [
     "ShelxFvarInstruction",
     "ShelxHklfInstruction",
     "ShelxLattInstruction",
+    "ShelxOccupancyExpression",
     "ShelxPartInstruction",
     "ShelxResiInstruction",
     "ShelxSfacInstruction",
     "ShelxSymmInstruction",
+    "ShelxScatteringEntry",
     "ShelxZerrInstruction",
     "build_shelx_operations",
+    "extract_sfac_entries",
     "parse_shelx",
     "parse_shelx_symmetry",
     "write_shelx_document",
