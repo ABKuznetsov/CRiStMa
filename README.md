@@ -8,10 +8,10 @@ of application frameworks and specialized crystallographic packages.
 
 ## Canonical scientific model
 
-Every external structure format terminates at the CRiStMa I/O boundary:
+Every supported external structure format terminates at the CRiStMa I/O boundary:
 
 ```text
-CIF / RES / INS / POSCAR / QE / other structure source
+CIF / RES / INS / future registered structure source
         -> native reader and semantic mapper
         -> CrystalStructure | MolecularStructure
 ```
@@ -46,6 +46,15 @@ Applications choose their workflow; CRiStMa supplies the shared implementation.
 
 ## Native structure I/O
 
+The current native readers are:
+
+- CIF 1.1 (`.cif`), with preserving and canonical writing;
+- SHELX RES/INS (`.res`, `.ins`), with loss-preserving documents and canonical
+  writing from `CrystalStructure`.
+
+Other structural formats are added to the same registry as independent native
+readers. Applications should never implement their own suffix switch or parser.
+
 ```python
 from pathlib import Path
 
@@ -74,6 +83,29 @@ cristma.write(document, "preserved.cif", mode="preserve")
 memory_result = cristma.read_text("data_demo\n_cell_length_a 5\n", format="cif")
 ```
 
+SHELX uses the same auto-detecting read call. Canonical output requires the
+measurement wavelength explicitly because that information does not belong to
+the structure alone:
+
+```python
+from cristma.io.shelx import ShelxWriteOptions
+
+result = cristma.read("refinement.res")
+crystal = result.structures[0]
+
+# Untouched source, including comments, instructions, order, and line endings.
+cristma.write(result.document, "preserved.res", mode="preserve")
+
+# New normalized instruction file generated from the canonical structure.
+cristma.write(
+    crystal,
+    "canonical.ins",
+    format="shelx",
+    mode="canonical",
+    options=ShelxWriteOptions(wavelength=0.71073),
+)
+```
+
 `StructureCollection` represents finite multi-model files without losing the
 role of a primary or final model. Large trajectories use the same sequence
 contract through lazy `StructureSequence`: indexing loads and caches only the
@@ -85,5 +117,5 @@ Periodic `CrystalStructure` and non-periodic `MolecularStructure` remain
 distinct physical models, while both expose an immutable numerical
 `AtomicView` for diffraction, topology, visualization, and refinement code.
 
-Ordinary CIF reading and writing are implemented natively. Gemmi, pymatgen,
-PyXtal, CrysPy, GSAS-II, and Qt are not required dependencies.
+CIF and SHELX RES/INS reading and writing are implemented natively. Gemmi,
+pymatgen, PyXtal, CrysPy, GSAS-II, SHELX, and Qt are not required dependencies.
