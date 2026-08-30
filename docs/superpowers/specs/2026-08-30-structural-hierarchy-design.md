@@ -46,22 +46,25 @@ refinement.
 
 ## 3. Atom identity
 
-The hierarchy operates on expanded-atom references:
+The hierarchy operates on finite reference-cell expanded atoms:
 
 ```text
-ExpandedAtomRef
+ExpandedAtom
 |- expanded_atom_id
 |- source_site_id
-|- symmetry_operation_id
-|- cell_translation
+|- representative_image
+|- equivalent_images
 `- structure_id
 ```
 
-An expanded atom is derived from one independent site and one exact symmetry
-operation plus an integer cell translation. Human-readable atom labels are not
-used as unique identity.
+An expanded atom is derived from one independent site and one or more exact
+symmetry images normalized into the reference cell. Human-readable atom labels
+are not used as unique identity. A lattice-translated image used by a periodic
+contact is represented separately by `PeriodicAtomRef`.
 
-All structural entities resolve to sets of `ExpandedAtomRef`. No entity owns a
+private copy of an atom or its coordinate.
+All structural entities resolve to sets of `ExpandedAtom`. No entity owns a
+private copy of an atom or its coordinate.
 private copy of an atom or its coordinate.
 
 ## 4. PeriodicNeighborGraph
@@ -300,7 +303,7 @@ The inverse analysis path groups the same atom references upward:
 
 ```text
 IndependentSite
--> ExpandedAtomRef
+-> ExpandedAtom
 -> PolyhedralEntity
 -> StructuralEntity
 -> hierarchy relations

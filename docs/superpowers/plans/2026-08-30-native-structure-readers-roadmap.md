@@ -53,6 +53,17 @@ packages do not depend on topology and do not attempt structural grouping.
 
 ## Reader-branch completion gate
 
+After the SHELX reader is implemented, its Structure Core integration gate is:
+
+```bash
+pytest tests/io/shelx tests/integration/test_structure_core_shelx.py -q
+```
+
+`test_structure_core_shelx.py` must read `tests/fixtures/shelx/zdk288.res`,
+obtain a canonical structure, call `expand_structure()`, construct its neighbor
+graph, and run `CoordinationAnalyzer`. It is added with the SHELX implementation,
+not as a skipped placeholder in the current CIF-backed milestone.
+
 The branch is ready to finish only when:
 
 - all twelve sub-projects have reviewable commits;

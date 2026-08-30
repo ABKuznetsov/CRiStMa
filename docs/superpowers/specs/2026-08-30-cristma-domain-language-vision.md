@@ -77,7 +77,7 @@ Examples include:
 ```text
 CrystalStructure
 IndependentSite
-ExpandedAtomRef
+ExpandedAtom
 AtomicView
 PeriodicNeighborGraph
 PolyhedralEntity
