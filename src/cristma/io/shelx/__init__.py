@@ -13,6 +13,7 @@ from .document import (
     ShelxUnknownRecord,
 )
 from .parser import parse_shelx
+from .mapper import map_shelx_structures
 from .occupancy import ShelxOccupancyExpression
 from .records import (
     ShelxCellInstruction,
@@ -55,6 +56,7 @@ __all__ = [
     "ShelxZerrInstruction",
     "build_shelx_operations",
     "extract_sfac_entries",
+    "map_shelx_structures",
     "parse_shelx",
     "parse_shelx_symmetry",
     "write_shelx_document",

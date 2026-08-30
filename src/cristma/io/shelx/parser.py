@@ -222,12 +222,18 @@ def parse_shelx(source: str, source_name: str | None = None) -> ReadResult:
             indices.append(indices[-1] + 1)
         logical, inline_comment = _logical_text(lines, tuple(indices))
         tokens = logical.split()
-        keyword = tokens[0].upper() if tokens else None
+        raw_keyword = tokens[0] if tokens else None
+        keyword = raw_keyword.upper() if raw_keyword is not None else None
         fields = tuple(tokens[1:])
         record_class = _record_type(keyword, fields)
+        stored_keyword = (
+            keyword
+            if record_class in {ShelxInstructionRecord, ShelxCommentRecord}
+            else raw_keyword
+        )
         span = SourceSpan(lines[indices[0]].span.start, lines[indices[-1]].span.end)
         record = record_class(
-            keyword=keyword,
+            keyword=stored_keyword,
             fields=fields,
             physical_line_indices=tuple(indices),
             span=span,
