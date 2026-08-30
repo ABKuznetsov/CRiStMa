@@ -34,8 +34,8 @@ class SiteComponent:
     def __post_init__(self) -> None:
         object.__setattr__(self, "species", as_species(self.species))
         occupancy = self.occupancy.value
-        if occupancy is None or not math.isfinite(occupancy) or occupancy < 0:
-            raise ValueError("site component occupancy must be finite and non-negative")
+        if occupancy is None or not math.isfinite(occupancy) or not 0 <= occupancy <= 1:
+            raise ValueError("site component occupancy must lie between zero and one")
         object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
 
     @property
@@ -74,17 +74,24 @@ class IndependentSite:
             raise ValueError("site id and label must not be empty")
         if not self.components:
             raise ValueError("site must contain at least one component")
-        occupancy = math.fsum(
-            float(component.occupancy.value)
-            for component in self.components
-            if component.occupancy.value is not None
-        )
-        if occupancy > 1.0 + 1e-6:
-            raise ValueError(f"site occupancy exceeds one: {occupancy}")
+        if self.total_occupancy > 1.0 + 1e-12:
+            raise ValueError(f"site occupancy exceeds one: {self.total_occupancy}")
         for coordinate in self.fractional:
             if coordinate.value is None or not math.isfinite(coordinate.value):
                 raise ValueError("fractional coordinate must be finite")
         object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
+
+    @property
+    def total_occupancy(self) -> float:
+        """Return the total chemical occupation of this geometric position."""
+
+        return math.fsum(float(component.occupancy.value) for component in self.components)
+
+    @property
+    def vacancy_fraction(self) -> float:
+        """Return the unoccupied fraction without creating a vacancy atom."""
+
+        return max(0.0, 1.0 - self.total_occupancy)
 
 
 @dataclass(frozen=True, slots=True)

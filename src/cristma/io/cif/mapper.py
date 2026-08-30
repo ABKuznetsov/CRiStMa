@@ -260,10 +260,28 @@ def _can_merge_mixed(group: list[IndependentSite], candidate: IndependentSite) -
     return explicit_disorder or matching_identity
 
 
+def _same_explicit_disorder_model(
+    group: list[IndependentSite],
+    candidate: IndependentSite,
+) -> bool:
+    sites = [*group, candidate]
+    assemblies = {site.disorder_assembly for site in sites}
+    groups = {site.disorder_group for site in sites}
+    return None not in assemblies and len(assemblies) == 1 and len(groups) == 1
+
+
+def _combined_occupancy(group: list[IndependentSite], candidate: IndependentSite) -> float:
+    return math.fsum(
+        float(component.occupancy.value)
+        for site in (*group, candidate)
+        for component in site.components
+    )
+
+
 def _merge_coincident_sites(
     sites: tuple[IndependentSite, ...],
     diagnostics: list[Diagnostic],
-) -> tuple[IndependentSite, ...]:
+) -> tuple[IndependentSite, ...] | None:
     consumed: set[int] = set()
     merged: list[IndependentSite] = []
     for index, site in enumerate(sites):
@@ -276,6 +294,18 @@ def _merge_coincident_sites(
             candidate = sites[candidate_index]
             if not _coincident(site, candidate):
                 continue
+            if (
+                _same_explicit_disorder_model(group, candidate)
+                and _combined_occupancy(group, candidate) > 1.0 + 1e-12
+            ):
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.ERROR,
+                        "cif.map.occupancy_total_exceeds_one",
+                        "Explicit disorder components have total occupancy above one",
+                    )
+                )
+                return None
             if _can_merge_mixed(group, candidate):
                 group.append(candidate)
                 consumed.add(candidate_index)
@@ -524,6 +554,17 @@ def _sites(
                         Severity.ERROR,
                         "cif.map.occupancy_missing",
                         f"Occupancy is unknown for {label}",
+                        occupancy_token.span,
+                    )
+                )
+                block_failed = True
+                continue
+            if occupancy.value > 1:
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.ERROR,
+                        "cif.map.occupancy_total_exceeds_one",
+                        f"Occupancy exceeds one for {label}: {occupancy.value}",
                         occupancy_token.span,
                     )
                 )

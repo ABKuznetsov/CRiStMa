@@ -1,3 +1,5 @@
+import pytest
+
 from cristma.chemistry.species import ElementSpecies
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
@@ -8,6 +10,26 @@ from cristma.symmetry.orbit import expand_orbit
 
 def number(value: float) -> MeasuredValue:
     return MeasuredValue(value, None, str(value))
+
+
+def test_component_occupancy_above_one_is_invalid() -> None:
+    with pytest.raises(ValueError, match="occupancy must lie between zero and one"):
+        SiteComponent("Ca", number(1.01))
+
+
+def test_site_reports_total_occupancy_and_vacancy_fraction() -> None:
+    site = IndependentSite(
+        id="site:M1",
+        label="M1",
+        components=(
+            SiteComponent("Ca", number(0.6)),
+            SiteComponent("Sr", number(0.2)),
+        ),
+        fractional=(number(0), number(0), number(0)),
+    )
+
+    assert site.total_occupancy == pytest.approx(0.8)
+    assert site.vacancy_fraction == pytest.approx(0.2)
 
 
 def test_public_crystal_name_and_compatibility_alias() -> None:

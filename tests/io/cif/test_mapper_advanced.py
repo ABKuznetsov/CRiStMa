@@ -2,6 +2,71 @@ from cristma.io.cif.mapper import map_cif_structures
 from cristma.io.cif.parser import parse_cif
 
 
+def _single_site_cif(occupancy: float) -> str:
+    return f"""data_a
+_cell_length_a 5
+_cell_length_b 5
+_cell_length_c 5
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+Ca1 Ca 0 0 0 {occupancy}
+"""
+
+
+def test_source_occupancy_above_one_rejects_canonical_structure() -> None:
+    structures, diagnostics = map_cif_structures(
+        parse_cif(_single_site_cif(1.2)).document
+    )
+
+    assert not structures
+    assert "cif.map.occupancy_total_exceeds_one" in {
+        item.code for item in diagnostics
+    }
+
+
+def test_explicit_disorder_total_above_one_rejects_canonical_structure() -> None:
+    source = """data_a
+_cell_length_a 5
+_cell_length_b 5
+_cell_length_c 5
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_disorder_assembly
+_atom_site_disorder_group
+Ca1 Ca 0 0 0 0.7 A 1
+Sr1 Sr 0 0 0 0.6 A 1
+"""
+
+    structures, diagnostics = map_cif_structures(parse_cif(source).document)
+
+    assert not structures
+    assert "cif.map.occupancy_total_exceeds_one" in {
+        item.code for item in diagnostics
+    }
+
+
 def test_complementary_disorder_rows_form_one_mixed_site(read_fixture):
     result = read_fixture("mixed_disorder.cif")
 
