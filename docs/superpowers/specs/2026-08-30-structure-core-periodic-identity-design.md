@@ -367,7 +367,9 @@ a calculation are represented by structured calculation diagnostics.
 At minimum, diagnostics cover:
 
 - invalid or non-invertible cells encountered in source data;
-- source occupancy totals above one (`OCCUPANCY_TOTAL_EXCEEDS_ONE`);
+- source occupancy totals above one
+  (`cif.map.occupancy_total_exceeds_one`, or the corresponding reader-specific
+  namespaced code);
 - incomplete or fallback symmetry;
 - positions merged within the selected tolerance;
 - ambiguous atom identity after canonicalization;
