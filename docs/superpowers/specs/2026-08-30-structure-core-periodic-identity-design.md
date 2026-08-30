@@ -186,23 +186,50 @@ The same reference type may be used by neighbor graphs, polyhedra, supercell
 views, and visualization without inserting periodic copies into the canonical
 structure or atomic view.
 
-## 5. AtomicView
+## 5. AtomicPosition and AtomicView
 
-`AtomicView` is the finite, immutable, numerical representation of one
-structure at a chosen expansion policy:
+`AtomicPosition` is a minimal structural-typing capability, not a shared
+scientific base class:
 
-```text
-AtomicView
-|- atoms: tuple[ExpandedAtom, ...]
-|- fractional: ndarray[n, 3]
-|- cartesian: ndarray[n, 3]
-|- cell: UnitCell | None
-`- periodic: tuple[bool, bool, bool]
+```python
+class AtomicPosition(Protocol):
+    id: str
+    cartesian: tuple[float, float, float]
+    components: tuple[SiteComponent, ...]
 ```
 
-The arrays are read-only and row-aligned with `atoms`. A crystalline view
-contains the unique symmetry-expanded positions of the reference cell only.
-Periodic images are produced on demand through `PeriodicAtomRef`.
+`ExpandedAtom` and `MolecularAtom` satisfy this protocol as independent
+scientific types. `ExpandedAtom` additionally provides fractional coordinates,
+source-site identity, displacement, and symmetry provenance. A normal
+`MolecularAtom` has one component with occupancy one; the representation also
+permits a molecular position with a richer occupation model.
+
+`AtomicView` is the finite, immutable, numerical representation of one
+structure at a chosen expansion policy. It is generic in the concrete atomic
+position type so specialized consumers retain that type:
+
+```python
+TAtom = TypeVar("TAtom", bound=AtomicPosition)
+
+@dataclass(frozen=True)
+class AtomicView(Generic[TAtom]):
+    atoms: tuple[TAtom, ...]
+    cartesian: NDArray
+    fractional: NDArray | None
+    cell: UnitCell | None
+    periodic: tuple[bool, bool, bool]
+```
+
+Cartesian coordinates are always present. Fractional coordinates are present
+only when physically meaningful. A cell is present only for a cell-based
+representation. Every periodic axis requires both a cell and fractional
+coordinates. Partial periodicity such as `(True, True, False)` is valid.
+
+The arrays are read-only and row-aligned with `atoms`.
+`AtomicView[ExpandedAtom]` contains the unique symmetry-expanded positions of
+the reference cell only; periodic images are produced on demand through
+`PeriodicAtomRef`. `AtomicView[MolecularAtom]` normally has no cell or
+fractional coordinates and has periodicity `(False, False, False)`.
 
 `UnitCell` remains the single scientific representation of a cell. Numerical
 algorithms use a read-only matrix exposed by the cell or by an explicit
@@ -220,7 +247,22 @@ An `AtomicView` may still carry additional row-aligned `AtomicPropertyTable`
 data. Such derived properties do not replace canonical identity, coordinates,
 components, or displacement information.
 
-## 6. Periodic neighbors
+## 6. Non-periodic and periodic neighbors
+
+Non-periodic geometry uses a finite graph with direct atom-to-atom edges:
+
+```text
+Neighbor
+|- source_atom_id
+|- target_atom_id
+|- distance
+`- vector_cartesian
+
+NeighborGraph
+|- atoms
+|- neighbors_by_atom
+`- diagnostics
+```
 
 `PeriodicNeighbor` describes a directed relation from an atom in the reference
 cell to an image of a target atom:
@@ -256,20 +298,29 @@ The graph preserves periodic self-neighbors when scientifically valid. Edge
 identity includes the target atom and target cell translation, so two images of
 the same reference-cell atom remain distinct neighbors.
 
+`NeighborGraph` and `PeriodicNeighborGraph` remain distinct result types; a
+nullable translation field is not used to collapse their semantics. Shared
+consumers may accept a small `NeighborGraphLike[TAtom]` protocol exposing the
+atom collection and neighbor lookup without hiding specialized periodic data.
+
 ## 7. NeighborFinder and coordination
 
-The initial configurable tool is:
+The initial configurable tool supports both finite and periodic views:
 
 ```python
-graph = NeighborFinder(
-    cutoff=3.0,
-).find(view)
+mol_graph = NeighborFinder(cutoff=2.0).find(molecular_view)
+# NeighborGraph[MolecularAtom]
+
+xtal_graph = NeighborFinder(cutoff=3.0).find(crystal_view)
+# PeriodicNeighborGraph[ExpandedAtom]
 ```
 
-It accepts a finite `AtomicView`, enumerates the lattice translations required
-by the selected search policy, and returns a `PeriodicNeighborGraph`.
-Configuration is stored by the finder; calculation state is returned
-explicitly.
+For a view with no periodic axes, `NeighborFinder.find()` returns a
+`NeighborGraph`. For a view with at least one periodic axis, it returns a
+`PeriodicNeighborGraph` and requires a cell and fractional coordinates. Static
+typing exposes these alternatives through overloads where the concrete view
+type makes the result knowable. Configuration is stored by the finder;
+calculation state is returned explicitly.
 
 For a distance cutoff, translation enumeration is mathematically complete for
 every valid unit cell, including highly skewed triclinic cells. Bounds are
@@ -281,9 +332,9 @@ The first implementation provides an exact distance-cutoff method. Chemistry-
 dependent policies such as covalent radii and bond-valence selection are added
 as independent policies after the periodic geometry is verified.
 
-`CoordinationAnalyzer` consumes an atomic view and periodic neighbor graph and
-returns explicit `CoordinationEnvironment` results. Geometric coordination is
-computed per position. Chemical interpretations may inspect all
+`CoordinationAnalyzer` consumes an atomic view and a `NeighborGraphLike` result
+and returns explicit `CoordinationEnvironment` results. Geometric coordination
+is computed per position. Chemical interpretations may inspect all
 `SiteComponent` values and report weighted component contributions without
 altering graph topology.
 
@@ -341,6 +392,9 @@ The milestone is complete when tests establish:
 - split positions remain distinct;
 - occupancy totals and vacancy fractions obey their invariants;
 - Cartesian and fractional coordinates agree with the unit-cell matrix;
+- generic atomic views preserve the concrete `ExpandedAtom` or `MolecularAtom`
+  type;
+- molecular views produce a finite `NeighborGraph` without periodic metadata;
 - periodic references resolve to the correct translated coordinates;
 - graph edges have correct reverse vectors and translations;
 - boundary-crossing neighbors are found without duplicating graph nodes;
