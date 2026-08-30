@@ -5,6 +5,12 @@ from cristma.io.diagnostics import (
     SourceSpan,
 )
 from cristma.io.result import ReadResult, SourceInfo
+from cristma.diagnostics import Diagnostic as SharedDiagnostic
+from cristma.io import Diagnostic as IoDiagnostic
+
+
+def test_io_reexports_shared_diagnostic_type() -> None:
+    assert IoDiagnostic is SharedDiagnostic
 
 
 def test_diagnostic_carries_stable_code_and_source_span():
