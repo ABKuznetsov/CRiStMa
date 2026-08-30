@@ -1,6 +1,14 @@
 """Stable public structure models shared by CRiStMa applications."""
 
 from .crystal import Crystal, CrystalStructure, DisplacementParameters, IndependentSite, SiteComponent
+from .collection import (
+    FrameReference,
+    StructureCollection,
+    StructureEntry,
+    StructureRole,
+    StructureSequence,
+    StructureSeries,
+)
 from .identity import ExpandedAtomRef, ExpandedSite, SourceReference, StructureProvenance
 from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
 from .properties import AtomicProperty, AtomicPropertyTable, PropertyProvenance
@@ -12,6 +20,7 @@ __all__ = [
     "DisplacementParameters",
     "ExpandedAtomRef",
     "ExpandedSite",
+    "FrameReference",
     "IndependentSite",
     "AtomicProperty",
     "AtomicPropertyTable",
@@ -24,5 +33,10 @@ __all__ = [
     "SourceReference",
     "StructureProvenance",
     "Structure",
+    "StructureCollection",
+    "StructureEntry",
+    "StructureRole",
+    "StructureSequence",
+    "StructureSeries",
     "PropertyProvenance",
 ]
