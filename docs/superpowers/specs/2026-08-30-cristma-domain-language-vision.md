@@ -31,19 +31,14 @@ CRiStMa has a public, consumer-neutral Python API. Any script, notebook,
 scientific package, desktop application, or service may depend on it directly.
 
 ```text
-Python consumer       -> CRiStMa
-Optional distribution -> CRiStMa
-CRiStMa               -X-> consumers or distributions
+Python consumer -> CRiStMa
+CRiStMa         -X-> consumer
 ```
 
 Published releases use semantic versions and declare only dependencies required
 by CRiStMa's own scientific implementation. Large integrations and specialized
 format bridges are provided through optional extras or separate adapter
 packages, so the base installation remains usable on its own.
-
-Sci may install and pin a tested PyPI release for a coordinated application
-environment. This is one ordinary use of CRiStMa's public package and has no
-special status in its architecture or API.
 
 ## 3. Package shape
 
