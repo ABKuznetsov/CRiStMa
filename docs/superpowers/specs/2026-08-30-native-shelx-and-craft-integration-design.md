@@ -8,9 +8,14 @@ Status: proposed for implementation
 
 CRiStMa will provide a native, Qt-free SHELX RES/INS subsystem that reads,
 preserves, interprets, and writes structural documents without Gemmi,
-pymatgen, SHELX, or application code. CRAFT will consume only the read side:
-RES/INS files become canonical CRiStMa `CrystalStructure` objects and then use
-the same temporary CRAFT compatibility projection as CIF.
+pymatgen, SHELX, or application code. CRiStMa is the scientific calculation
+backend: it owns scientific models, calculations, and typed results. CRAFT is a
+presentation client: it requests calculations and displays their results.
+
+CRAFT will consume only the SHELX read side in this slice. RES/INS files become
+canonical CRiStMa `CrystalStructure` objects and then use the same temporary
+CRAFT compatibility projection as CIF until the viewer consumes CRiStMa result
+objects directly.
 
 The subsystem is library functionality, not a CRAFT editing feature. Preserve
 and canonical writing exist for future Builder, Organica, refinement, and other
@@ -34,9 +39,9 @@ This slice includes:
 - read-only RES/INS integration in CRAFT;
 - analytic, malformed, round-trip, and real-file verification.
 
-This slice does not migrate polyhedron, block, comparison, or topology
-algorithms. Those remain separate roadmap stages after structural file inputs
-share one stable canonical model.
+This slice does not yet migrate polyhedron, block, comparison, or topology
+calculations. Those belong to CRiStMa and remain separate roadmap stages after
+structural file inputs share one stable canonical model.
 
 ## 3. Boundaries
 
@@ -52,7 +57,7 @@ ShelxMapper                   scientific interpretation
         v
 CrystalStructure             canonical CRiStMa structure
         |
-        +----> CRAFT adapter -> current viewer/analysis model
+        +----> temporary CRAFT adapter -> viewer presentation model
         |
         `----> future CRiStMa geometry/hierarchy/comparison tools
 ```
@@ -60,6 +65,20 @@ CrystalStructure             canonical CRiStMa structure
 CRiStMa does not import CRAFT, Sci, Qt, Gemmi, pymatgen, or SHELX. CRAFT
 depends directly on CRiStMa. Sci may install compatible packages but does not
 participate in application logic.
+
+The ownership contract is:
+
+| CRiStMa owns | CRAFT owns |
+| --- | --- |
+| structure and derived scientific entities | windows, panels, tables, and 3D actors |
+| parsing, normalization, and validation | file-selection and interaction workflow |
+| neighbors, coordination, polyhedra, and blocks | visibility, colours, camera, and selection |
+| topology, matching, comparison, and mechanics calculations | presentation of typed results |
+| scientific diagnostics and provenance | user-facing formatting of diagnostics |
+
+CRAFT must not develop a second scientific implementation when a CRiStMa tool
+exists. Temporary compatibility code is migration scaffolding, not a permanent
+domain layer.
 
 ## 4. Document model
 
@@ -260,14 +279,14 @@ warnings or information only when they do not alter the scientific structure.
 
 ## 8. CRAFT integration
 
-CRAFT uses the SHELX subsystem only as a reader:
+CRAFT uses the SHELX subsystem only as a reader in this slice:
 
 ```text
 .res/.ins
    -> cristma.read
    -> canonical CrystalStructure
-   -> existing CRiStMa-to-CRAFT compatibility projection
-   -> viewer and current analysis
+   -> temporary CRiStMa-to-CRAFT compatibility projection
+   -> viewer presentation and currently unmigrated calculations
 ```
 
 The private `_load_shelx` route becomes unreachable and is removed after
@@ -278,6 +297,12 @@ Source diagnostics appear through the existing CRAFT document-warning path.
 The canonical CRiStMa structure and `ShelxDocument` provenance remain available
 to future applications even though the current CRAFT compatibility model uses
 only the fields required for display and analysis.
+
+This does not make CRAFT the owner of structure analysis. Existing CRAFT
+polyhedron, block, topology, and comparison implementations are migration
+sources. As corresponding CRiStMa tools become available, CRAFT replaces those
+calculations with calls returning typed CRiStMa results and retains only their
+visual presentation.
 
 ## 9. Verification
 
@@ -321,7 +346,7 @@ The slice is complete when:
 
 ## 11. Subsequent CRiStMa roadmap
 
-After SHELX and the reader branch establish stable canonical inputs, reusable
+After SHELX and the reader branch establish stable canonical inputs, scientific
 crystal-chemistry processing moves from CRAFT into CRiStMa in this order:
 
 1. `PolyhedronBuilder` and typed polyhedron results;
@@ -330,7 +355,8 @@ crystal-chemistry processing moves from CRAFT into CRiStMa in this order:
 4. `StructureComparator` and typed `ComparisonResult`;
 5. optional kinematic and series analysis over matched entities.
 
-CRiStMa owns comparison calculations and scientific descriptors. CRAFT keeps
-the comparison table UI, colours, filters, exports, selection state, and links
-between table rows and 3D objects.
-
+CRiStMa owns comparison calculations, scientific descriptors, uncertainty, and
+typed comparison results. CRAFT keeps the comparison table UI, colours,
+filters, presentation exports, selection state, and links between table rows
+and 3D objects. The same rule applies to every later calculation: CRiStMa
+computes; CRAFT displays and orchestrates user interaction.
