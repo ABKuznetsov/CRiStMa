@@ -6,14 +6,14 @@ from pathlib import Path
 
 from .structure import CrystalStructure
 from .io.cif.document import CifDocument
-from .io.cif.handler import CifFormatHandler
 from .io.cif.writer import write_cif_document, write_crystal_cif
+from .io.formats import builtin_format_descriptors
 from .io.registry import FormatRegistry
 from .io.result import ReadResult
 
 __version__ = "0.1.0"
 
-_formats = FormatRegistry((CifFormatHandler(),))
+_formats = FormatRegistry(builtin_format_descriptors())
 
 
 def read(path: str | Path, *, format: str | None = None) -> ReadResult:

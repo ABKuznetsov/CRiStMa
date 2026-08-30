@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from cristma.io.formats import FormatCapabilities, FormatDescriptor
 from cristma.io.registry import FormatRegistry
 from cristma.io.result import ReadResult
 
@@ -52,3 +53,41 @@ def test_registry_reports_latin1_decoding_fallback(tmp_path: Path):
     assert result.source_info.encoding == "latin-1"
     assert result.source_info.newline == "\r\n"
     assert "io.encoding_fallback" in {item.code for item in result.diagnostics}
+
+
+def test_special_basename_beats_uninformative_suffix_without_loading_handler():
+    loaded = []
+    descriptor = FormatDescriptor(
+        name="vasp",
+        aliases=("poscar",),
+        suffixes=(),
+        basenames=("POSCAR", "CONTCAR"),
+        probe=lambda source: 0.0,
+        factory=lambda: loaded.append(True),
+        capabilities=FormatCapabilities(text=True),
+    )
+    registry = FormatRegistry((descriptor,))
+
+    selected = registry.select("title", basename="POSCAR")
+
+    assert selected.name == "vasp"
+    assert loaded == []
+
+
+def test_handler_factory_runs_only_when_selected_reader_is_used():
+    loaded = []
+    handler = StubHandler()
+    descriptor = FormatDescriptor(
+        name="stub",
+        aliases=(),
+        suffixes=(".stub",),
+        basenames=(),
+        probe=handler.probe,
+        factory=lambda: loaded.append(handler) or handler,
+        capabilities=FormatCapabilities(text=True),
+    )
+    registry = FormatRegistry((descriptor,))
+
+    assert loaded == []
+    assert registry.read_text("STUB value") == (None, "STUB value")
+    assert loaded == [handler]
