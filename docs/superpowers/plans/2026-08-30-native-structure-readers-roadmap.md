@@ -46,6 +46,11 @@ first sub-project. They do not import one another. Shared lexical utilities may
 be promoted into `cristma.io.text` only when two implemented readers require
 the same behavior and focused tests prove the shared contract.
 
+The later topology subsystem defined in
+`docs/superpowers/specs/2026-08-30-structural-hierarchy-design.md` depends on
+stable site/atom identity and provenance produced by these readers. Reader
+packages do not depend on topology and do not attempt structural grouping.
+
 ## Reader-branch completion gate
 
 The branch is ready to finish only when:

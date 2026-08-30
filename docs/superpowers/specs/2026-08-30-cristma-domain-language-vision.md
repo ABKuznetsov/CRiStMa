@@ -133,13 +133,19 @@ CrystalStructure
 -> CoordinationEnvironments
 -> Polyhedra
 -> StructuralUnits
--> RigidBlocks
+-> CandidateStructuralBlocks
 -> Layers / chains / rings / hinges
 ```
 
 Each derived object retains identifiers of the source atoms/sites. Structural
 blocks and polyhedra therefore remain connected to refinement parameters and
 visual selections.
+
+The detailed upward and downward structural contract is defined in
+`2026-08-30-structural-hierarchy-design.md`. Its central rule is that a
+structural hierarchy is a DAG/hypergraph rather than a strict tree: shared
+atoms occur once, overlapping entities are explicit, and every entity resolves
+back to the same expanded-atom and independent-site identities.
 
 ## 6. Measurement and profile domain
 
@@ -243,8 +249,9 @@ underlying atoms:
 structural blocks -> polyhedra -> independent atoms
 ```
 
-Rigid blocks and polyhedra are implemented as parameterizations and
-dependencies between stable atom/site identities, not duplicated structures.
+Selected entity-level and polyhedral coordinate systems are implemented as
+parameterizations and dependencies between stable atom/site identities, not
+duplicated structures. Grouping an entity does not itself assert rigidity.
 
 ## 9. Application roles
 
