@@ -214,8 +214,6 @@ TAtom = TypeVar("TAtom", bound=AtomicPosition)
 @dataclass(frozen=True)
 class AtomicView(Generic[TAtom]):
     atoms: tuple[TAtom, ...]
-    cartesian: NDArray
-    fractional: NDArray | None
     cell: UnitCell | None
     periodic: tuple[bool, bool, bool]
 ```
@@ -230,6 +228,11 @@ The arrays are read-only and row-aligned with `atoms`.
 the reference cell only; periodic images are produced on demand through
 `PeriodicAtomRef`. `AtomicView[MolecularAtom]` normally has no cell or
 fractional coordinates and has periodicity `(False, False, False)`.
+
+Atomic row objects are the coordinate source of truth. `AtomicView` derives its
+read-only Cartesian and, when available, fractional arrays from `atoms` during
+construction. Callers do not provide independent coordinate arrays that could
+disagree with the atomic rows.
 
 `UnitCell` remains the single scientific representation of a cell. Numerical
 algorithms use a read-only matrix exposed by the cell or by an explicit
@@ -308,10 +311,10 @@ atom collection and neighbor lookup without hiding specialized periodic data.
 The initial configurable tool supports both finite and periodic views:
 
 ```python
-mol_graph = NeighborFinder(cutoff=2.0).find(molecular_view)
+mol_graph = NeighborFinder(cutoff=2.0, tolerance=1e-12).find(molecular_view)
 # NeighborGraph[MolecularAtom]
 
-xtal_graph = NeighborFinder(cutoff=3.0).find(crystal_view)
+xtal_graph = NeighborFinder(cutoff=3.0, tolerance=1e-12).find(crystal_view)
 # PeriodicNeighborGraph[ExpandedAtom]
 ```
 
@@ -321,6 +324,10 @@ For a view with no periodic axes, `NeighborFinder.find()` returns a
 typing exposes these alternatives through overloads where the concrete view
 type makes the result knowable. Configuration is stored by the finder;
 calculation state is returned explicitly.
+
+`tolerance` is an explicit scientific policy. `NeighborFinder.get_config()`
+returns both values, and `clone(**changes)` creates a new finder without
+mutating the original.
 
 For a distance cutoff, translation enumeration is mathematically complete for
 every valid unit cell, including highly skewed triclinic cells. Bounds are
@@ -367,7 +374,10 @@ a calculation are represented by structured calculation diagnostics.
 At minimum, diagnostics cover:
 
 - invalid or non-invertible cells encountered in source data;
-- source occupancy totals above one
+- individual source occupancies outside `[0, 1]`
+  (`cif.map.occupancy_out_of_range`, or the corresponding reader-specific
+  namespaced code);
+- combined source occupation models above one
   (`cif.map.occupancy_total_exceeds_one`, or the corresponding reader-specific
   namespaced code);
 - incomplete or fallback symmetry;

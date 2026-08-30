@@ -28,6 +28,7 @@
 **New scientific modules**
 
 - `src/cristma/diagnostics.py`: shared diagnostic severity, source location, and diagnostic value types.
+- `src/cristma/structure/occupation.py`: shared chemical occupation components.
 - `src/cristma/structure/position.py`: minimal `AtomicPosition` capability protocol.
 - `src/cristma/symmetry/displacement.py`: symmetry transformation and consistency comparison for ADPs.
 - `src/cristma/geometry/neighbors.py`: finite/periodic neighbor references, edges, graphs, and shared protocols.
@@ -62,7 +63,10 @@
 ### Task 1: Enforce occupation invariants and development-version status
 
 **Files:**
+- Create: `src/cristma/structure/occupation.py`
 - Modify: `src/cristma/structure/crystal.py`
+- Modify: `src/cristma/structure/molecular.py`
+- Modify: `src/cristma/structure/__init__.py`
 - Modify: `src/cristma/io/cif/mapper.py`
 - Modify: `tests/structure/test_crystal.py`
 - Modify: `tests/io/cif/test_mapper_advanced.py`
@@ -72,7 +76,7 @@
 
 **Interfaces:**
 - Consumes: existing `MeasuredValue`, `SiteComponent`, `IndependentSite`, `Diagnostic`, and `ReadResult` contracts.
-- Produces: strict component/total occupancy validation, `IndependentSite.total_occupancy`, `IndependentSite.vacancy_fraction`, diagnostic code `cif.map.occupancy_total_exceeds_one`, and version `0.1.0.dev0`.
+- Produces: shared `SiteComponent`, strict component/total occupancy validation, `IndependentSite.total_occupancy`, `IndependentSite.vacancy_fraction`, diagnostic codes `cif.map.occupancy_out_of_range` and `cif.map.occupancy_total_exceeds_one`, and version `0.1.0.dev0`.
 
 - [ ] **Step 1: Write failing model tests**
 
@@ -98,6 +102,10 @@ def test_site_reports_total_occupancy_and_vacancy_fraction() -> None:
     assert site.total_occupancy == pytest.approx(0.8)
     assert site.vacancy_fraction == pytest.approx(0.2)
 ```
+
+Add an import-contract test proving `SiteComponent` is defined by
+`cristma.structure.occupation` and re-exported unchanged by
+`cristma.structure`.
 
 - [ ] **Step 2: Run the model tests and verify failure**
 
@@ -131,14 +139,15 @@ Add to `tests/io/cif/test_mapper_advanced.py` a complete one-site CIF with `_ato
 structures, diagnostics = map_cif_structures(parse_cif(source).document)
 
 assert not structures
-assert "cif.map.occupancy_total_exceeds_one" in {
+assert "cif.map.occupancy_out_of_range" in {
     item.code for item in diagnostics
 }
 ```
 
-Add a second source with two coincident rows in the same explicit disorder
+Add a source with occupancy `-0.2` and assert the same
+`cif.map.occupancy_out_of_range` code. Add a third source with two coincident rows in the same explicit disorder
 assembly/group and occupancies `0.7` and `0.6`. Assert that the block also
-produces no structure and emits the same diagnostic code.
+produces no structure and emits `cif.map.occupancy_total_exceeds_one`.
 
 - [ ] **Step 5: Run the reader test and verify failure**
 
@@ -152,7 +161,11 @@ Expected: FAIL because the mapper currently emits only `cif.map.site_invalid`.
 
 - [ ] **Step 6: Map invalid source occupancy to the specific diagnostic**
 
-In `_sites()` in `src/cristma/io/cif/mapper.py`, detect a parsed occupancy outside `[0, 1]`, append an error `Diagnostic` with code `cif.map.occupancy_total_exceeds_one`, mark the block failed, and skip canonical site construction. Preserve the token span and reported value in the message.
+Move `SiteComponent` unchanged from `crystal.py` to
+`structure/occupation.py`; import it from both crystal and molecular modules and
+re-export it from `cristma.structure`.
+
+In `_sites()` in `src/cristma/io/cif/mapper.py`, detect a parsed occupancy outside `[0, 1]`, append an error `Diagnostic` with code `cif.map.occupancy_out_of_range`, mark the block failed, and skip canonical site construction. Preserve the token span and reported value in the message.
 
 Change `_merge_coincident_sites()` to return `None` when rows explicitly marked
 as one disorder assembly/group have a combined occupancy above one. Emit
@@ -190,7 +203,7 @@ Expected: PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add pyproject.toml src/cristma/__init__.py src/cristma/structure/crystal.py src/cristma/io/cif/mapper.py tests/structure/test_crystal.py tests/io/cif/test_mapper_advanced.py tests/test_public_api.py
+git add pyproject.toml src/cristma/__init__.py src/cristma/structure/occupation.py src/cristma/structure/crystal.py src/cristma/structure/molecular.py src/cristma/structure/__init__.py src/cristma/io/cif/mapper.py tests/structure/test_crystal.py tests/io/cif/test_mapper_advanced.py tests/test_public_api.py
 git commit -m "feat: enforce structure occupation invariants"
 ```
 
@@ -460,14 +473,18 @@ In `src/cristma/structure/view.py`, define `TAtom = TypeVar("TAtom", bound=Atomi
 
 ```python
 atoms: tuple[TAtom, ...]
-cartesian: np.ndarray
-fractional: np.ndarray | None
 cell: UnitCell | None
 periodic: tuple[bool, bool, bool]
 properties: AtomicPropertyTable
 ```
 
-Validate row counts, uniqueness of atom IDs, finite coordinates, and the cell/fractional requirement for periodic axes. Remove the parallel `ids`, `species`, and `source_site_ids` fields. Provide read-only compatibility properties only when they are mathematically unambiguous:
+In `__post_init__`, derive the read-only Cartesian array from
+`atom.cartesian`. Derive the fractional array only when every atom provides a
+fractional position; otherwise set it to `None`. Validate uniqueness of atom
+IDs, finite coordinates, and the cell/fractional requirement for periodic
+axes. Remove the parallel constructor inputs `ids`, `species`,
+`source_site_ids`, `cartesian`, and `fractional`. Provide read-only properties
+only when they are mathematically unambiguous:
 
 ```python
 @property
@@ -546,7 +563,7 @@ git commit -m "feat: add generic atomic views"
 
 **Interfaces:**
 - Consumes: `AtomicPosition`, `AtomicView[TAtom]`, and read-only Cartesian arrays.
-- Produces: `Neighbor`, `NeighborGraph[TAtom]`, `NeighborLike`, `NeighborGraphLike[TAtom, TNeighbor]`, and configurable `NeighborFinder(cutoff)`.
+- Produces: `Neighbor`, `NeighborGraph[TAtom]`, `NeighborLike`, `NeighborGraphLike[TAtom, TNeighbor]`, and configurable `NeighborFinder(cutoff, tolerance=1e-12)`.
 
 - [ ] **Step 1: Write failing finite-neighbor tests**
 
@@ -573,6 +590,16 @@ def test_finite_cutoff_graph_contains_two_directed_edges() -> None:
 def test_finite_graph_rejects_nonpositive_cutoff() -> None:
     with pytest.raises(ValueError, match="cutoff must be positive"):
         NeighborFinder(cutoff=0.0)
+
+
+def test_finder_configuration_is_inspectable_and_clone_is_immutable() -> None:
+    finder = NeighborFinder(cutoff=3.0, tolerance=1e-12)
+
+    clone = finder.clone(cutoff=2.5)
+
+    assert finder.get_config() == {"cutoff": 3.0, "tolerance": 1e-12}
+    assert clone.get_config() == {"cutoff": 2.5, "tolerance": 1e-12}
+    assert finder.cutoff == 3.0
 ```
 
 Also test deterministic neighbor ordering by `(distance, target_atom_id)` and
@@ -619,7 +646,14 @@ Define `NeighborLike` with `source_atom_id`, `target_atom_id`, `distance`, and `
 
 - [ ] **Step 5: Implement exact finite cutoff enumeration**
 
-In `src/cristma/geometry/finder.py`, validate the cutoff, branch on `any(view.periodic)`, and initially implement the non-periodic branch with all unordered atom pairs. Emit two directed `Neighbor` edges per accepted pair, with opposite vectors. Sort each adjacency tuple by `(distance, target_atom_id)`. For distinct IDs separated by at most the numerical tolerance, emit one `geometry.coincident_positions` warning and no edge.
+In `src/cristma/geometry/finder.py`, validate positive finite `cutoff` and
+`tolerance`. Implement `get_config()` and `clone(**changes)` directly on the
+frozen tool-class without introducing a superclass. Branch on
+`any(view.periodic)` and initially implement the non-periodic branch with all
+unordered atom pairs. Emit two directed `Neighbor` edges per accepted pair,
+with opposite vectors. Sort each adjacency tuple by `(distance,
+target_atom_id)`. For distinct IDs separated by at most `self.tolerance`, emit
+one `geometry.coincident_positions` warning and no edge.
 
 - [ ] **Step 6: Run finite geometry tests**
 
@@ -653,6 +687,12 @@ git commit -m "feat: add finite neighbor graphs"
 **Interfaces:**
 - Consumes: `AtomicView[ExpandedAtom]`, `UnitCell.matrix`, and finite graph interfaces from Task 4.
 - Produces: `PeriodicAtomRef`, `PeriodicNeighbor`, `PeriodicNeighborGraph[TAtom]`, and the periodic overload of `NeighborFinder.find()`.
+
+Add concrete overloads for
+`AtomicView[MolecularAtom] -> NeighborGraph[MolecularAtom]` and
+`AtomicView[ExpandedAtom] -> PeriodicNeighborGraph[ExpandedAtom]`, followed by
+the union implementation signature. Runtime dispatch remains based on
+`view.periodic`.
 
 - [ ] **Step 1: Write failing periodic identity and boundary tests**
 

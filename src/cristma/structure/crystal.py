@@ -7,11 +7,12 @@ import math
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping
 
-from cristma.chemistry.species import ChemicalSpecies, UnknownSpecies, as_species
+from cristma.chemistry.species import UnknownSpecies
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
 
 from .identity import ExpandedAtomRef, StructureProvenance
+from .occupation import SiteComponent
 
 if TYPE_CHECKING:
     from cristma.symmetry.orbit import SpaceGroupDefinition
@@ -20,27 +21,6 @@ if TYPE_CHECKING:
 
 def _frozen_metadata(values: Mapping[str, object]) -> Mapping[str, object]:
     return MappingProxyType(dict(values))
-
-
-@dataclass(frozen=True, slots=True)
-class SiteComponent:
-    """One chemical component occupying a crystallographic position."""
-
-    species: ChemicalSpecies | str
-    occupancy: MeasuredValue
-    oxidation_state: MeasuredValue | None = None
-    metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "species", as_species(self.species))
-        occupancy = self.occupancy.value
-        if occupancy is None or not math.isfinite(occupancy) or not 0 <= occupancy <= 1:
-            raise ValueError("site component occupancy must lie between zero and one")
-        object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
-
-    @property
-    def element(self) -> str | None:
-        return self.species.element
 
 
 @dataclass(frozen=True, slots=True)

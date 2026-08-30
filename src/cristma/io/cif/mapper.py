@@ -559,12 +559,12 @@ def _sites(
                 )
                 block_failed = True
                 continue
-            if occupancy.value > 1:
+            if not 0 <= occupancy.value <= 1:
                 diagnostics.append(
                     Diagnostic(
                         Severity.ERROR,
-                        "cif.map.occupancy_total_exceeds_one",
-                        f"Occupancy exceeds one for {label}: {occupancy.value}",
+                        "cif.map.occupancy_out_of_range",
+                        f"Occupancy is outside [0, 1] for {label}: {occupancy.value}",
                         occupancy_token.span,
                     )
                 )

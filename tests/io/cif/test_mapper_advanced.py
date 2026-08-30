@@ -30,7 +30,18 @@ def test_source_occupancy_above_one_rejects_canonical_structure() -> None:
     )
 
     assert not structures
-    assert "cif.map.occupancy_total_exceeds_one" in {
+    assert "cif.map.occupancy_out_of_range" in {
+        item.code for item in diagnostics
+    }
+
+
+def test_source_negative_occupancy_rejects_canonical_structure() -> None:
+    structures, diagnostics = map_cif_structures(
+        parse_cif(_single_site_cif(-0.2)).document
+    )
+
+    assert not structures
+    assert "cif.map.occupancy_out_of_range" in {
         item.code for item in diagnostics
     }
 

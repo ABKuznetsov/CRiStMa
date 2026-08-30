@@ -32,6 +32,10 @@ def test_site_reports_total_occupancy_and_vacancy_fraction() -> None:
     assert site.vacancy_fraction == pytest.approx(0.2)
 
 
+def test_site_component_is_owned_by_shared_occupation_module() -> None:
+    assert SiteComponent.__module__ == "cristma.structure.occupation"
+
+
 def test_public_crystal_name_and_compatibility_alias() -> None:
     site = IndependentSite(
         id="site:Si1",
