@@ -1,4 +1,5 @@
 from cristma import __version__
+from cristma.io.shelx import ShelxDocument, ShelxOccupancyExpression, ShelxWriteOptions
 from cristma.geometry import CoordinationAnalyzer, NeighborFinder, PeriodicNeighborGraph
 from cristma.structure import AtomicView, ExpandedAtom, PeriodicAtomRef
 from cristma.symmetry import SymmetryImageProvenance, expand_structure
@@ -12,3 +13,7 @@ def test_structure_core_subpackages_export_intended_types() -> None:
     assert AtomicView and ExpandedAtom and PeriodicAtomRef
     assert SymmetryImageProvenance and expand_structure
     assert NeighborFinder and PeriodicNeighborGraph and CoordinationAnalyzer
+
+
+def test_shelx_package_exports_intended_format_controls() -> None:
+    assert ShelxDocument and ShelxOccupancyExpression and ShelxWriteOptions

@@ -375,6 +375,7 @@ def map_shelx_structures(
         ),
         metadata={
             "shelx_title": raw_title,
+            "shelx_free_variables": free_variables,
             "shelx_formula_units": (
                 None if zerr is None else zerr.formula_units.value
             ),

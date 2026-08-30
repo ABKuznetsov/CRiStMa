@@ -30,11 +30,14 @@ _EXPORTS = {
     "ShelxZerrInstruction": ("records", "ShelxZerrInstruction"),
     "build_shelx_operations": ("symmetry", "build_shelx_operations"),
     "extract_sfac_entries": ("sfac", "extract_sfac_entries"),
+    "format_shelx_symmetry": ("symmetry", "format_shelx_symmetry"),
     "map_shelx_structures": ("mapper", "map_shelx_structures"),
     "parse_shelx": ("parser", "parse_shelx"),
     "parse_shelx_symmetry": ("symmetry", "parse_shelx_symmetry"),
     "probe_shelx": ("probe", "probe_shelx"),
     "write_shelx_document": ("writer", "write_shelx_document"),
+    "ShelxWriteOptions": ("writer", "ShelxWriteOptions"),
+    "write_crystal_shelx": ("writer", "write_crystal_shelx"),
 }
 
 __all__ = sorted(_EXPORTS)

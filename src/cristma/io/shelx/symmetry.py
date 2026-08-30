@@ -60,7 +60,9 @@ def _component_text(row: tuple[Fraction, Fraction, Fraction], offset: Fraction) 
     return "".join(pieces) or "0"
 
 
-def _source(operation: AffineOperation) -> str:
+def format_shelx_symmetry(operation: AffineOperation) -> str:
+    """Render one exact affine operation as a SHELX ``SYMM`` expression."""
+
     return ",".join(
         _component_text(row, offset)
         for row, offset in zip(operation.rotation, operation.translation, strict=True)
@@ -119,9 +121,17 @@ def build_shelx_operations(
             seen.add(key)
             unique.append(candidate)
     return tuple(
-        replace(operation, source=_source(operation), id=f"shelx:op:{index}")
+        replace(
+            operation,
+            source=format_shelx_symmetry(operation),
+            id=f"shelx:op:{index}",
+        )
         for index, operation in enumerate(unique, start=1)
     )
 
 
-__all__ = ["build_shelx_operations", "parse_shelx_symmetry"]
+__all__ = [
+    "build_shelx_operations",
+    "format_shelx_symmetry",
+    "parse_shelx_symmetry",
+]
