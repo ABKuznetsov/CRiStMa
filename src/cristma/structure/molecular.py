@@ -5,11 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import math
 from types import MappingProxyType
-from typing import Mapping, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Mapping, Protocol, runtime_checkable
 
 from cristma.chemistry.species import ChemicalSpecies, as_species
 
 from .identity import StructureProvenance
+
+if TYPE_CHECKING:
+    from .view import AtomicView
 
 
 def _frozen_metadata(values: Mapping[str, object]) -> Mapping[str, object]:
@@ -23,6 +26,8 @@ class Structure(Protocol):
     name: str
     periodic: tuple[bool, bool, bool]
     provenance: StructureProvenance
+
+    def atomic_view(self, *, expanded: bool = True) -> AtomicView: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +129,30 @@ class MolecularStructure:
     @property
     def cell(self) -> None:
         return None
+
+    def atomic_view(self, *, expanded: bool = True) -> AtomicView:
+        """Expose molecule atoms through the shared numerical structure view."""
+
+        import numpy as np
+
+        from .properties import AtomicProperty, AtomicPropertyTable
+        from .view import AtomicView
+
+        coordinates = np.array([atom.cartesian for atom in self.atoms], dtype=float).reshape((-1, 3))
+        properties = AtomicPropertyTable(
+            len(self.atoms),
+            (AtomicProperty("occupancy", np.array([atom.occupancy for atom in self.atoms])),),
+        )
+        return AtomicView(
+            ids=tuple(atom.id for atom in self.atoms),
+            species=tuple(atom.species for atom in self.atoms),
+            cartesian=coordinates,
+            fractional=None,
+            cell=None,
+            periodic=self.periodic,
+            properties=properties,
+            source_site_ids=(None,) * len(self.atoms),
+        )
 
 
 __all__ = [

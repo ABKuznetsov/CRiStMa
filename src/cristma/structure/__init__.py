@@ -3,6 +3,8 @@
 from .crystal import Crystal, CrystalStructure, DisplacementParameters, IndependentSite, SiteComponent
 from .identity import ExpandedAtomRef, ExpandedSite, SourceReference, StructureProvenance
 from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
+from .properties import AtomicProperty, AtomicPropertyTable, PropertyProvenance
+from .view import AtomicView
 
 __all__ = [
     "Crystal",
@@ -11,6 +13,9 @@ __all__ = [
     "ExpandedAtomRef",
     "ExpandedSite",
     "IndependentSite",
+    "AtomicProperty",
+    "AtomicPropertyTable",
+    "AtomicView",
     "MolecularAtom",
     "MolecularBond",
     "MolecularGroup",
@@ -19,4 +24,5 @@ __all__ = [
     "SourceReference",
     "StructureProvenance",
     "Structure",
+    "PropertyProvenance",
 ]

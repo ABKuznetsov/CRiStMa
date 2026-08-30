@@ -7,7 +7,7 @@ import math
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping
 
-from cristma.chemistry.species import ChemicalSpecies, as_species
+from cristma.chemistry.species import ChemicalSpecies, UnknownSpecies, as_species
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
 
@@ -15,6 +15,7 @@ from .identity import ExpandedAtomRef, StructureProvenance
 
 if TYPE_CHECKING:
     from cristma.symmetry.orbit import SpaceGroupDefinition
+    from .view import AtomicView
 
 
 def _frozen_metadata(values: Mapping[str, object]) -> Mapping[str, object]:
@@ -124,6 +125,71 @@ class CrystalStructure:
             provenance="unreported_identity",
         )
         return cls(name, cell, sites, space_group=space_group, **kwargs)
+
+    def atomic_view(self, *, expanded: bool = True) -> AtomicView:
+        """Expose independent or symmetry-expanded sites as numerical rows."""
+
+        import numpy as np
+
+        from .properties import AtomicProperty, AtomicPropertyTable
+        from .view import AtomicView
+
+        derived = self.expanded_sites
+        if expanded and derived is None and self.space_group is not None:
+            from cristma.symmetry.orbit import expand_orbit
+
+            derived = tuple(
+                atom
+                for site in self.sites
+                for atom in expand_orbit(
+                    site,
+                    self.space_group.operations,
+                    structure_id=self.id,
+                )
+            )
+
+        sites_by_id = {site.id: site for site in self.sites}
+        if expanded and derived is not None:
+            ids = tuple(atom.id for atom in derived)
+            source_site_ids = tuple(atom.source_site_id for atom in derived)
+            fractional_rows = tuple(atom.fractional for atom in derived)
+            row_sites = tuple(sites_by_id[source_id] for source_id in source_site_ids)
+        else:
+            ids = tuple(site.id for site in self.sites)
+            source_site_ids = ids
+            fractional_rows = tuple(
+                tuple(float(value.value) for value in site.fractional)
+                for site in self.sites
+            )
+            row_sites = self.sites
+
+        species = tuple(
+            site.components[0].species
+            if len(site.components) == 1
+            else UnknownSpecies(
+                f"mixed:{site.id}",
+                source_label="+".join(component.species.label for component in site.components),
+            )
+            for site in row_sites
+        )
+        fractional = np.array(fractional_rows, dtype=float).reshape((-1, 3))
+        cell = self.cell.matrix
+        site_components = np.empty(len(row_sites), dtype=object)
+        site_components[:] = tuple(site.components for site in row_sites)
+        properties = AtomicPropertyTable(
+            len(row_sites),
+            (AtomicProperty("site_components", site_components),),
+        )
+        return AtomicView(
+            ids=ids,
+            species=species,
+            cartesian=fractional @ cell,
+            fractional=fractional,
+            cell=cell,
+            periodic=self.periodic,
+            properties=properties,
+            source_site_ids=source_site_ids,
+        )
 
 
 Crystal = CrystalStructure
