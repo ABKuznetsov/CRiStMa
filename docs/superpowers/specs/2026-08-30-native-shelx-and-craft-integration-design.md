@@ -72,7 +72,7 @@ CRiStMa does not import CRAFT, Sci, Qt, Gemmi, pymatgen, or SHELX. CRAFT
 depends directly on CRiStMa. Sci may install compatible packages but does not
 participate in application logic.
 
-The canonical input invariant is:
+The canonical internal-model invariant is:
 
 ```text
 CIF / RES / INS / POSCAR / PDB / XYZ
@@ -107,6 +107,18 @@ cristma.read(...) or cristma.read_text(...)
 CrystalStructure | MolecularStructure
 ```
 
+These are canonical scientific models, not canonical file formats. Once a
+source is mapped, its format may affect provenance and later export but must not
+affect symmetry, geometry, crystal chemistry, diffraction, hierarchy, topology,
+or refinement mathematics. Derived views/results never replace the canonical
+structure as the source of truth.
+
+CRiStMa tools receive canonical objects and explicit derived inputs as
+arguments and return explicit results. They do not retain a current structure,
+last result, application cache, or workflow session. Applications own result
+reuse and invalidation; for example CRAFT may retain one calculated neighbor
+graph and pass it to coordination and polyhedron tools.
+
 The ownership contract is:
 
 | CRiStMa provides | CRAFT owns |
@@ -116,6 +128,11 @@ The ownership contract is:
 | neighbors, coordination, polyhedra, and blocks | visibility, colours, camera, and selection |
 | per-structure topology and reusable geometry calculators | cross-structure matching and comparison |
 | scientific diagnostics and provenance | interpretation and presentation of results |
+
+This table separates ownership, not access. CRAFT, Finder, Rietveld Manager,
+and future consumers may use any public CRiStMa geometry, chemistry, hierarchy,
+topology, diffraction, refinement, transform, analysis, or I/O tool. CRiStMa
+does not maintain per-application capability sets.
 
 CRiStMa tools are independent and do not know which application calls them or
 why. CRAFT composes the tools needed for its own workflow. It must not develop a

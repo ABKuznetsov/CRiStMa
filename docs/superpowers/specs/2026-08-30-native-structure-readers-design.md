@@ -41,7 +41,8 @@ settings, and electronic results remain uninterpreted source records.
 ## 2. Design principles
 
 1. Scientific meaning is not guessed silently.
-2. Source syntax and canonical scientific state are separate objects.
+2. Source syntax and the canonical internal scientific model are separate
+   objects. File-specific representations terminate at the I/O boundary.
 3. Periodic crystals and non-periodic molecules share an atomic interface but
    are not forced into one physically false representation.
 4. The asymmetric unit remains primary when the source reports symmetry.
@@ -75,6 +76,11 @@ model:
 
 The important CRiStMa addition is that every successful import retains both
 the format document and the canonical scientific model.
+
+`CrystalStructure` and `MolecularStructure` are the only canonical scientific
+inputs produced by structure readers. Format documents support provenance,
+diagnostics, and format-preserving output; scientific calculators must not
+branch on them or consume their records as structural state.
 
 ## 4. Public structure API
 
@@ -237,7 +243,7 @@ semantics for diagnostics and future preserve-mode writing.
 
 Each format package owns a lazily imported handler descriptor containing:
 
-- canonical format name and aliases;
+- primary registry name and aliases;
 - suffix patterns and special basenames;
 - content probe;
 - text/binary and compression capabilities;

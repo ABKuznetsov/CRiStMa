@@ -16,6 +16,7 @@
 - [ ] Follow strict TDD: add one focused failing test, run it to observe the intended failure, implement the smallest scientific behavior, rerun the focused test.
 - [ ] Preserve exact source text in preserve mode, including CRLF, blank lines, continuations, unknown records, and records after `END`.
 - [ ] Keep CRiStMa independent of CRAFT, Sci, Qt, Gemmi, pymatgen, and SHELX executables.
+- [ ] Treat `ShelxDocument` as I/O provenance only. Every scientific calculation in this slice must consume the mapped `CrystalStructure` or a typed result derived from it, never SHELX records.
 - [ ] Do not model refinement/restraint instructions as canonical constraints in this slice.
 - [ ] Keep version `0.1.0.dev0` and build only an internal wheel; do not publish to PyPI in this plan. Public release waits for proven use by CRAFT and Finder.
 - [ ] Run only focused tests within tasks. Run the complete CRiStMa suite once at the final gate.
@@ -262,6 +263,8 @@ assert result.ok
 assert len(view.atoms) > len(crystal.sites)
 assert coordination.environments
 ```
+
+- [ ] Add a paired CIF/SHELX fixture for the same small crystal and assert equivalent canonical cell/sites, expanded positions, and neighbor distances within declared parsing precision. This proves that source format no longer selects the geometry mathematics.
 
 - [ ] Run `pytest tests/io/shelx/test_real_fixture.py tests/integration/test_structure_core_shelx.py -q`.
 - [ ] If a failure appears, add the smallest analytic regression test beside the responsible module before changing implementation.

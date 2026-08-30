@@ -23,6 +23,15 @@ structural format, including structural payloads extracted from an application
 container. No application-specific structural parser, mapper, writer, or
 format registry is permitted outside CRiStMa.
 
+`CrystalStructure` and `MolecularStructure` are canonical internal scientific
+models, not formats. Format documents terminate at the I/O boundary and are
+retained only for provenance, diagnostics, and format-aware writing. Scientific
+tools consume canonical structures and derived typed results, never parser
+records.
+
+Tools do not retain a current structure or last result. Consumer code owns the
+canonical input, explicit derived results, their reuse, and cache invalidation.
+
 | Order | Sub-project | Deliverable | Required focused verification |
 | --- | --- | --- | --- |
 | 1 | Structure model and reader infrastructure | `cristma.structure`, species, atomic properties, collections/sequences, source resolver, lazy registry | `tests/chemistry tests/structure tests/io/test_registry.py tests/io/test_result.py tests/io/test_source.py tests/io/cif` |
@@ -89,4 +98,7 @@ The branch is ready to finish only when:
 - the built wheel imports from a clean environment;
 - wheel metadata has no mandatory ASE, Gemmi, pymatgen, RDKit, Open Babel,
   CrysPy, GSAS-II, or Qt dependency;
+- paired fixtures that describe the same structure in two different formats
+  yield equivalent canonical cells/sites and equivalent symmetry, neighbor, and
+  structure-factor results within declared numeric tolerances;
 - `git status --short` is empty.

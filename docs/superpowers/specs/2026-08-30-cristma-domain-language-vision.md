@@ -63,6 +63,17 @@ The presence of one domain never makes every other domain mandatory. A powder
 calculator does not need hierarchy support. A topology analyzer does not need
 refinement. Consumers import only the tools they use.
 
+Domains are not assigned to particular applications. Finder is not restricted
+to diffraction, CRAFT is not restricted to geometry, and Rietveld software is
+not restricted to refinement. Any consumer may compose any public CRiStMa
+function or tool whose scientific contract fits its task. Adding a new public
+tool makes it available to every consumer without an application-specific
+registration step or a library change for that consumer.
+
+> **CRiStMa does not distribute capabilities among applications. It provides a
+> common scientific toolbox; each consumer selects and orchestrates the tools
+> it needs.**
+
 Existing public namespaces such as `cristma.structure`, `cristma.symmetry`,
 and `cristma.io` remain stable. Package rearrangement is not required merely to
 match the conceptual diagram.
@@ -100,8 +111,9 @@ tree.
 Scientific behavior lives in independent functions and tools:
 
 ```python
-neighbors = NeighborFinder(method="bond_valence").find(crystal)
-polyhedra = PolyhedronBuilder().build(crystal, neighbors.graph)
+view = expand_structure(crystal)
+neighbors = NeighborFinder(method="bond_valence").find(view)
+polyhedra = PolyhedronBuilder().build(view, neighbors)
 hierarchy = HierarchyBuilder().build(crystal)
 topology = TopologyAnalyzer().analyze(crystal)
 profile = PowderCalculator(radiation="CuKa").calculate(crystal, experiment)
@@ -126,6 +138,18 @@ A tool stores inspectable configuration and remains reusable and re-entrant:
 finder.get_config()
 finder.clone(tolerance=0.2)
 ```
+
+A tool never stores the current structure, last result, or an implicit
+scientific session:
+
+```text
+caller-owned input + tool configuration -> explicit result
+```
+
+The caller owns calculation order, reuse, invalidation, and caching of
+`AtomicView`, neighbor graphs, polyhedra, profiles, and other results. Reusing a
+previous `PeriodicNeighborGraph` is an explicit argument passed to the next
+tool, not hidden state shared between tool instances.
 
 Tool classes do not require a common superclass. Consistent conventions and
 small protocols are sufficient.
@@ -155,6 +179,22 @@ scientific warnings are represented as diagnostics.
 
 Operation provenance records the algorithm, version, settings, assumptions,
 and source-to-result mapping needed to understand the calculation.
+
+The forbidden session-style API is:
+
+```python
+cristma.load("sample.cif")
+cristma.current_structure
+cristma.find_neighbors()
+```
+
+The supported style keeps ownership visible:
+
+```python
+crystal = cristma.read("sample.cif").structures[0]
+view = expand_structure(crystal)
+graph = NeighborFinder(cutoff=3.0).find(view)
+```
 
 ## 7. Composition without a mandatory pipeline
 
@@ -317,6 +357,43 @@ multi-model documents and indexed trajectory/frame sources.
 Optional adapters may map to Gemmi, ASE, pymatgen, RDKit, GSAS-II, or other
 ecosystems. CRiStMa objects remain the canonical inputs and outputs of its
 scientific API, and every adapter remains an optional dependency.
+
+### Canonical scientific input invariant
+
+`CrystalStructure` and `MolecularStructure` are canonical internal scientific
+models, not canonical file formats. Every format-specific representation ends
+at the I/O mapper:
+
+```text
+CIF / RES / INS / POSCAR / QE / other source
+        -> format document
+        -> semantic mapper
+        -> CrystalStructure | MolecularStructure
+```
+
+After successful mapping, source format does not select or alter scientific
+mathematics. Two canonical objects representing the same structure must produce
+equivalent results from symmetry, geometry, bond-valence, diffraction, and
+other structure-based tools regardless of whether they originated in CIF,
+SHELX, POSCAR, or another source.
+
+Derived representations retain provenance back to the canonical structure but
+never become an alternative source of truth:
+
+```text
+CrystalStructure
+        -> AtomicView
+        -> PeriodicNeighborGraph
+        -> PolyhedronSet / StructuralHierarchy / TopologyResult
+```
+
+Refinement has no separate Rietveld-specific structure. A parameterization
+produces a new `CrystalStructure`, and the same forward calculators evaluate
+that structure.
+
+> **`CrystalStructure` / `MolecularStructure` are the canonical scientific
+> inputs for all structure-based calculations. File-specific representations
+> terminate at the I/O boundary.**
 
 ## 13. Evolution rule
 

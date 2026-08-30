@@ -17,7 +17,10 @@
 - [ ] CRAFT may special-case application project containers such as XPFF, but never a scientific structure format.
 - [ ] When XPFF contains embedded structural text, CRAFT may extract it but must pass it to `cristma.read_text`; it must not parse that payload itself.
 - [ ] Do not add format-specific parsing, occupancy, symmetry, chemistry, or normalization logic to CRAFT.
+- [ ] CRAFT calculations receive only canonical `CrystalStructure`/`MolecularStructure` objects or typed CRiStMa results. `source_document` is opaque provenance and must never select scientific behavior.
+- [ ] CRAFT owns the lifetime and cache invalidation of `AtomicView`, neighbor, coordination, polyhedron, and later calculation results. CRiStMa tools retain configuration only and never become an application session.
 - [ ] A newly registered CRiStMa structure format must become loadable without editing CRAFT's loader dispatch or supported-extension constants.
+- [ ] Do not create a CRAFT-specific CRiStMa facade that hides other public tools. CRAFT imports whichever independent CRiStMa functions/classes its workflow needs.
 - [ ] Run focused tests per task and the complete CRAFT suite once at the final gate.
 
 ---
