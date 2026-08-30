@@ -12,6 +12,17 @@ changed, it receives a focused implementation plan in this directory. During a
 sub-project only its tests and the previously established CRiStMa contracts are
 run. The complete CRiStMa suite and wheel audit run only at the final gate.
 
+Every completed reader registers itself in the same lazy `FormatRegistry` and
+maps into canonical `CrystalStructure` or `MolecularStructure`. Applications
+must not add a corresponding reader branch. A new registered format is exposed
+through CRiStMa's descriptor API and becomes available to generic application
+loaders without application parser or dispatch changes.
+
+Hard contract: applications own project/container formats; CRiStMa owns every
+structural format, including structural payloads extracted from an application
+container. No application-specific structural parser, mapper, writer, or
+format registry is permitted outside CRiStMa.
+
 | Order | Sub-project | Deliverable | Required focused verification |
 | --- | --- | --- | --- |
 | 1 | Structure model and reader infrastructure | `cristma.structure`, species, atomic properties, collections/sequences, source resolver, lazy registry | `tests/chemistry tests/structure tests/io/test_registry.py tests/io/test_result.py tests/io/test_source.py tests/io/cif` |
@@ -26,6 +37,11 @@ run. The complete CRiStMa suite and wheel audit run only at the final gate.
 | 10 | PDB and PDBx/mmCIF | Models, hierarchy, altloc, cell/symmetry, bonds | `tests/io/pdb tests/io/cif/test_mmcif_mapper.py tests/structure` |
 | 11 | MOL/SDF | V2000/V3000 documents, bonds, properties, multiple records | `tests/io/mol tests/structure` |
 | 12 | Reader matrix | Real fixture provenance, detection matrix, built-wheel and dependency audit | `pytest -q` plus clean wheel checks |
+
+The CRAFT universal cutover may occur after rows 2, 3, 9, and 10 are complete,
+because those rows plus CIF cover every structure format CRAFT currently
+advertises. The remaining scientific formats continue to land horizontally in
+CRiStMa and require no new CRAFT loader branches.
 
 ## Dependency order
 
