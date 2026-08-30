@@ -8,14 +8,15 @@ Status: proposed for implementation
 
 CRiStMa will provide a native, Qt-free SHELX RES/INS subsystem that reads,
 preserves, interprets, and writes structural documents without Gemmi,
-pymatgen, SHELX, or application code. CRiStMa is the scientific calculation
-backend: it owns scientific models, calculations, and typed results. CRAFT is a
-presentation client: it requests calculations and displays their results.
+pymatgen, SHELX, or application code. CRiStMa is an independent toolbox of
+reusable crystallographic data types, readers, writers, transformations, and
+calculators. It does not own application workflows or interpretations.
 
 CRAFT will consume only the SHELX read side in this slice. RES/INS files become
 canonical CRiStMa `CrystalStructure` objects and then use the same temporary
-CRAFT compatibility projection as CIF until the viewer consumes CRiStMa result
-objects directly.
+CRAFT compatibility projection as CIF. The long-term rule applies to every
+structural format: CRAFT reads and processes structures through independent
+CRiStMa tools, then owns their display and cross-structure comparison.
 
 The subsystem is library functionality, not a CRAFT editing feature. Preserve
 and canonical writing exist for future Builder, Organica, refinement, and other
@@ -39,9 +40,10 @@ This slice includes:
 - read-only RES/INS integration in CRAFT;
 - analytic, malformed, round-trip, and real-file verification.
 
-This slice does not yet migrate polyhedron, block, comparison, or topology
-calculations. Those belong to CRiStMa and remain separate roadmap stages after
-structural file inputs share one stable canonical model.
+This slice does not yet implement reusable polyhedron, block, or topology tools.
+Those remain separate CRiStMa stages after structural file inputs share one
+stable canonical model. Cross-structure comparison and comparison-table logic
+remain application responsibilities of CRAFT.
 
 ## 3. Boundaries
 
@@ -59,7 +61,7 @@ CrystalStructure             canonical CRiStMa structure
         |
         +----> temporary CRAFT adapter -> viewer presentation model
         |
-        `----> future CRiStMa geometry/hierarchy/comparison tools
+        `----> future independent CRiStMa geometry/hierarchy tools
 ```
 
 CRiStMa does not import CRAFT, Sci, Qt, Gemmi, pymatgen, or SHELX. CRAFT
@@ -68,17 +70,19 @@ participate in application logic.
 
 The ownership contract is:
 
-| CRiStMa owns | CRAFT owns |
+| CRiStMa provides | CRAFT owns |
 | --- | --- |
 | structure and derived scientific entities | windows, panels, tables, and 3D actors |
 | parsing, normalization, and validation | file-selection and interaction workflow |
 | neighbors, coordination, polyhedra, and blocks | visibility, colours, camera, and selection |
-| topology, matching, comparison, and mechanics calculations | presentation of typed results |
-| scientific diagnostics and provenance | user-facing formatting of diagnostics |
+| per-structure topology and reusable geometry calculators | cross-structure matching and comparison |
+| scientific diagnostics and provenance | interpretation and presentation of results |
 
-CRAFT must not develop a second scientific implementation when a CRiStMa tool
-exists. Temporary compatibility code is migration scaffolding, not a permanent
-domain layer.
+CRiStMa tools are independent and do not know which application calls them or
+why. CRAFT composes the tools needed for its own workflow. It must not develop a
+second implementation of a reusable structural operation already supplied by
+CRiStMa, but it retains application-specific comparison, mechanics narrative,
+UI state, and workflow logic.
 
 ## 4. Document model
 
@@ -298,11 +302,10 @@ The canonical CRiStMa structure and `ShelxDocument` provenance remain available
 to future applications even though the current CRAFT compatibility model uses
 only the fields required for display and analysis.
 
-This does not make CRAFT the owner of structure analysis. Existing CRAFT
-polyhedron, block, topology, and comparison implementations are migration
-sources. As corresponding CRiStMa tools become available, CRAFT replaces those
-calculations with calls returning typed CRiStMa results and retains only their
-visual presentation.
+Existing CRAFT readers and reusable single-structure algorithms are migration
+sources for independent CRiStMa tools. CRAFT keeps its application-specific
+comparison and mechanics workflows, including the decisions about which
+structures and derived entities to compare and how to explain the result.
 
 ## 9. Verification
 
@@ -346,17 +349,17 @@ The slice is complete when:
 
 ## 11. Subsequent CRiStMa roadmap
 
-After SHELX and the reader branch establish stable canonical inputs, scientific
-crystal-chemistry processing moves from CRAFT into CRiStMa in this order:
+After SHELX and the complete reader branch establish stable canonical inputs,
+reusable single-structure processing is added to CRiStMa in this order:
 
 1. `PolyhedronBuilder` and typed polyhedron results;
 2. structural entities, blocks, connectors, and hierarchy;
-3. entity matching between related structures;
-4. `StructureComparator` and typed `ComparisonResult`;
-5. optional kinematic and series analysis over matched entities.
+3. reusable per-structure topology and geometry descriptors;
+4. additional independent transforms and calculators needed by multiple
+   applications.
 
-CRiStMa owns comparison calculations, scientific descriptors, uncertainty, and
-typed comparison results. CRAFT keeps the comparison table UI, colours,
-filters, presentation exports, selection state, and links between table rows
-and 3D objects. The same rule applies to every later calculation: CRiStMa
-computes; CRAFT displays and orchestrates user interaction.
+CRAFT owns entity matching between different structures, comparison metrics,
+mechanical interpretation across a series, and the comparison table. It uses
+CRiStMa structures and per-structure results as inputs. Another application may
+compose the same tools differently without importing CRAFT or inheriting its
+comparison semantics.
