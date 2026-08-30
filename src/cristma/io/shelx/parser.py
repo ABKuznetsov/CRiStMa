@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from cristma.io.diagnostics import SourcePosition, SourceSpan
+from cristma.core.cell import UnitCell
+from cristma.core.values import parse_measured_value
+from cristma.io.diagnostics import Diagnostic, Severity, SourcePosition, SourceSpan
 from cristma.io.result import ReadResult, SourceInfo
 
 from .document import (
@@ -16,6 +18,19 @@ from .document import (
     ShelxRecord,
     ShelxUnknownRecord,
 )
+from .records import (
+    ShelxCellInstruction,
+    ShelxEndInstruction,
+    ShelxFvarInstruction,
+    ShelxHklfInstruction,
+    ShelxLattInstruction,
+    ShelxPartInstruction,
+    ShelxResiInstruction,
+    ShelxSfacInstruction,
+    ShelxSymmInstruction,
+    ShelxZerrInstruction,
+)
+from .symmetry import parse_shelx_symmetry
 
 
 _INSTRUCTIONS = frozenset(
@@ -106,11 +121,98 @@ def _record_type(keyword: str | None, fields: tuple[str, ...]) -> type[ShelxReco
     return ShelxUnknownRecord
 
 
+def _typed_instruction(record: ShelxRecord) -> ShelxRecord:
+    if not isinstance(record, ShelxInstructionRecord) or record.keyword is None:
+        return record
+    common = {
+        "keyword": record.keyword,
+        "fields": record.fields,
+        "physical_line_indices": record.physical_line_indices,
+        "span": record.span,
+        "inline_comment": record.inline_comment,
+        "after_hklf": record.after_hklf,
+        "after_end": record.after_end,
+    }
+    fields = record.fields
+    if record.keyword == "CELL":
+        if len(fields) != 7:
+            raise ValueError("CELL requires wavelength and six cell values")
+        wavelength = parse_measured_value(fields[0], unit="angstrom")
+        cell_values = (
+            *(parse_measured_value(value, unit="angstrom") for value in fields[1:4]),
+            *(parse_measured_value(value, unit="degree") for value in fields[4:7]),
+        )
+        return ShelxCellInstruction(**common, wavelength=wavelength, cell=UnitCell(*cell_values))
+    if record.keyword == "ZERR":
+        if len(fields) != 7:
+            raise ValueError("ZERR requires Z and six cell uncertainties")
+        uncertainties = (
+            *(parse_measured_value(value, unit="angstrom") for value in fields[1:4]),
+            *(parse_measured_value(value, unit="degree") for value in fields[4:7]),
+        )
+        return ShelxZerrInstruction(
+            **common,
+            formula_units=parse_measured_value(fields[0]),
+            cell_uncertainties=tuple(uncertainties),
+        )
+    if record.keyword == "LATT":
+        if len(fields) != 1:
+            raise ValueError("LATT requires one integer code")
+        return ShelxLattInstruction(**common, code=int(fields[0]))
+    if record.keyword == "SYMM":
+        return ShelxSymmInstruction(
+            **common,
+            operation=parse_shelx_symmetry(" ".join(fields)),
+        )
+    if record.keyword == "SFAC":
+        if not fields:
+            raise ValueError("SFAC requires at least one entry")
+        return ShelxSfacInstruction(**common, entries=fields)
+    if record.keyword == "FVAR":
+        if not fields:
+            raise ValueError("FVAR requires at least one value")
+        return ShelxFvarInstruction(
+            **common,
+            values=tuple(parse_measured_value(value) for value in fields),
+        )
+    if record.keyword == "PART":
+        if not fields:
+            raise ValueError("PART requires a part number")
+        return ShelxPartInstruction(
+            **common,
+            part=int(fields[0]),
+            occupancy_code=fields[1] if len(fields) > 1 else None,
+        )
+    if record.keyword == "RESI":
+        residue_number = None
+        residue_class = None
+        if fields:
+            try:
+                residue_number = int(fields[0])
+            except ValueError:
+                residue_class = fields[0]
+            else:
+                residue_class = fields[1] if len(fields) > 1 else None
+        return ShelxResiInstruction(
+            **common,
+            residue_number=residue_number,
+            residue_class=residue_class,
+        )
+    if record.keyword == "HKLF":
+        if not fields:
+            raise ValueError("HKLF requires a code")
+        return ShelxHklfInstruction(**common, code=int(fields[0]))
+    if record.keyword == "END":
+        return ShelxEndInstruction(**common)
+    return record
+
+
 def parse_shelx(source: str, source_name: str | None = None) -> ReadResult:
     """Parse physical and logical SHELX records without scientific mapping."""
 
     lines = _physical_lines(source)
     records: list[ShelxRecord] = []
+    diagnostics: list[Diagnostic] = []
     after_hklf = False
     after_end = False
     index = 0
@@ -133,6 +235,17 @@ def parse_shelx(source: str, source_name: str | None = None) -> ReadResult:
             after_hklf=after_hklf,
             after_end=after_end,
         )
+        try:
+            record = _typed_instruction(record)
+        except (TypeError, ValueError) as error:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.ERROR,
+                    f"shelx.parse.invalid_{keyword.casefold()}",
+                    str(error),
+                    span,
+                )
+            )
         records.append(record)
         if keyword == "HKLF":
             after_hklf = True
@@ -144,6 +257,7 @@ def parse_shelx(source: str, source_name: str | None = None) -> ReadResult:
     document = ShelxDocument(source, lines, tuple(records), source_name=source_name)
     return ReadResult(
         document=document,
+        diagnostics=tuple(diagnostics),
         source_info=SourceInfo(
             name=source_name,
             format="shelx",

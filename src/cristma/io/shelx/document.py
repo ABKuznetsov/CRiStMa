@@ -25,7 +25,7 @@ class ShelxSourceEdit:
     replacement: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxRecord:
     """One logical record assembled from one or more physical lines."""
 
@@ -38,32 +38,32 @@ class ShelxRecord:
     after_end: bool = False
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxInstructionRecord(ShelxRecord):
     """A recognized SHELX instruction not yet scientifically interpreted."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxAtomRecord(ShelxRecord):
     """An atom-like logical record."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxQPeakRecord(ShelxRecord):
     """A difference-Fourier peak retained outside canonical chemistry."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxCommentRecord(ShelxRecord):
     """A REM comment record."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxBlankRecord(ShelxRecord):
     """A blank physical line retained in record order."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ShelxUnknownRecord(ShelxRecord):
     """An uninterpreted non-atom record retained without data loss."""
 

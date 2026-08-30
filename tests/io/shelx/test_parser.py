@@ -23,14 +23,29 @@ def test_parser_classifies_records_without_losing_original_text() -> None:
     result = parse_shelx(source, source_name="demo.res")
 
     assert result.ok
-    assert [type(record) for record in result.document.records] == [
-        ShelxInstructionRecord,
-        ShelxCommentRecord,
-        ShelxBlankRecord,
-        ShelxAtomRecord,
-        ShelxUnknownRecord,
-        ShelxInstructionRecord,
-        ShelxQPeakRecord,
+    assert [
+        isinstance(record, expected)
+        for record, expected in zip(
+            result.document.records,
+            (
+                ShelxInstructionRecord,
+                ShelxCommentRecord,
+                ShelxBlankRecord,
+                ShelxAtomRecord,
+                ShelxUnknownRecord,
+                ShelxInstructionRecord,
+                ShelxQPeakRecord,
+            ),
+            strict=True,
+        )
+    ] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
     ]
     assert result.document.records[0].keyword == "TITL"
     assert result.document.records[1].fields == ("keep", "this")
