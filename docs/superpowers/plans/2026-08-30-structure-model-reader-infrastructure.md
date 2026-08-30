@@ -16,6 +16,7 @@
 - Existing `Crystal`, tuple-like structure access, and CIF behavior remain compatible during migration.
 - Canonical scientific objects are immutable snapshots.
 - Unknown species and unknown properties remain explicit and retain provenance.
+- Reader-created structures, independent sites, and expanded atoms have stable semantic IDs; labels are never used as identity by downstream topology.
 - Source readers never scan neighboring files or resolve includes without an explicit `SourceResolver`.
 - Format selection order is explicit format, content confidence, special basename, then suffix.
 - Large frame sources are indexed without eager structure materialization.
@@ -29,6 +30,7 @@
 ```text
 src/cristma/chemistry/species.py       typed known and unknown species
 src/cristma/structure/__init__.py      stable public structure namespace
+src/cristma/structure/identity.py      stable source and expanded-atom identity
 src/cristma/structure/crystal.py       crystal model and compatibility alias
 src/cristma/structure/molecular.py     molecule, atoms, bonds, groups
 src/cristma/structure/properties.py    immutable typed atomic properties
@@ -153,6 +155,7 @@ git commit -m "feat: add typed chemical species"
 
 **Files:**
 - Create: `src/cristma/structure/__init__.py`
+- Create: `src/cristma/structure/identity.py`
 - Create: `src/cristma/structure/crystal.py`
 - Modify: `src/cristma/core/structure.py`
 - Modify: `src/cristma/symmetry/orbit.py`
@@ -161,7 +164,7 @@ git commit -m "feat: add typed chemical species"
 
 **Interfaces:**
 - Consumes: Task 1 `ChemicalSpecies` and `as_species`; existing `UnitCell`, `MeasuredValue`, `SpaceGroupDefinition`, and `ExpandedSite`.
-- Produces: `CrystalStructure`, compatibility alias `Crystal`, species-aware `SiteComponent`, `SourceReference`, `StructureProvenance`, and per-axis periodicity.
+- Produces: `CrystalStructure`, compatibility alias `Crystal`, species-aware `SiteComponent`, `SourceReference`, `StructureProvenance`, `ExpandedAtomRef`, compatibility alias `ExpandedSite`, and per-axis periodicity.
 
 - [ ] **Step 1: Write failing public crystal tests**
 
@@ -170,6 +173,8 @@ from cristma.chemistry.species import ElementSpecies
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
 from cristma.structure import Crystal, CrystalStructure, IndependentSite, SiteComponent
+from cristma.symmetry.affine import parse_xyz_operation
+from cristma.symmetry.orbit import expand_orbit
 
 
 def number(value: float) -> MeasuredValue:
@@ -198,6 +203,24 @@ def test_identity_for_explicit_dft_sites_is_not_reported_p1():
     )
     assert structure.space_group.provenance == "unreported_identity"
     assert structure.space_group.number is None
+
+
+def test_expanded_atom_identity_resolves_to_independent_site():
+    site = IndependentSite(
+        id="site:Si1",
+        label="Si1",
+        components=(SiteComponent("Si", number(1)),),
+        fractional=(number(0), number(0), number(0)),
+    )
+    atom = expand_orbit(
+        site,
+        (parse_xyz_operation("x,y,z", operation_id="op:1"),),
+        structure_id="structure:Si",
+    )[0]
+    assert atom.structure_id == "structure:Si"
+    assert atom.source_site_id == "site:Si1"
+    assert atom.independent_site_id == "site:Si1"
+    assert atom.id == "expanded:structure:Si:site:Si1:op:1:0,0,0"
 ```
 
 - [ ] **Step 2: Verify public imports fail**
@@ -227,6 +250,21 @@ class StructureProvenance:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpandedAtomRef:
+    id: str
+    structure_id: str | None
+    fractional: tuple[float, float, float]
+    source_site_id: str
+    representative_operation_id: str
+    equivalent_operation_ids: tuple[str, ...]
+    cell_translation: tuple[int, int, int]
+
+    @property
+    def independent_site_id(self) -> str:
+        return self.source_site_id
+
+
+@dataclass(frozen=True, slots=True)
 class SiteComponent:
     species: ChemicalSpecies | str
     occupancy: MeasuredValue
@@ -247,6 +285,7 @@ class CrystalStructure:
     name: str
     cell: UnitCell
     sites: tuple[IndependentSite, ...]
+    id: str | None = None
     space_group: SpaceGroupDefinition | None = None
     formula: str | None = None
     periodic: tuple[bool, bool, bool] = (True, True, True)
@@ -256,11 +295,17 @@ class CrystalStructure:
 
 
 Crystal = CrystalStructure
+ExpandedSite = ExpandedAtomRef
 ```
 
 `CrystalStructure.explicit()` constructs an exact identity operation with no
 space-group number or symbol and provenance `unreported_identity`. Extend
 `SymmetryProvenance` with that literal. Reject a crystal with no periodic axis.
+Keep `id` optional for compatibility with manually constructed objects, but
+require every format mapper to assign a stable document-derived structure ID.
+Extend `expand_orbit(site, operations, *, structure_id=None)` to create the
+documented deterministic expanded ID; preserve all equivalent operation IDs
+when special-position images merge.
 Make `cristma.core.structure` re-export the public definitions so current CIF
 imports and application code keep working.
 
@@ -672,7 +717,9 @@ class ReadResult:
             )
 ```
 
-Change CIF mapper annotations to `tuple[CrystalStructure, ...]`, wrap mapped
+Change CIF mapper annotations to `tuple[CrystalStructure, ...]`, assign each
+mapped structure `id=f"cif:{block.name}"`, pass that ID into every
+`expand_orbit()` call, wrap mapped
 tuples in `StructureCollection.from_structures()` in the handler, and make the
 canonical writer accept `CrystalStructure`. Existing indexing, truth testing,
 and loops remain unchanged.
