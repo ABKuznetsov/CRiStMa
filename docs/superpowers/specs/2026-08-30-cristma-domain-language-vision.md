@@ -1,321 +1,398 @@
-# CRiStMa as a scientific domain language
+# CRiStMa as an independent crystallographic toolbox
 
 Date: 2026-08-30
 
-Status: architectural direction
+Status: canonical architectural contract
 
 ## 1. Mission
 
-CRiStMa is not a CIF utility, a Rietveld wrapper, or a GUI toolkit. It is the
-shared scientific domain language used by independent crystallographic,
-crystal-chemical, diffraction, and refinement applications.
+> **CRiStMa is an independent crystallographic toolbox. It provides reusable
+> scientific data types, functions, and configurable tools. It does not own
+> application workflows, projects, samples, experimental history, or
+> orchestration.**
 
-Its purpose is to provide stable, inspectable, physics-first representations
-of:
+CRiStMa exists so that Finder, Rietveld Manager, Crystal Blocks, Comparison
+Manager, future single-crystal software, and third-party Python programs do not
+implement the same crystallographic mathematics independently.
 
-- structure and symmetry;
-- measurements and experimental geometry;
-- reflections, structure factors, and calculated profiles;
-- parameters, dependencies, constraints, and restraints;
-- derived geometry, topology, polyhedra, and structural units.
+The governing boundary is:
 
-Applications consume these objects and provide workflows. They do not define
-incompatible copies of the same scientific concepts.
+> **Applications own workflow and context. CRiStMa owns reusable
+> crystallographic concepts and calculations.**
 
-## 2. Core boundary
+CRiStMa is installable and usable without any of those applications.
 
-The governing rule is:
+## 2. Direction of dependencies
 
-> CRiStMa owns scientific entities; applications own workflows.
+Sci is the shared platform and distribution layer for the application family.
+CRiStMa is a separate scientific package distributed through that environment.
 
-CRiStMa may contain:
+```text
+Applications -> Sci
+Applications -> CRiStMa
+Sci          -> CRiStMa
+CRiStMa      -X-> Sci or Applications
+```
 
-- `CrystalStructure` and `MolecularStructure`;
-- `PowderPattern` and `CalculatedProfile`;
-- `Reflection` and `ReflectionSet`;
-- `Parameter`, `Dependency`, `Constraint`, and `Restraint`;
-- `StructureSeries` and other scientific relationships.
+Sci may install and pin a tested CRiStMa release for every application. This
+does not make Sci part of CRiStMa's API. CRiStMa never imports Sci, exposes Sci
+types, or assumes that Sci is installed.
 
-CRiStMa does not contain:
+CRiStMa declares only dependencies required by its own scientific
+implementation. Sci owns the wider application environment, common dependency
+constraints, runtime validation, launchers, and deployment policy.
 
-- project trees and recent-file state;
-- Qt widgets, dialogs, or view models;
-- button actions or application modes such as Guide/User/Pro;
-- batch-pause and confirmation workflows;
-- application-specific persistence services.
+## 3. Package shape
 
-No application UI, project-state object, or service becomes part of a CRiStMa
-scientific model.
-
-## 3. Shared vocabulary
-
-The long-lived domain vocabulary is organized into independent packages:
+The toolbox grows horizontally through independent scientific domains:
 
 ```text
 cristma
-|- structure       crystals, molecules, sites, expanded atoms
+|- chemistry       species, oxidation, valence knowledge
+|- structure       compact canonical structure data
 |- symmetry        operations, groups, orbits, Wyckoff semantics
-|- chemistry       species, oxidation, bonds, valence knowledge
-|- experiment      radiation, geometry, instruments, measurements
-|- diffraction     reflections, structure factors, intensities
-|- profile         observed and calculated profile components
-|- refinement      parameters, dependencies, constraints, restraints
-|- geometry        distances, angles, coordination, neighbor graphs
-|- topology        polyhedra, structural units, blocks, hinges
-`- io              native formats and optional external adapters
+|- io              native structure formats and optional adapters
+|- geometry        distances, angles, neighbors, coordination
+|- transforms      cell, setting, supercell, and entity transforms
+|- hierarchy       polyhedra, units, blocks, and parameterizations
+|- topology        periodic graphs, rings, dimensionality, nets
+|- diffraction     reciprocal space, scattering, powder, single crystal
+|- refinement      parameters, constraints, objectives, optimization helpers
+`- analysis        reusable comparisons and scientific descriptors
 ```
 
-Package dependencies point toward stable domain primitives. The domain model
-does not depend on readers, optimizers, application services, or rendering
-frameworks.
+The presence of one domain never makes every other domain mandatory. A powder
+calculator does not need hierarchy support. A topology analyzer does not need
+refinement. Applications import only the tools they use.
 
-## 4. Semantic identity
+Existing public namespaces such as `cristma.structure`, `cristma.symmetry`,
+and `cristma.io` remain stable. Package rearrangement is not required merely to
+match the conceptual diagram.
 
-Stable semantic identifiers connect the same physical entity across readers,
-viewers, diffraction, refinement, and crystal chemistry.
+## 4. Compact scientific data types
 
-An independent crystallographic position contains at least:
+Scientific data objects represent values and relationships. They do not become
+service objects with dozens of unrelated methods.
 
-```text
-IndependentSite
-|- site_id
-|- label
-|- species/components
-|- occupancy
-|- fractional_position
-|- displacement
-`- provenance
-```
-
-A symmetry-expanded atom is derived and contains:
-
-```text
-ExpandedAtom
-|- atom_id
-|- source_site_id
-|- symmetry_operation_id
-|- cell_translation
-|- Cartesian/fractional position
-`- provenance
-```
-
-Expanded atoms cannot silently become independent refinable parameters. Every
-application can trace them back to the same independent site and operation.
-
-The same principle applies to phases, reflections, measurements, profile
-components, structural units, and parameters. Human-readable labels are not
-used as unique identity.
-
-## 5. Structure domain
-
-The structure model distinguishes periodic crystallographic structures from
-non-periodic molecular structures while providing a shared atomic view:
-
-```text
-Structure
-|- CrystalStructure
-|  |- UnitCell
-|  |- SpaceGroupDefinition
-|  |- IndependentSite[]
-|  `- ExpandedStructure (derived)
-`- MolecularStructure
-   |- Atom[]
-   |- Bond[]
-   `- groups/residues/components
-```
-
-Derived structural representations include:
+Examples include:
 
 ```text
 CrystalStructure
--> ExpandedStructure
--> PeriodicNeighborGraph
--> CoordinationEnvironments
--> Polyhedra
--> StructuralUnits
--> CandidateStructuralBlocks
--> Layers / chains / rings / hinges
-```
-
-Each derived object retains identifiers of the source atoms/sites. Structural
-blocks and polyhedra therefore remain connected to refinement parameters and
-visual selections.
-
-The detailed upward and downward structural contract is defined in
-`2026-08-30-structural-hierarchy-design.md`. Its central rule is that a
-structural hierarchy is a DAG/hypergraph rather than a strict tree: shared
-atoms occur once, overlapping entities are explicit, and every entity resolves
-back to the same expanded-atom and independent-site identities.
-
-## 6. Measurement and profile domain
-
-Observed powder data is more than two arrays:
-
-```text
+IndependentSite
+ExpandedAtomRef
+AtomicView
+PeriodicNeighborGraph
+PolyhedralEntity
+StructuralHierarchy
+ReflectionDataset
 PowderPattern
-|- pattern_id
-|- axis
-|- observed_signal
-|- sigma
-|- mask
-|- experiment_id
-|- metadata
-`- provenance
-```
-
-Experimental conditions are explicit:
-
-```text
-PowderExperiment
-|- Radiation
-|- MeasurementGeometry
-|- InstrumentModel
-|- SpecimenModel
-`- PowderPattern
-```
-
-A calculated profile exposes its decomposition:
-
-```text
 CalculatedProfile
-|- profile_id
-|- grid
-|- background
-|- phase_components
-|- fixed_components
-|- total
+```
+
+`CrystalStructure` remains an immutable snapshot with a cell, space group, and
+independent sites. It does not acquire methods such as `refine()`,
+`calculate_xrd()`, `find_topology()`, or `build_hierarchy()`.
+
+There is no universal `ScientificObject` base class. Concrete immutable data
+classes and small capability protocols are preferred over a deep inheritance
+tree.
+
+## 5. Functions and configurable tool classes
+
+Scientific behavior lives in independent functions and tools:
+
+```python
+neighbors = NeighborFinder(method="bond_valence").find(crystal)
+polyhedra = PolyhedronBuilder().build(crystal, neighbors.graph)
+hierarchy = HierarchyBuilder().build(crystal)
+topology = TopologyAnalyzer().analyze(crystal)
+profile = PowderCalculator(radiation="CuKa").calculate(crystal, experiment)
+result = RietveldRefiner(...).refine(model, observations)
+```
+
+Use a function for a simple unambiguous operation:
+
+```python
+distance = distance_between(crystal, atom_a, atom_b)
+supercell_result = make_supercell(crystal, (2, 2, 1))
+supercell = supercell_result.structure
+```
+
+Use a tool class when an algorithm has configuration, alternative methods, or
+reusable scientific policy. Use a transform object when an operation must be
+inspected, serialized, repeated, composed, inverted, or differentiated.
+
+A tool stores configuration, not execution history:
+
+```python
+finder.get_config()
+finder.clone(tolerance=0.2)
+```
+
+It does not retain hidden application state:
+
+```text
+finder.last_result       forbidden
+finder.current_crystal   forbidden
+refiner.accepted_state   forbidden
+```
+
+Tool classes do not require a common superclass. Consistent conventions and
+small protocols are sufficient.
+
+## 6. Input and result contract
+
+Inputs are treated as immutable. A call returns an explicit result instead of
+mutating the input or the tool:
+
+```text
+Tool configuration + scientific input
+                 |
+                 v
+Result
+|- scientific output
 |- diagnostics
-`- provenance
+`- operation mappings/provenance when scientifically required
 ```
 
-Applications can inspect and visualize every component rather than receiving
-only a final calculated array.
+Simple calculations may return a scientific value directly. Complex
+calculations use a dedicated result type, for example `NeighborResult`,
+`PowderCalculationResult`, or `RefinementResult`.
 
-## 7. Diffraction domain
+Diagnostics are machine-readable. Invalid API use raises an exception;
+recoverable source defects, approximations, excluded observations, and
+scientific warnings are represented as diagnostics.
 
-A reflection is a stable scientific entity, not a temporary row inside a
-calculator:
+Operation provenance records the algorithm, version, settings, assumptions,
+and source-to-result mapping needed to understand the calculation. It is not a
+project audit trail or experimental-history database.
+
+## 7. Composition without a mandatory pipeline
+
+Tools communicate only through typed scientific data. CRiStMa does not impose
+a global pipeline such as:
 
 ```text
-Reflection
-|- reflection_id
-|- phase_id
-|- hkl
-|- d_spacing
-|- multiplicity
-|- radiation_component_id
-|- coordinate on the measurement axis
-|- complex structure factor
-|- squared amplitude
-|- geometric/polarization factors
-|- integrated_intensity
-|- status and diagnostics
-`- provenance
+neighbors -> polyhedra -> hierarchy -> topology -> mechanics -> diffraction
 ```
 
-`ReflectionSet` connects a structure, experiment, and deterministic generation
-settings. Finder, profile calculation, diagnostics, and refinement consume the
-same reflection semantics.
-
-## 8. Refinement domain
-
-Refinement is expressed through scientific state rather than optimizer-specific
-vectors:
+An application may choose that composition, skip steps, replace an
+intermediate representation, or invoke a tool independently:
 
 ```text
-RefinementModel
-|- structures/phases
-|- experiment
-|- forward model
-|- Parameter[]
-|- Dependency[]
-|- Constraint[]
-`- Restraint[]
+                   CrystalStructure
+                  /        |         \
+                 v         v          v
+        NeighborFinder  PowderCalculator  SymmetryAnalyzer
+              |
+              v
+       PeriodicNeighborGraph
+          /             \
+         v               v
+PolyhedronBuilder   TopologyAnalyzer
 ```
 
-A `Parameter` has a semantic owner and path, unit, value, allowed domain,
-refinability, uncertainty, and provenance. Dependencies express shared or
-derived parameters. Constraints are exact admissibility rules. Restraints add
-scientifically justified penalty terms without pretending to be observations.
+A tool may require another tool's result only when that input is a real
+mathematical requirement. It depends on the result type, not on the producer
+instance or its workflow.
 
-Optimizers operate through this contract. CrysPy, GSAS-II, SciPy, or a future
-native optimizer may be adapters or engines; none defines CRiStMa's parameter
-semantics.
+## 8. Structural transforms
 
-Structural refinement may expose different coordinate systems over the same
-underlying atoms:
+Transforms are a specialized family of inspectable scientific tools:
 
 ```text
-structural blocks -> polyhedra -> independent atoms
+StructureTransform.apply(CrystalStructure)
+                     |
+                     v
+TransformationResult
+|- structure
+|- identity_mapping
+|- coordinate_mapping
+|- diagnostics
+`- inverse
 ```
 
-Selected entity-level and polyhedral coordinate systems are implemented as
-parameterizations and dependencies between stable atom/site identities, not
-duplicated structures. Grouping an entity does not itself assert rigidity.
+Every transform preserves the origin of its result. `IdentityMapping` supports
+one-to-one, one-to-many, many-to-one, removed, created, equivalent, and
+ambiguous relationships. `CoordinateMapping` describes the corresponding
+geometric operation.
 
-## 9. Application roles
-
-Applications remain independent because they select only the CRiStMa domains
-they need:
+Changing a cell must state what is preserved:
 
 ```text
-XRD Finder
-|- CrystalStructure
-|- PowderPattern
-`- ReflectionSet / CalculatedProfile
-
-Rietveld Manager
-|- CrystalStructure
-|- PowderExperiment
-|- CalculatedProfile
-`- RefinementModel / RefinementState
-
-Crystal Blocks
-|- CrystalStructure
-|- ExpandedStructure
-|- NeighborGraph
-`- StructureHierarchy
+preserve fractional -> fractional coordinates fixed, Cartesian geometry changes
+preserve Cartesian  -> Cartesian geometry fixed, fractional coordinates change
 ```
 
-An application may add workflow state around these entities, but it does not
-subclass or modify them with UI concerns.
+Exact setting and origin transformations use exact arithmetic where possible.
+Supercell and subcell operations report expanded or merged identities and
+information loss explicitly.
 
-## 10. Provenance and immutability
+`InverseStatus` distinguishes exact, partial, ambiguous, and unavailable
+inverses. A `TransformPipeline` composes transforms and their mappings.
 
-Canonical scientific objects are immutable snapshots. Transformations produce
-new snapshots and record their parent state and operation. This supports:
+`DifferentiableStructureTransform` is an optional capability with evaluation
+and Jacobian methods. It covers cell strain, block translation/rotation,
+hinges, tilts, and internal modes used as refinement degrees of freedom.
+Discrete transforms such as symmetry reduction do not pretend to be smooth
+refinement parameterizations.
 
-- refinement history and undo;
-- reproducible analysis;
-- comparison across a temperature/pressure series;
-- source-file traceability;
-- safe sharing between independent applications.
+## 9. Hierarchy, topology, and kinematics
 
-Raw input, interpreted values, standard uncertainties, units, missing states,
-and derived values coexist. Recovery and inference are always labeled.
+Hierarchy and topology are reusable scientific representations, not project
+trees. They may describe polyhedra, rings, blocks, chains, layers, frameworks,
+periodic nets, dimensionality, hinges, and building units.
 
-## 11. Interoperability
+Structural entities resolve to canonical expanded atoms and independent sites.
+Shared atoms remain unique. Overlap and connectivity are explicit relations,
+so hierarchy is a DAG/hypergraph rather than nested copies of atoms.
 
-Native format readers map external documents into CRiStMa entities. Optional
-adapters map to and from Gemmi, ASE, pymatgen, RDKit, GSAS-II, and other
-ecosystems.
+Derived nodes and relations retain the mappings required to resolve them back
+to the source structure. There is no universal derived-representation manager;
+each tool returns the result type appropriate to its calculation.
 
-The dependency direction is:
+Moving a hierarchy entity is a transform. Membership is resolved to expanded
+atoms, shared-atom rules are evaluated by a kinematic model, and exactly one
+new atomic coordinate is produced per atom. Incompatible controls return a
+kinematic-conflict diagnostic instead of silently overwriting coordinates.
+
+Grouping does not assert rigidity. Mechanical characterization is a separate
+calculation whose result includes its assumptions and metrics. Formal scalar
+rigidity scores are initially restricted to polyhedra; larger entities report
+internal deformation, relative rotation, translation, and hinge changes.
+
+## 10. Diffraction observation models
+
+Powder and single-crystal calculations share structure-factor physics but use
+different observation models:
 
 ```text
-applications -> CRiStMa
-optional adapters -> CRiStMa
-CRiStMa domain -X-> application UI / project state
+CrystalStructure + Radiation + reciprocal vectors
+                       |
+                       v
+              StructureFactorCalculation
+                       |
+                       v
+              ReflectionCalculation[]
+                 /                 \
+                v                   v
+ PowderObservationModel   SingleCrystalObservationModel
+                |                   |
+                v                   v
+ CalculatedProfile       CalculatedReflectionDataset
 ```
 
-An external object is never stored as the authoritative internal state. The
-adapter boundary is explicit and testable.
+The shared layer owns reciprocal-vector generation, systematic absences,
+scattering factors, occupancy, ADP, anomalous terms, and complex `F(hkl)`.
+Powder multiplicity, Lorentz-polarization factors, peak overlap, and profile
+convolution belong to the powder model. Measured-HKL matching, Friedel policy,
+and single-crystal observation corrections belong to the single-crystal model.
 
-## 12. Evolution rule
+A multiphase powder request may contain local `PhaseContribution` values with
+a crystal and scale. This is calculation input, not a persistent model of a
+sample or material.
 
-New functionality enters CRiStMa only when it can be stated as a reusable
-scientific concept with stable semantics. Application-specific workflow stays
-in the application.
+## 11. Refinement
 
-This rule keeps CRiStMa broad in scientific capability but compact in
-responsibility: one shared scientific language, many independent applications.
+Refinement is a reusable calculation over explicit scientific inputs:
+
+```text
+structure(s)
++ observations
++ physical model
++ parameterization
++ constraints/restraints
+        |
+        v
+RefinementResult
+|- refined scientific values
+|- parameter estimates and uncertainties
+|- objective statistics
+|- covariance/Jacobian diagnostics
+`- calculation diagnostics
+```
+
+Powder and single-crystal objectives share parameters, dependencies,
+constraints, covariance tools, and optimization helpers while retaining their
+own observation models.
+
+CRiStMa does not accept a result into a project, manage undo/redo, remember a
+scenario, schedule a series, or decide which refinement is authoritative. The
+application owns those choices.
+
+## 12. I/O and external adapters
+
+Native readers map CIF, RES/INS, and other structure files into compact CRiStMa
+objects. They preserve source information required for scientific
+round-tripping but do not discover neighboring files without an explicit
+resolver.
+
+`StructureCollection` and lazy `StructureSequence` represent finite
+multi-model documents and indexed trajectory/frame sources. They are I/O and
+data-container concepts, not application experiment-series workflows.
+
+Optional adapters may map to Gemmi, ASE, pymatgen, RDKit, GSAS-II, or other
+ecosystems. No external object becomes authoritative CRiStMa state, and a
+specialized adapter does not become a mandatory dependency merely because one
+application uses it.
+
+## 13. Application-owned concepts
+
+The following are outside the CRiStMa core unless a future, demonstrated,
+workflow-independent mathematical need proves otherwise:
+
+- projects and project trees;
+- samples and sample databases;
+- `StructureModel`, `StructuralState`, and `MaterialState` as research-context
+  containers;
+- phase hypotheses and accepted results;
+- `EvidenceLink` as a research-history relationship;
+- experimental narratives, corrections made by users, and audit trails;
+- application temperature/composition series and comparison slices;
+- refinement scenarios, branches, pause/accept/undo workflows;
+- Viewer selection state and display modes;
+- users, publications, reports, and UI state.
+
+Small physical value objects such as temperature, pressure, radiation, or
+measurement geometry belong in CRiStMa only when an algorithm needs their
+numerical meaning. CRiStMa does not record how an application inferred,
+corrected, approved, or stored those values.
+
+## 14. Evolution rule
+
+The inclusion test is:
+
+> **Scientific + reusable + workflow-independent = CRiStMa candidate.**
+
+A capability does not need to be used by two applications before inclusion.
+It must be a coherent crystallographic representation, transformation, or
+calculation that can stand independently of an application workflow.
+
+CRiStMa grows by adding new functions, compact data types, and independent
+tools over the same canonical structure model. Adding `BondValenceAnalyzer`,
+`TopologyAnalyzer`, `PowderCalculator`, or `SingleCrystalCalculator` does not
+require redesigning existing tools or adding methods to `CrystalStructure`.
+
+Backward-compatible public APIs are preferred. Breaking scientific semantics
+requires an explicit version boundary and migration notes. Sci pins a tested
+CRiStMa release so that application upgrades occur deliberately.
+
+## 15. Scientific verification
+
+Each tool is tested independently against the strongest available reference:
+
+- analytic fixtures before external-engine comparisons;
+- exact symmetry and identity mappings;
+- conservation and inverse properties for transforms;
+- per-reflection diagnostics for diffraction;
+- numerical Jacobian checks for differentiable transforms;
+- covariance and uncertainty checks for refinement;
+- real structure-file fixtures with recorded provenance;
+- round-trip and installed-wheel tests for public I/O.
+
+CRiStMa tests do not import application projects. Applications separately test
+their workflows against supported CRiStMa releases.
+
+This architecture makes CRiStMa a shared scientific toolbox rather than a
+shared application framework: one implementation of crystallographic
+mathematics, many independent ways to use it.
