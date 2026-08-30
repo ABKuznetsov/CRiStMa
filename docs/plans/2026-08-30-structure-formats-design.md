@@ -2,7 +2,8 @@
 
 Date: 2026-08-30
 
-Status: proposed for user review
+Status: CIF foundation implemented; remaining reader scope superseded by
+`docs/superpowers/specs/2026-08-30-native-structure-readers-design.md`
 
 ## 1. Purpose
 
