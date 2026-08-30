@@ -25,6 +25,8 @@ def test_cubic_cell_exposes_metric_and_volume():
 
     assert cell.volume == pytest.approx(5.43**3)
     assert np.diag(cell.metric) == pytest.approx([5.43**2] * 3)
+    with pytest.raises(ValueError):
+        cell.matrix[0, 0] = 1.0
 
 
 def test_crystal_keeps_asymmetric_sites_primary():
@@ -37,7 +39,7 @@ def test_crystal_keeps_asymmetric_sites_primary():
     crystal = Crystal(name="silicon", cell=UnitCell.cubic(number(5.43)), sites=(site,))
 
     assert crystal.sites == (site,)
-    assert crystal.expanded_sites is None
+    assert "expanded_sites" not in Crystal.__dataclass_fields__
 
 
 def test_site_rejects_overoccupied_components():

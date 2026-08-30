@@ -1,55 +1,82 @@
-"""Shared immutable numerical view over canonical structures."""
+"""Shared immutable numerical view over canonical atomic positions."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import math
+from typing import Generic, TypeVar
 
 import numpy as np
 
-from cristma.chemistry.species import ChemicalSpecies
+from cristma.core.cell import UnitCell
 
+from .position import AtomicPosition
 from .properties import AtomicPropertyTable
 
 
-def _immutable_float_array(value: np.ndarray | object) -> np.ndarray:
-    array = np.array(value, dtype=float, copy=True)
+TAtom = TypeVar("TAtom", bound=AtomicPosition)
+
+
+def _immutable_rows(value: object) -> np.ndarray:
+    array = np.array(value, dtype=float, copy=True).reshape((-1, 3))
     array.flags.writeable = False
     return array
 
 
 @dataclass(frozen=True, slots=True)
-class AtomicView:
-    """Application-neutral atom coordinates, identity, and properties."""
+class AtomicView(Generic[TAtom]):
+    """Finite atomic rows plus derived read-only numerical coordinate arrays."""
 
-    ids: tuple[str, ...]
-    species: tuple[ChemicalSpecies, ...]
-    cartesian: np.ndarray
-    fractional: np.ndarray | None
-    cell: np.ndarray | None
+    atoms: tuple[TAtom, ...]
+    cell: UnitCell | None
     periodic: tuple[bool, bool, bool]
     properties: AtomicPropertyTable
-    source_site_ids: tuple[str | None, ...]
+    cartesian: np.ndarray = field(init=False, repr=False, compare=False)
+    fractional: np.ndarray | None = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        count = len(self.ids)
-        if len(self.species) != count or len(self.source_site_ids) != count:
-            raise ValueError("atomic view identity arrays must have equal lengths")
-        cartesian = _immutable_float_array(self.cartesian).reshape((-1, 3))
-        if cartesian.shape != (count, 3):
-            raise ValueError("Cartesian coordinates must have shape (atom_count, 3)")
-        object.__setattr__(self, "cartesian", cartesian)
-        if self.fractional is not None:
-            fractional = _immutable_float_array(self.fractional).reshape((-1, 3))
-            if fractional.shape != (count, 3):
-                raise ValueError("fractional coordinates must have shape (atom_count, 3)")
-            object.__setattr__(self, "fractional", fractional)
-        if self.cell is not None:
-            cell = _immutable_float_array(self.cell)
-            if cell.shape != (3, 3):
-                raise ValueError("cell matrix must have shape (3, 3)")
-            object.__setattr__(self, "cell", cell)
-        if self.properties.atom_count != count:
+        ids = tuple(atom.id for atom in self.atoms)
+        if len(set(ids)) != len(ids):
+            raise ValueError("atomic view atom IDs must be unique")
+        if len(self.periodic) != 3:
+            raise ValueError("periodicity must contain three axes")
+
+        cartesian_rows = tuple(
+            tuple(float(value) for value in atom.cartesian) for atom in self.atoms
+        )
+        if any(
+            len(row) != 3 or not all(math.isfinite(value) for value in row)
+            for row in cartesian_rows
+        ):
+            raise ValueError("Cartesian coordinates must contain three finite values per atom")
+        object.__setattr__(self, "cartesian", _immutable_rows(cartesian_rows))
+
+        fractional_rows = tuple(getattr(atom, "fractional", None) for atom in self.atoms)
+        fractional: np.ndarray | None = None
+        if self.atoms and all(row is not None for row in fractional_rows):
+            numeric_rows = tuple(
+                tuple(float(value) for value in row) for row in fractional_rows
+            )
+            if any(
+                len(row) != 3 or not all(math.isfinite(value) for value in row)
+                for row in numeric_rows
+            ):
+                raise ValueError("fractional coordinates must contain three finite values per atom")
+            fractional = _immutable_rows(numeric_rows)
+        object.__setattr__(self, "fractional", fractional)
+
+        if any(self.periodic) and (self.cell is None or fractional is None):
+            raise ValueError("periodic atomic view requires a cell and fractional coordinates")
+        if self.properties.atom_count != len(self.atoms):
             raise ValueError("property table atom count does not match atomic view")
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        return tuple(atom.id for atom in self.atoms)
+
+    @property
+    def cell_matrix(self) -> np.ndarray | None:
+        return None if self.cell is None else self.cell.matrix
 
 
 __all__ = ["AtomicView"]

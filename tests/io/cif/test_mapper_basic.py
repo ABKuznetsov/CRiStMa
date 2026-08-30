@@ -2,6 +2,7 @@ import pytest
 
 from cristma.io.cif.mapper import map_cif_structures
 from cristma.io.cif.parser import parse_cif
+from cristma.symmetry import expand_structure
 
 
 MINIMAL = """data_si
@@ -38,7 +39,7 @@ def test_maps_asymmetric_site_and_exact_reported_symmetry():
     assert crystal.sites[0].components[0].element == "Si"
     assert crystal.space_group.provenance == "reported"
     assert len(crystal.space_group.operations) == 2
-    assert len(crystal.expanded_sites) == 1
+    assert len(expand_structure(crystal).atoms) == 1
 
 
 def test_missing_cell_does_not_fabricate_structure():

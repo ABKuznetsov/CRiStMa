@@ -71,7 +71,7 @@ class UnitCell:
         if c_z_squared <= 0:
             raise ValueError("cell parameters produce a non-positive metric")
 
-        return np.array(
+        matrix = np.array(
             [
                 [a, 0.0, 0.0],
                 [b * cos_gamma, b * sin_gamma, 0.0],
@@ -79,6 +79,8 @@ class UnitCell:
             ],
             dtype=float,
         )
+        matrix.flags.writeable = False
+        return matrix
 
     @property
     def metric(self) -> np.ndarray:

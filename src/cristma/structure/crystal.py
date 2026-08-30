@@ -7,11 +7,10 @@ import math
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping
 
-from cristma.chemistry.species import UnknownSpecies
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
 
-from .identity import ExpandedAtom, StructureProvenance
+from .identity import StructureProvenance
 from .occupation import SiteComponent
 
 if TYPE_CHECKING:
@@ -87,8 +86,6 @@ class CrystalStructure:
     periodic: tuple[bool, bool, bool] = (True, True, True)
     provenance: StructureProvenance = field(default_factory=StructureProvenance)
     metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
-    expanded_sites: tuple[ExpandedAtom, ...] | None = field(default=None, compare=False, repr=False)
-
     def __post_init__(self) -> None:
         if not any(self.periodic):
             raise ValueError("crystal structure must be periodic along at least one axis")
@@ -116,68 +113,11 @@ class CrystalStructure:
     def atomic_view(self, *, expanded: bool = True) -> AtomicView:
         """Expose independent or symmetry-expanded sites as numerical rows."""
 
-        import numpy as np
+        if not expanded:
+            raise ValueError("independent sites are not an AtomicView; request expanded=True")
+        from cristma.symmetry.orbit import expand_structure
 
-        from .properties import AtomicProperty, AtomicPropertyTable
-        from .view import AtomicView
-
-        derived = self.expanded_sites
-        if expanded and derived is None and self.space_group is not None:
-            from cristma.symmetry.orbit import expand_orbit
-
-            derived = tuple(
-                atom
-                for site in self.sites
-                for atom in expand_orbit(
-                    site,
-                    self.space_group.operations,
-                    cell=self.cell,
-                    structure_id=self.id,
-                )
-            )
-
-        sites_by_id = {site.id: site for site in self.sites}
-        if expanded and derived is not None:
-            ids = tuple(atom.id for atom in derived)
-            source_site_ids = tuple(atom.source_site_id for atom in derived)
-            fractional_rows = tuple(atom.fractional for atom in derived)
-            row_sites = tuple(sites_by_id[source_id] for source_id in source_site_ids)
-        else:
-            ids = tuple(site.id for site in self.sites)
-            source_site_ids = ids
-            fractional_rows = tuple(
-                tuple(float(value.value) for value in site.fractional)
-                for site in self.sites
-            )
-            row_sites = self.sites
-
-        species = tuple(
-            site.components[0].species
-            if len(site.components) == 1
-            else UnknownSpecies(
-                f"mixed:{site.id}",
-                source_label="+".join(component.species.label for component in site.components),
-            )
-            for site in row_sites
-        )
-        fractional = np.array(fractional_rows, dtype=float).reshape((-1, 3))
-        cell = self.cell.matrix
-        site_components = np.empty(len(row_sites), dtype=object)
-        site_components[:] = tuple(site.components for site in row_sites)
-        properties = AtomicPropertyTable(
-            len(row_sites),
-            (AtomicProperty("site_components", site_components),),
-        )
-        return AtomicView(
-            ids=ids,
-            species=species,
-            cartesian=fractional @ cell,
-            fractional=fractional,
-            cell=cell,
-            periodic=self.periodic,
-            properties=properties,
-            source_site_ids=source_site_ids,
-        )
+        return expand_structure(self)
 
 
 Crystal = CrystalStructure

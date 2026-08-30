@@ -12,6 +12,7 @@ from .collection import (
 from .identity import ExpandedAtom, SourceReference, StructureProvenance, SymmetryImageProvenance
 from .molecular import MolecularAtom, MolecularBond, MolecularGroup, MolecularStructure, Structure
 from .occupation import SiteComponent
+from .position import AtomicPosition
 from .properties import AtomicProperty, AtomicPropertyTable, PropertyProvenance
 from .view import AtomicView
 
@@ -25,6 +26,7 @@ __all__ = [
     "AtomicProperty",
     "AtomicPropertyTable",
     "AtomicView",
+    "AtomicPosition",
     "MolecularAtom",
     "MolecularBond",
     "MolecularGroup",

@@ -18,7 +18,7 @@ def number(value: float) -> MeasuredValue:
 def test_molecular_atomic_view_has_cartesian_coordinates_and_no_cell() -> None:
     molecule = MolecularStructure(
         "water",
-        atoms=(MolecularAtom("atom:O", "O", "O", (1.0, 2.0, 3.0)),),
+        atoms=(MolecularAtom("atom:O", "O", (SiteComponent("O", number(1.0)),), (1.0, 2.0, 3.0)),),
     )
 
     view = molecule.atomic_view()
@@ -47,7 +47,7 @@ def test_mixed_crystal_site_stays_one_geometric_row() -> None:
 
     view = crystal.atomic_view()
 
-    assert view.ids == ("expanded:structure:mixed:site:M1:op:1:0,0,0",)
-    assert view.source_site_ids == ("site:M1",)
+    assert len(view.atoms) == 1
+    assert view.atoms[0].source_site_id == "site:M1"
     assert np.array_equal(view.cartesian, [[2.0, 0.0, 0.0]])
-    assert len(view.properties["site_components"].values[0]) == 2
+    assert len(view.atoms[0].components) == 2

@@ -1,10 +1,11 @@
-from cristma.structure import MolecularAtom, MolecularStructure, StructureCollection
+from cristma.core.values import MeasuredValue
+from cristma.structure import MolecularAtom, MolecularStructure, SiteComponent, StructureCollection
 
 
 def molecule(name: str) -> MolecularStructure:
     return MolecularStructure(
         name,
-        (MolecularAtom(f"atom:{name}", name, "H", (0.0, 0.0, 0.0)),),
+        (MolecularAtom(f"atom:{name}", name, (SiteComponent("H", MeasuredValue(1.0, None, "1")),), (0.0, 0.0, 0.0)),),
     )
 
 

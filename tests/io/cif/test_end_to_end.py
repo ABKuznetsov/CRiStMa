@@ -5,6 +5,7 @@ import pytest
 import cristma
 from cristma.core.structure import Crystal
 from cristma.io.cif.document import CifDocument
+from cristma.symmetry import expand_structure
 
 
 FIXTURES = Path("tests/fixtures/cif")
@@ -32,7 +33,7 @@ def test_public_read_maps_user_provided_large_cod_cif():
     assert structure.id == "cif:3000098"
     assert structure.formula == "B2 Ba O4"
     assert len(structure.sites) == 7
-    assert len(structure.expanded_sites) == 126
+    assert len(expand_structure(structure).atoms) == 126
 
 
 def test_public_read_text_probes_cif_and_maps_structure():

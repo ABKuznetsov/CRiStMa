@@ -7,9 +7,8 @@ import math
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping, Protocol, runtime_checkable
 
-from cristma.chemistry.species import ChemicalSpecies, as_species
-
 from .identity import StructureProvenance
+from .occupation import SiteComponent
 
 if TYPE_CHECKING:
     from .view import AtomicView
@@ -36,19 +35,19 @@ class MolecularAtom:
 
     id: str
     label: str
-    species: ChemicalSpecies | str
+    components: tuple[SiteComponent, ...]
     cartesian: tuple[float, float, float]
-    occupancy: float = 1.0
     metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
 
     def __post_init__(self) -> None:
         if not self.id or not self.label:
             raise ValueError("atom id and label must not be empty")
-        object.__setattr__(self, "species", as_species(self.species))
+        if not self.components:
+            raise ValueError("molecular atom must contain at least one component")
+        if math.fsum(float(component.occupancy.value) for component in self.components) > 1.0 + 1e-12:
+            raise ValueError("molecular atom occupancy exceeds one")
         if len(self.cartesian) != 3 or not all(math.isfinite(value) for value in self.cartesian):
             raise ValueError("atom Cartesian coordinates must contain three finite values")
-        if not math.isfinite(self.occupancy) or not 0.0 <= self.occupancy <= 1.0:
-            raise ValueError("atom occupancy must lie between zero and one")
         object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
 
 
@@ -133,25 +132,14 @@ class MolecularStructure:
     def atomic_view(self, *, expanded: bool = True) -> AtomicView:
         """Expose molecule atoms through the shared numerical structure view."""
 
-        import numpy as np
-
-        from .properties import AtomicProperty, AtomicPropertyTable
+        from .properties import AtomicPropertyTable
         from .view import AtomicView
 
-        coordinates = np.array([atom.cartesian for atom in self.atoms], dtype=float).reshape((-1, 3))
-        properties = AtomicPropertyTable(
-            len(self.atoms),
-            (AtomicProperty("occupancy", np.array([atom.occupancy for atom in self.atoms])),),
-        )
         return AtomicView(
-            ids=tuple(atom.id for atom in self.atoms),
-            species=tuple(atom.species for atom in self.atoms),
-            cartesian=coordinates,
-            fractional=None,
+            atoms=self.atoms,
             cell=None,
             periodic=self.periodic,
-            properties=properties,
-            source_site_ids=(None,) * len(self.atoms),
+            properties=AtomicPropertyTable(len(self.atoms)),
         )
 
 

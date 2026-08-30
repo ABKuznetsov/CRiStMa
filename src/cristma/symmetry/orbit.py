@@ -9,8 +9,10 @@ from typing import Literal
 import numpy as np
 
 from cristma.core.cell import UnitCell
-from cristma.structure.crystal import IndependentSite
+from cristma.structure.crystal import CrystalStructure, IndependentSite
 from cristma.structure.identity import ExpandedAtom, SymmetryImageProvenance
+from cristma.structure.properties import AtomicPropertyTable
+from cristma.structure.view import AtomicView
 
 from .affine import AffineOperation
 from .displacement import SymmetryConsistencyError, displacements_close, transform_displacement
@@ -151,3 +153,33 @@ def expand_orbit(
             )
 
     return tuple(expanded)
+
+
+def expand_structure(
+    crystal: CrystalStructure,
+    tolerance: float = 1e-8,
+) -> AtomicView[ExpandedAtom]:
+    """Expand all independent sites into one finite reference-cell atomic view."""
+
+    if crystal.space_group is None:
+        raise ValueError("crystal symmetry is required for structure expansion")
+    atoms = tuple(
+        atom
+        for site in crystal.sites
+        for atom in expand_orbit(
+            site,
+            crystal.space_group.operations,
+            tolerance,
+            cell=crystal.cell,
+            structure_id=crystal.id,
+        )
+    )
+    ids = tuple(atom.id for atom in atoms)
+    if len(set(ids)) != len(ids):
+        raise ValueError("symmetry expansion produced duplicate expanded atom IDs")
+    return AtomicView(
+        atoms=atoms,
+        cell=crystal.cell,
+        periodic=crystal.periodic,
+        properties=AtomicPropertyTable(len(atoms)),
+    )

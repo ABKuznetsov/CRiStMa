@@ -6,13 +6,19 @@ from cristma.structure import (
     MolecularGroup,
     MolecularStructure,
     Structure,
+    SiteComponent,
 )
+from cristma.core.values import MeasuredValue
+
+
+def component(element: str) -> SiteComponent:
+    return SiteComponent(element, MeasuredValue(1.0, None, "1"))
 
 
 def test_molecule_has_no_artificial_periodic_cell() -> None:
     atoms = (
-        MolecularAtom("atom:C1", "C1", "C", (0.0, 0.0, 0.0)),
-        MolecularAtom("atom:O1", "O1", "O", (1.2, 0.0, 0.0)),
+        MolecularAtom("atom:C1", "C1", (component("C"),), (0.0, 0.0, 0.0)),
+        MolecularAtom("atom:O1", "O1", (component("O"),), (1.2, 0.0, 0.0)),
     )
     molecule = MolecularStructure(
         name="CO",
@@ -26,7 +32,7 @@ def test_molecule_has_no_artificial_periodic_cell() -> None:
 
 
 def test_bond_rejects_missing_atom_identity() -> None:
-    atom = MolecularAtom("atom:C1", "C1", "C", (0.0, 0.0, 0.0))
+    atom = MolecularAtom("atom:C1", "C1", (component("C"),), (0.0, 0.0, 0.0))
 
     with pytest.raises(ValueError, match="unknown atom"):
         MolecularStructure(
@@ -39,7 +45,7 @@ def test_bond_rejects_missing_atom_identity() -> None:
 def test_group_references_existing_atoms_without_implying_rigidity() -> None:
     molecule = MolecularStructure(
         "fragment",
-        atoms=(MolecularAtom("atom:C1", "C1", "C", (0.0, 0.0, 0.0)),),
+        atoms=(MolecularAtom("atom:C1", "C1", (component("C"),), (0.0, 0.0, 0.0)),),
         groups=(MolecularGroup("group:1", "fragment", ("atom:C1",)),),
     )
 

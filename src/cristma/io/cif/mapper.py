@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from itertools import chain
 import math
 
 import numpy as np
@@ -688,7 +687,6 @@ def map_cif_structures(
             continue
         structure_id = f"cif:{block.name}"
         checked_sites: list[IndependentSite] = []
-        expanded_by_site = []
         block_failed = False
         for site in sites:
             try:
@@ -726,11 +724,9 @@ def map_cif_structures(
                     )
                 )
             checked_sites.append(checked_site)
-            expanded_by_site.append(orbit)
         if block_failed:
             continue
         sites = tuple(checked_sites)
-        expanded = tuple(chain.from_iterable(expanded_by_site))
         structures.append(
             CrystalStructure(
                 name=block.name,
@@ -740,7 +736,6 @@ def map_cif_structures(
                 space_group=symmetry,
                 formula=_scalar_text(block, names.FORMULA),
                 metadata=_metadata(block),
-                expanded_sites=expanded,
             )
         )
     return tuple(structures), tuple(diagnostics)
