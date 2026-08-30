@@ -6,12 +6,18 @@ from dataclasses import dataclass, replace
 import math
 from typing import Literal
 
-from cristma.core.structure import IndependentSite
+from cristma.structure.crystal import IndependentSite
+from cristma.structure.identity import ExpandedAtomRef, ExpandedSite
 
 from .affine import AffineOperation
 
 
-SymmetryProvenance = Literal["reported", "derived", "identity_fallback"]
+SymmetryProvenance = Literal[
+    "reported",
+    "derived",
+    "identity_fallback",
+    "unreported_identity",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,19 +35,13 @@ class SpaceGroupDefinition:
     def __post_init__(self) -> None:
         if not self.operations:
             raise ValueError("space group must contain at least one operation")
-        if self.provenance not in {"reported", "derived", "identity_fallback"}:
+        if self.provenance not in {
+            "reported",
+            "derived",
+            "identity_fallback",
+            "unreported_identity",
+        }:
             raise ValueError(f"unknown symmetry provenance: {self.provenance!r}")
-
-
-@dataclass(frozen=True, slots=True)
-class ExpandedSite:
-    """One derived orbit member and the operations that generate it."""
-
-    fractional: tuple[float, float, float]
-    independent_site_id: str
-    representative_operation_id: str
-    equivalent_operation_ids: tuple[str, ...]
-    cell_translation: tuple[int, int, int]
 
 
 def _raw_coordinates(
@@ -95,6 +95,8 @@ def expand_orbit(
     site: IndependentSite,
     operations: tuple[AffineOperation, ...],
     tolerance: float = 1e-8,
+    *,
+    structure_id: str | None = None,
 ) -> tuple[ExpandedSite, ...]:
     """Expand one independent site and merge equivalent special positions."""
 
@@ -121,9 +123,14 @@ def expand_orbit(
                 break
         else:
             expanded.append(
-                ExpandedSite(
+                ExpandedAtomRef(
+                    id=(
+                        f"expanded:{structure_id or 'unassigned'}:{site.id}:"
+                        f"{operation_id}:{','.join(map(str, translation))}"
+                    ),
+                    structure_id=structure_id,
                     fractional=fractional,
-                    independent_site_id=site.id,
+                    source_site_id=site.id,
                     representative_operation_id=operation_id,
                     equivalent_operation_ids=(operation_id,),
                     cell_translation=translation,
