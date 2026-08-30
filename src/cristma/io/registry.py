@@ -130,3 +130,27 @@ class FormatRegistry:
                 newline=_newline_style(source),
             ),
         )
+
+    def read_text(
+        self,
+        source: str,
+        *,
+        format: str | None = None,
+        source_name: str | None = None,
+    ) -> object:
+        """Select a handler and read an already decoded source string."""
+
+        suffix = Path(source_name).suffix if source_name is not None else ""
+        handler = self.select(source, suffix=suffix, format=format)
+        result = handler.read_text(source, source_name=source_name)
+        if not isinstance(result, ReadResult):
+            return result
+        return replace(
+            result,
+            source_info=SourceInfo(
+                name=source_name,
+                format=handler.name,
+                encoding="utf-8",
+                newline=_newline_style(source),
+            ),
+        )
