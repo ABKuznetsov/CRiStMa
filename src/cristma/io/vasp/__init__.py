@@ -19,6 +19,8 @@ _EXPORTS = {
     "XdatcarDocument": ("document", "XdatcarDocument"),
     "fractional_from_cartesian": ("numeric", "fractional_from_cartesian"),
     "map_vasp_snapshot": ("mapper", "map_vasp_snapshot"),
+    "load_outcar_snapshot": ("outcar", "load_outcar_snapshot"),
+    "parse_outcar": ("outcar", "parse_outcar"),
     "parse_poscar": ("poscar", "parse_poscar"),
     "poscar_snapshot": ("poscar", "poscar_snapshot"),
     "probe_vasp": ("probe", "probe_vasp"),

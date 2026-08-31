@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Literal
 
@@ -183,6 +183,17 @@ class OutcarDocument:
     raw_source: str
     source_name: str | None = None
     frames: tuple[VaspFrameSpan, ...] = ()
+    species_labels: tuple[str, ...] | None = None
+    counts: tuple[int, ...] = ()
+    lattices: tuple[np.ndarray, ...] = field(default=(), compare=False)
+
+    def __post_init__(self) -> None:
+        if len(self.lattices) != len(self.frames):
+            raise ValueError("OUTCAR lattice count must match frame count")
+        lattices = tuple(_array(value) for value in self.lattices)
+        if any(value.shape != (3, 3) for value in lattices):
+            raise ValueError("OUTCAR lattices must be 3x3 arrays")
+        object.__setattr__(self, "lattices", lattices)
 
 
 @dataclass(frozen=True, slots=True)
