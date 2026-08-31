@@ -4,7 +4,7 @@
 
 **Goal:** Add dependency-free native reading of POSCAR, CONTCAR, XDATCAR, OUTCAR, and `vasprun.xml`, mapping every complete structure into canonical CRiStMa snapshots and exposing trajectories lazily.
 
-**Architecture:** One lazily registered `vasp` format family owns four independent source parsers. Each parser produces a loss-preserving document and either one normalized `VaspSnapshot` or indexed lazy frame loaders; one mapper converts snapshots into `CrystalStructure`. A small general extension carries typed independent-site properties through symmetry expansion so Selective Dynamics, velocities, and forces remain scientific arrays rather than metadata.
+**Architecture:** One lazily registered `vasp` format family owns four independent source parsers. Each parser produces a loss-preserving document and either one normalized `VaspSnapshot` or indexed lazy frame loaders; one mapper converts snapshots into `CrystalStructure`. A small general extension stores typed independent-site properties and exposes them unchanged only for identity-only atomic views, which is the exact VASP case.
 
 **Tech Stack:** Python 3.11+, standard library (`dataclasses`, `xml.parsers.expat`, `xml.etree.ElementTree`), NumPy, existing CRiStMa structure/I/O contracts, pytest.
 
@@ -15,6 +15,7 @@
 - No ASE, pymatgen, Gemmi, Qt, VASP installation, or application dependency.
 - `CrystalStructure` is the only periodic scientific snapshot returned by VASP readers.
 - POSCAR/CONTCAR return `StructureCollection`; trajectories return lazy `StructureSequence`.
+- Trajectory laziness covers frame parsing/mapping; the text registry may retain the complete decoded source in memory in this milestone.
 - VASP input never implies a reported space group; use identity symmetry with `unreported_identity` provenance.
 - Invalid or incomplete source data produces diagnostics, never plausible partial structures.
 - Unknown source content remains in the document; semantic calculations never consume parser records.
@@ -22,7 +23,7 @@
 
 ---
 
-### Task 1: Carry typed site properties into expanded atomic views
+### Task 1: Carry typed site properties through identity-only atomic views
 
 **Files:**
 - Modify: `src/cristma/structure/crystal.py`
@@ -32,7 +33,7 @@
 
 **Interfaces:**
 - Consumes: `AtomicProperty`, `AtomicPropertyTable`, `CrystalStructure.sites`.
-- Produces: `CrystalStructure.properties: AtomicPropertyTable`; `expand_structure(crystal)` copies each independent-site property row to every symmetry-expanded atom derived from that site.
+- Produces: `CrystalStructure.properties: AtomicPropertyTable`; identity-only `expand_structure(crystal)` exposes the same one-to-one rows. A nonempty table with non-identity symmetry raises until transformation semantics exist.
 
 - [ ] **Step 1: Write failing property ownership and expansion tests**
 
@@ -46,15 +47,20 @@ def test_crystal_property_rows_follow_independent_sites() -> None:
     assert crystal.properties["selective_dynamics"].values.tolist() == [[True, False, True]]
 
 
-def test_site_properties_expand_with_symmetry_images() -> None:
-    crystal = inversion_crystal(
+def test_site_properties_reach_identity_atomic_view() -> None:
+    crystal = identity_crystal(
         properties=AtomicPropertyTable(
             1,
             (AtomicProperty("force", np.array([[1.0, 2.0, 3.0]]), unit="eV/angstrom"),),
         )
     )
     view = crystal.atomic_view()
-    assert view.properties["force"].values.tolist() == [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0]]
+    assert view.properties["force"].values.tolist() == [[1.0, 2.0, 3.0]]
+
+
+def test_nonidentity_property_expansion_requires_semantics() -> None:
+    with pytest.raises(ValueError, match="transformation semantics"):
+        inversion_crystal(properties=force_table()).atomic_view()
 ```
 
 - [ ] **Step 2: Run the focused tests and confirm the constructor/API failure**
@@ -73,13 +79,22 @@ class CrystalStructure:
 
     def __post_init__(self) -> None:
         # existing validation ...
-        properties = self.properties or AtomicPropertyTable(len(self.sites))
+        properties = (
+            AtomicPropertyTable(len(self.sites))
+            if self.properties is None
+            else self.properties
+        )
         if properties.atom_count != len(self.sites):
             raise ValueError("property table atom count does not match independent sites")
         object.__setattr__(self, "properties", properties)
 ```
 
-In `expand_structure`, build `site_index_by_id`, derive one expanded row index for every `ExpandedAtom.source_site_id`, and construct new `AtomicProperty` arrays with `np.take(prop.values, row_indices, axis=0)`. Copy `unit`, `missing`, `source_name`, and `provenance` unchanged.
+In `expand_structure`, detect exactly one identity operation (identity rotation
+and zero translation). For that case, return the validated site property table
+unchanged because row order and identity are one-to-one. If the table is
+nonempty and symmetry is not identity-only, raise `ValueError` containing
+`transformation semantics`. An empty table remains valid for all existing
+symmetry expansion.
 
 - [ ] **Step 4: Run focused tests**
 
@@ -152,7 +167,7 @@ class VaspScale:
             raise ValueError("VASP scale must not be zero")
 ```
 
-`VaspSnapshot` contains `name`, a numeric `(3, 3)` lattice in angstrom, ordered species, fractional positions, optional selective flags, velocities/unit, forces/unit, `frame_index`, and `SourceReference`. Every array is copied and marked read-only in `__post_init__`.
+`VaspSnapshot` contains `name`, a numeric `(3, 3)` lattice in angstrom, ordered species, fractional positions, optional selective flags, velocities/mode/unit, forces/unit, `frame_index`, and `SourceReference`. Every array is copied and marked read-only in `__post_init__`. Velocity mode and unit must either both be present with velocities or both be absent.
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -165,6 +180,7 @@ class VaspSnapshot:
     source: SourceReference
     selective_dynamics: np.ndarray | None = None
     velocities: np.ndarray | None = None
+    velocity_mode: Literal["direct", "cartesian"] | None = None
     velocity_unit: str | None = None
     forces: np.ndarray | None = None
     force_unit: str | None = None
@@ -238,7 +254,7 @@ Determine whether the row before counts is species or counts by requiring every 
 
 - [ ] **Step 4: Implement canonical snapshot mapping**
 
-Create one `IndependentSite` per declared coordinate row with occupancy 1.0 and stable ID `vasp:{source}:frame:{frame}:site:{index}`. Use `CrystalStructure.explicit`, attach `AtomicProperty("selective_dynamics", dtype=bool)`, velocities with reported unit/convention, and source provenance. Convert all final coordinates to fractional values before constructing sites.
+Create one `IndependentSite` per declared coordinate row with occupancy 1.0 and stable ID `vasp:{source}:frame:{frame}:site:{index}`. Use `CrystalStructure.explicit`, attach `AtomicProperty("selective_dynamics", dtype=bool)`, and retain velocity convention explicitly. Cartesian velocity values are not multiplied by POSCAR scale and use `angstrom/fs`; Direct values use `direct_lattice_vector/timestep`. Record the mode in `PropertyProvenance.source_field`. Convert only atomic positions to fractional values before constructing sites.
 
 - [ ] **Step 5: Run focused tests**
 

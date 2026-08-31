@@ -26,6 +26,11 @@ result = cristma.read(path)
 File grammar, probing, frame discovery, species resolution, coordinate
 conversion, units, diagnostics, and provenance belong only to CRiStMa.
 
+In this milestone, laziness applies to parsing and mapping trajectory frames.
+The existing text registry may still decode and retain the complete source in
+memory. File-backed span reading is a later I/O infrastructure improvement and
+does not delay the VASP reader.
+
 ## 2. Architectural boundary
 
 The VASP package is one registered format family with independent parsers:
@@ -126,8 +131,12 @@ meaning is retained exactly: `True` means the coordinate is allowed to move and
 `False` means constrained. Invalid flags produce diagnostics.
 
 Velocity blocks, when present and complete, are stored in a typed per-atom
-vector property together with the reported coordinate convention. Predictor-
-corrector or other unimplemented trailing sections remain in the source
+vector property together with the explicit reported coordinate convention.
+Cartesian velocities are retained in angstrom/fs and are not multiplied by the
+POSCAR scale factor. Direct velocities remain in direct-lattice-vector per
+timestep units; they are not silently converted without a reported timestep.
+`VaspSnapshot` therefore carries `velocity_mode` as well as `velocity_unit`.
+Predictor-corrector or other unimplemented trailing sections remain in the source
 document and are reported as preserved unsupported data; they do not alter the
 canonical positions.
 
@@ -211,6 +220,16 @@ For very large XML files, the document may retain decoded source text because
 the current `FormatHandler` contract is text-based, but canonical structures
 and numerical frame arrays remain lazy. Moving source storage to a mapped-byte
 contract is a separate I/O optimization and is not required by this reader.
+
+### 8.1 Atomic-property symmetry boundary
+
+VASP snapshots use explicit identity-only symmetry, so their site-indexed
+properties map one-to-one into `AtomicView`. This milestone does not define a
+generic transformation law for arbitrary `AtomicProperty` values under
+non-identity symmetry. Polar vectors, axial vectors, fractional vectors, and
+tensors require different transformations. CRiStMa must reject such expansion
+until a property declares its transformation semantics; it must never copy a
+force or velocity unchanged through inversion or rotation.
 
 ## 9. Results, identity, and provenance
 
