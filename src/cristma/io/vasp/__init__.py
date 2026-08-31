@@ -24,6 +24,8 @@ _EXPORTS = {
     "probe_vasp": ("probe", "probe_vasp"),
     "scaled_cartesian": ("numeric", "scaled_cartesian"),
     "scaled_lattice": ("numeric", "scaled_lattice"),
+    "load_xdatcar_snapshot": ("xdatcar", "load_xdatcar_snapshot"),
+    "parse_xdatcar": ("xdatcar", "parse_xdatcar"),
 }
 
 __all__ = sorted(_EXPORTS)
