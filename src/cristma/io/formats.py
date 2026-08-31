@@ -67,11 +67,18 @@ def _shelx_handler() -> FormatHandler:
     return ShelxFormatHandler()
 
 
+def _vasp_handler() -> FormatHandler:
+    from .vasp.handler import VaspFormatHandler
+
+    return VaspFormatHandler()
+
+
 def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
     """Return built-ins without importing their parser or mapper modules."""
 
     from .cif.probe import probe_cif
     from .shelx.probe import probe_shelx
+    from .vasp.probe import probe_vasp
 
     return (
         FormatDescriptor(
@@ -91,6 +98,15 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
             probe=probe_shelx,
             factory=_shelx_handler,
             capabilities=FormatCapabilities(text=True, multiple=False),
+        ),
+        FormatDescriptor(
+            name="vasp",
+            aliases=("poscar", "contcar", "xdatcar", "outcar", "vasprun"),
+            suffixes=(".xml",),
+            basenames=("POSCAR", "CONTCAR", "XDATCAR", "OUTCAR", "vasprun.xml"),
+            probe=probe_vasp,
+            factory=_vasp_handler,
+            capabilities=FormatCapabilities(text=True, multiple=True, lazy_frames=True),
         ),
     )
 

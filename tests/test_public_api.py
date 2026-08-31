@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import cristma
 from cristma import __version__
 from cristma.io.shelx import ShelxDocument, ShelxOccupancyExpression, ShelxWriteOptions
 from cristma.geometry import CoordinationAnalyzer, NeighborFinder, PeriodicNeighborGraph
@@ -17,3 +20,16 @@ def test_structure_core_subpackages_export_intended_types() -> None:
 
 def test_shelx_package_exports_intended_format_controls() -> None:
     assert ShelxDocument and ShelxOccupancyExpression and ShelxWriteOptions
+
+
+def test_public_read_maps_poscar(tmp_path: Path) -> None:
+    path = tmp_path / "POSCAR"
+    path.write_text(
+        "Silicon\n1\n1 0 0\n0 1 0\n0 0 1\nSi\n1\nDirect\n0 0 0\n",
+        encoding="utf-8",
+    )
+
+    result = cristma.read(path)
+
+    assert result.ok
+    assert result.structures[0].name == "Silicon"
