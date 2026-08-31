@@ -12,6 +12,7 @@ from cristma.core.values import MeasuredValue
 
 from .identity import StructureProvenance
 from .occupation import SiteComponent
+from .properties import AtomicPropertyTable
 
 if TYPE_CHECKING:
     from cristma.symmetry.orbit import SpaceGroupDefinition
@@ -85,10 +86,22 @@ class CrystalStructure:
     formula: str | None = None
     periodic: tuple[bool, bool, bool] = (True, True, True)
     provenance: StructureProvenance = field(default_factory=StructureProvenance)
+    properties: AtomicPropertyTable | None = field(default=None, compare=False)
     metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
+
     def __post_init__(self) -> None:
         if not any(self.periodic):
             raise ValueError("crystal structure must be periodic along at least one axis")
+        properties = (
+            AtomicPropertyTable(len(self.sites))
+            if self.properties is None
+            else self.properties
+        )
+        if properties.atom_count != len(self.sites):
+            raise ValueError(
+                "property table atom count does not match independent sites"
+            )
+        object.__setattr__(self, "properties", properties)
         object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
 
     @classmethod

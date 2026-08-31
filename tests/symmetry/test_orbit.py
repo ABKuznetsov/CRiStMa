@@ -1,11 +1,18 @@
+import numpy as np
 import pytest
 
 from cristma.core.cell import UnitCell
 from cristma.core.structure import IndependentSite, SiteComponent
 from cristma.core.values import MeasuredValue
-from cristma.structure import SymmetryImageProvenance
+from cristma.structure import (
+    AtomicProperty,
+    AtomicPropertyTable,
+    CrystalStructure,
+    PropertyProvenance,
+    SymmetryImageProvenance,
+)
 from cristma.symmetry.affine import parse_xyz_operation
-from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit
+from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit, expand_structure
 
 
 def number(value: float) -> MeasuredValue:
@@ -106,3 +113,54 @@ def test_space_group_records_reported_provenance():
 
     assert group.operations == (identity,)
     assert group.provenance == "reported"
+
+
+def test_site_properties_reach_identity_atomic_view() -> None:
+    operations = (parse_xyz_operation("x,y,z", operation_id="op:1"),)
+    provenance = PropertyProvenance(source_name="OUTCAR", source_field="TOTAL-FORCE")
+    crystal = CrystalStructure(
+        "demo",
+        cubic_cell(),
+        (site_at(0.1, 0.2, 0.3),),
+        id="structure:demo",
+        space_group=SpaceGroupDefinition(operations, provenance="reported"),
+        properties=AtomicPropertyTable(
+            1,
+            (
+                AtomicProperty(
+                    "force",
+                    np.array([[1.0, 2.0, 3.0]]),
+                    unit="eV/angstrom",
+                    provenance=provenance,
+                ),
+            ),
+        ),
+    )
+
+    expanded = expand_structure(crystal)
+
+    assert expanded.properties["force"].values.tolist() == [
+        [1.0, 2.0, 3.0],
+    ]
+    assert expanded.properties["force"].unit == "eV/angstrom"
+    assert expanded.properties["force"].provenance is provenance
+
+
+def test_nonidentity_property_expansion_requires_transform_semantics() -> None:
+    operations = (
+        parse_xyz_operation("x,y,z", operation_id="op:1"),
+        parse_xyz_operation("-x,-y,-z", operation_id="op:2"),
+    )
+    crystal = CrystalStructure(
+        "demo",
+        cubic_cell(),
+        (site_at(0.1, 0.2, 0.3),),
+        space_group=SpaceGroupDefinition(operations, provenance="reported"),
+        properties=AtomicPropertyTable(
+            1,
+            (AtomicProperty("force", np.array([[1.0, 2.0, 3.0]])),),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="transformation semantics"):
+        expand_structure(crystal)

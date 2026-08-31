@@ -177,9 +177,28 @@ def expand_structure(
     ids = tuple(atom.id for atom in atoms)
     if len(set(ids)) != len(ids):
         raise ValueError("symmetry expansion produced duplicate expanded atom IDs")
+    properties = crystal.properties
+    if properties and not (
+        len(crystal.space_group.operations) == 1
+        and crystal.space_group.operations[0].normalized().rotation
+        == (
+            (1, 0, 0),
+            (0, 1, 0),
+            (0, 0, 1),
+        )
+        and crystal.space_group.operations[0].normalized().translation == (0, 0, 0)
+    ):
+        raise ValueError(
+            "atomic property transformation semantics are required for "
+            "non-identity symmetry"
+        )
+    if properties and len(atoms) != properties.atom_count:
+        raise ValueError("identity expansion changed the property row count")
+    if not properties:
+        properties = AtomicPropertyTable(len(atoms))
     return AtomicView(
         atoms=atoms,
         cell=crystal.cell,
         periodic=crystal.periodic,
-        properties=AtomicPropertyTable(len(atoms)),
+        properties=properties,
     )
