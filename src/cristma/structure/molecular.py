@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Mapping, Protocol, runtime_checkable
 
 from .identity import StructureProvenance
 from .occupation import SiteComponent
+from .properties import AtomicPropertyTable
 
 if TYPE_CHECKING:
     from .view import AtomicView
@@ -98,6 +99,7 @@ class MolecularStructure:
     id: str | None = None
     periodic: tuple[bool, bool, bool] = (False, False, False)
     provenance: StructureProvenance = field(default_factory=StructureProvenance)
+    properties: AtomicPropertyTable | None = field(default=None, compare=False)
     metadata: Mapping[str, object] = field(default_factory=dict, compare=False)
 
     def __post_init__(self) -> None:
@@ -123,6 +125,14 @@ class MolecularStructure:
             missing = set(group.atom_ids) - known_atoms
             if missing:
                 raise ValueError(f"group references unknown atom: {sorted(missing)!r}")
+        properties = (
+            AtomicPropertyTable(len(self.atoms))
+            if self.properties is None
+            else self.properties
+        )
+        if properties.atom_count != len(self.atoms):
+            raise ValueError("property table atom count does not match molecular atoms")
+        object.__setattr__(self, "properties", properties)
         object.__setattr__(self, "metadata", _frozen_metadata(self.metadata))
 
     @property
@@ -132,14 +142,13 @@ class MolecularStructure:
     def atomic_view(self, *, expanded: bool = True) -> AtomicView:
         """Expose molecule atoms through the shared numerical structure view."""
 
-        from .properties import AtomicPropertyTable
         from .view import AtomicView
 
         return AtomicView(
             atoms=self.atoms,
             cell=None,
             periodic=self.periodic,
-            properties=AtomicPropertyTable(len(self.atoms)),
+            properties=self.properties,
         )
 
 

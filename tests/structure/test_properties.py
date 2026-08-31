@@ -8,6 +8,8 @@ from cristma.structure import (
     AtomicPropertyTable,
     CrystalStructure,
     IndependentSite,
+    MolecularAtom,
+    MolecularStructure,
     SiteComponent,
 )
 
@@ -59,3 +61,29 @@ def test_crystal_property_rows_must_match_independent_sites() -> None:
             (site,),
             properties=AtomicPropertyTable(0),
         )
+
+
+def test_molecular_properties_reach_atomic_view() -> None:
+    value = MeasuredValue(1.0, None, "1")
+    atoms = (
+        MolecularAtom("atom:O", "O", (SiteComponent("O", value),), (0.0, 0.0, 0.0)),
+        MolecularAtom("atom:H1", "H1", (SiteComponent("H", value),), (1.0, 0.0, 0.0)),
+        MolecularAtom("atom:H2", "H2", (SiteComponent("H", value),), (-1.0, 0.0, 0.0)),
+    )
+    table = AtomicPropertyTable(
+        3,
+        (AtomicProperty("charge", np.array([-0.8, 0.4, 0.4])),),
+    )
+
+    molecule = MolecularStructure("water", atoms, properties=table)
+
+    assert molecule.properties is table
+    assert molecule.atomic_view().properties is table
+
+
+def test_molecular_property_rows_must_match_atoms() -> None:
+    value = MeasuredValue(1.0, None, "1")
+    atom = MolecularAtom("atom:H", "H", (SiteComponent("H", value),), (0.0, 0.0, 0.0))
+
+    with pytest.raises(ValueError, match="molecular atoms"):
+        MolecularStructure("invalid", (atom,), properties=AtomicPropertyTable(0))
