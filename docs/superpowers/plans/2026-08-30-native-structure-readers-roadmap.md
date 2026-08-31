@@ -47,6 +47,12 @@ canonical input, explicit derived results, their reuse, and cache invalidation.
 | 11 | MOL/SDF | V2000/V3000 documents, bonds, properties, multiple records | `tests/io/mol tests/structure` |
 | 12 | Reader matrix | Real fixture provenance, detection matrix, built-wheel and dependency audit | `pytest -q` plus clean wheel checks |
 
+Current implementation status (2026-09-01): rows 1 and 2 are complete. Row 3
+is implemented on `feature/native-vasp` with native POSCAR/CONTCAR, lazy
+XDATCAR, lazy structural OUTCAR frames, and lazy `vasprun.xml`; its final full
+suite and installed-wheel gates are recorded by the VASP implementation plan.
+Rows 4–12 remain future independent sub-projects.
+
 The CRAFT universal cutover may occur after rows 2, 3, 9, and 10 are complete,
 because those rows plus CIF cover every structure format CRAFT currently
 advertises. The remaining scientific formats continue to land horizontally in

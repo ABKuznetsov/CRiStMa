@@ -11,7 +11,7 @@ of application frameworks and specialized crystallographic packages.
 Every supported external structure format terminates at the CRiStMa I/O boundary:
 
 ```text
-CIF / RES / INS / future registered structure source
+CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml
         -> native reader and semantic mapper
         -> CrystalStructure | MolecularStructure
 ```
@@ -50,7 +50,8 @@ The current native readers are:
 
 - CIF 1.1 (`.cif`), with preserving and canonical writing;
 - SHELX RES/INS (`.res`, `.ins`), with loss-preserving documents and canonical
-  writing from `CrystalStructure`.
+  writing from `CrystalStructure`;
+- VASP POSCAR/CONTCAR, XDATCAR, structural OUTCAR frames, and `vasprun.xml`.
 
 Other structural formats are added to the same registry as independent native
 readers. Applications should never implement their own suffix switch or parser.
@@ -106,6 +107,28 @@ cristma.write(
 )
 ```
 
+VASP structure sources use the same one-line API. Trajectories are indexed
+without creating every `CrystalStructure`; a frame is parsed, mapped, and
+cached only when requested:
+
+```python
+import cristma
+
+result = cristma.read("XDATCAR")
+trajectory = result.structures
+final = trajectory.final
+print(len(trajectory), final.cell.volume)
+```
+
+POSCAR/CONTCAR preserve Selective Dynamics and explicitly reported velocities.
+OUTCAR and `vasprun.xml` retain complete structural frames and per-atom forces
+with units. A VASP 4 source without species labels produces explicit unknown
+species plus a diagnostic; CRiStMa does not guess elements from coordinates.
+
+Native VASP reading requires only NumPy and the Python standard library. This
+slice deliberately excludes electronic-result parsing and canonical VASP
+writing.
+
 `StructureCollection` represents finite multi-model files without losing the
 role of a primary or final model. Large trajectories use the same sequence
 contract through lazy `StructureSequence`: indexing loads and caches only the
@@ -117,5 +140,5 @@ Periodic `CrystalStructure` and non-periodic `MolecularStructure` remain
 distinct physical models, while both expose an immutable numerical
 `AtomicView` for diffraction, topology, visualization, and refinement code.
 
-CIF and SHELX RES/INS reading and writing are implemented natively. Gemmi,
+CIF, SHELX RES/INS, and VASP structural reading are implemented natively. Gemmi,
 pymatgen, PyXtal, CrysPy, GSAS-II, SHELX, and Qt are not required dependencies.
