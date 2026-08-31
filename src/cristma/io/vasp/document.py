@@ -201,6 +201,7 @@ class VasprunDocument:
     raw_source: str
     source_name: str | None = None
     frames: tuple[VaspFrameSpan, ...] = ()
+    species_labels: tuple[str, ...] = ()
 
 
 __all__ = [

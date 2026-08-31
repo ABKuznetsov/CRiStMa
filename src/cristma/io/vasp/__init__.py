@@ -28,6 +28,8 @@ _EXPORTS = {
     "scaled_lattice": ("numeric", "scaled_lattice"),
     "load_xdatcar_snapshot": ("xdatcar", "load_xdatcar_snapshot"),
     "parse_xdatcar": ("xdatcar", "parse_xdatcar"),
+    "load_vasprun_snapshot": ("vasprun", "load_vasprun_snapshot"),
+    "parse_vasprun": ("vasprun", "parse_vasprun"),
 }
 
 __all__ = sorted(_EXPORTS)
