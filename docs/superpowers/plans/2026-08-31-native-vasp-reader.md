@@ -256,6 +256,13 @@ Determine whether the row before counts is species or counts by requiring every 
 
 Create one `IndependentSite` per declared coordinate row with occupancy 1.0 and stable ID `vasp:{source}:frame:{frame}:site:{index}`. Use `CrystalStructure.explicit`, attach `AtomicProperty("selective_dynamics", dtype=bool)`, and retain velocity convention explicitly. Cartesian velocity values are not multiplied by POSCAR scale and use `angstrom/fs`; Direct values use `direct_lattice_vector/timestep`. Record the mode in `PropertyProvenance.source_field`. Convert only atomic positions to fractional values before constructing sites.
 
+Derive the six cell parameters from the reported lattice and construct the
+canonical `UnitCell`. Compute `Q = inv(snapshot.lattice) @ cell.matrix`; validate
+`Q @ Q.T` against identity within `1e-10`. Map Cartesian polar-vector rows as
+`rows @ Q`. Apply this to forces and Cartesian velocities, but not Direct
+velocities. Add an analytic 90-degree rotated-cell test proving a source vector
+`[0, 1, 0]` becomes canonical `[1, 0, 0]`.
+
 - [ ] **Step 5: Run focused tests**
 
 Run: `python3 -m pytest -p no:cacheprovider tests/io/vasp/test_document.py tests/io/vasp/test_numeric.py tests/io/vasp/test_poscar.py tests/io/vasp/test_mapper.py tests/structure/test_properties.py -q`

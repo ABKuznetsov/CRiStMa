@@ -140,6 +140,13 @@ Predictor-corrector or other unimplemented trailing sections remain in the sourc
 document and are reported as preserved unsupported data; they do not alter the
 canonical positions.
 
+`UnitCell` reconstructs a canonical Cartesian orientation from the six metric
+parameters, while a VASP lattice may be globally rotated. The mapper computes
+the orthogonal change of frame from the reported lattice to the canonical cell.
+Forces and Cartesian velocities are rotated into that canonical frame. Direct
+velocities remain components along the lattice vectors and are not rotated.
+This preserves vector directions relative to the canonical structure.
+
 Unknown or custom trailing lines never become plausible atoms.
 
 ## 5. POSCAR and CONTCAR

@@ -13,6 +13,8 @@ from .document import (
     XdatcarDocument,
 )
 from .numeric import fractional_from_cartesian, scaled_cartesian, scaled_lattice
+from .mapper import map_vasp_snapshot
+from .poscar import parse_poscar, poscar_snapshot
 
 __all__ = [
     "CoordinateMode",
@@ -26,6 +28,9 @@ __all__ = [
     "VasprunDocument",
     "XdatcarDocument",
     "fractional_from_cartesian",
+    "map_vasp_snapshot",
+    "parse_poscar",
+    "poscar_snapshot",
     "scaled_cartesian",
     "scaled_lattice",
 ]
