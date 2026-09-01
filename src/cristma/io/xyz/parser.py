@@ -8,7 +8,8 @@ import numpy as np
 
 from cristma.chemistry import element_from_atomic_number, normalize_element
 from cristma.diagnostics import Diagnostic, Severity
-from cristma.structure import FrameReference, SourceReference
+from cristma.io.result import ReadResult, SourceInfo
+from cristma.structure import FrameReference, SourceReference, StructureSequence
 
 from .document import XyzDocument, XyzFrame, XyzFrameSpan, XyzPropertySpec
 from .metadata import parse_xyz_metadata
@@ -230,4 +231,37 @@ def validate_xyz_frame(document: XyzDocument, span: XyzFrameSpan) -> tuple[Diagn
     return tuple(diagnostics)
 
 
-__all__ = ["load_xyz_frame", "validate_xyz_frame"]
+def parse_xyz(source: str, source_name: str | None = None) -> ReadResult:
+    """Index and validate an XYZ trajectory while leaving frames lazy."""
+
+    from .index import index_xyz
+
+    document, index_diagnostics = index_xyz(source, source_name)
+    diagnostics = list(index_diagnostics)
+    references: list[FrameReference] = []
+    for position, span in enumerate(document.frames):
+        diagnostics.extend(validate_xyz_frame(document, span))
+        references.append(
+            FrameReference(
+                span.index,
+                role="final" if position == len(document.frames) - 1 else "intermediate",
+                source=_source_for(document, span),
+                metadata={"atom_count": span.atom_count},
+            )
+        )
+
+    def load(reference: FrameReference):
+        from . import mapper
+
+        return mapper.map_xyz_frame(load_xyz_frame(document, reference))
+
+    newline = "\r\n" if "\r\n" in source else "\r" if "\r" in source else "\n"
+    return ReadResult(
+        document=document,
+        structures=StructureSequence(tuple(references), load),
+        diagnostics=tuple(diagnostics),
+        source_info=SourceInfo(source_name, "xyz", "utf-8", newline),
+    )
+
+
+__all__ = ["load_xyz_frame", "parse_xyz", "validate_xyz_frame"]

@@ -73,12 +73,19 @@ def _vasp_handler() -> FormatHandler:
     return VaspFormatHandler()
 
 
+def _xyz_handler() -> FormatHandler:
+    from .xyz.handler import XyzFormatHandler
+
+    return XyzFormatHandler()
+
+
 def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
     """Return built-ins without importing their parser or mapper modules."""
 
     from .cif.probe import probe_cif
     from .shelx.probe import probe_shelx
     from .vasp.probe import probe_vasp
+    from .xyz.probe import probe_xyz
 
     return (
         FormatDescriptor(
@@ -106,6 +113,15 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
             basenames=("POSCAR", "CONTCAR", "XDATCAR", "OUTCAR", "vasprun.xml"),
             probe=probe_vasp,
             factory=_vasp_handler,
+            capabilities=FormatCapabilities(text=True, multiple=True, lazy_frames=True),
+        ),
+        FormatDescriptor(
+            name="xyz",
+            aliases=("extxyz",),
+            suffixes=(".xyz", ".extxyz"),
+            basenames=(),
+            probe=probe_xyz,
+            factory=_xyz_handler,
             capabilities=FormatCapabilities(text=True, multiple=True, lazy_frames=True),
         ),
     )

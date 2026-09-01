@@ -81,3 +81,37 @@ def test_builtin_descriptor_does_not_import_vasp_implementations() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+def test_xyz_descriptor_is_lazy_and_content_aware() -> None:
+    registry = FormatRegistry(builtin_format_descriptors())
+
+    descriptor = registry.select("1\nwater\nO 0 0 0\n")
+
+    assert descriptor.name == "xyz"
+    assert descriptor.aliases == ("extxyz",)
+    assert descriptor.capabilities.multiple
+    assert descriptor.capabilities.lazy_frames
+
+
+def test_builtin_descriptor_does_not_import_xyz_parser_or_mapper() -> None:
+    root = Path(__file__).parents[2]
+    script = (
+        "import sys; "
+        "from cristma.io.formats import builtin_format_descriptors; "
+        "builtin_format_descriptors(); "
+        "assert 'cristma.io.xyz.parser' not in sys.modules; "
+        "assert 'cristma.io.xyz.mapper' not in sys.modules"
+    )
+    environment = dict(os.environ, PYTHONPATH=str(root / "src"))
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
