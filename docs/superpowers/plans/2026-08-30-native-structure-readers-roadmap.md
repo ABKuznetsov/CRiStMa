@@ -42,16 +42,17 @@ canonical input, explicit derived results, their reuse, and cache invalidation.
 | 6 | CP2K | Nested input structure sections, safe includes, output frames | `tests/io/cp2k tests/io/test_source.py tests/structure` |
 | 7 | ABINIT | Input datasets and text-output frames with exact unit handling | `tests/io/abinit tests/structure` |
 | 8 | SIESTA | FDF/XV/STRUCT_OUT, safe includes, species mapping | `tests/io/siesta tests/io/test_source.py tests/structure` |
-| 9 | XYZ/extXYZ | Basic and extended typed columns, periodic and molecular frames | `tests/io/xyz tests/structure` |
+| 9 | XYZ/extXYZ — implemented on `feature/native-xyz` | Basic and extended typed columns, periodic and molecular frames | `tests/io/xyz tests/structure` |
 | 10 | PDB and PDBx/mmCIF | Models, hierarchy, altloc, cell/symmetry, bonds | `tests/io/pdb tests/io/cif/test_mmcif_mapper.py tests/structure` |
 | 11 | MOL/SDF | V2000/V3000 documents, bonds, properties, multiple records | `tests/io/mol tests/structure` |
 | 12 | Reader matrix | Real fixture provenance, detection matrix, built-wheel and dependency audit | `pytest -q` plus clean wheel checks |
 
 Current implementation status (2026-09-01): rows 1 and 2 are complete. Row 3
-is implemented on `feature/native-vasp` with native POSCAR/CONTCAR, lazy
-XDATCAR, lazy structural OUTCAR frames, and lazy `vasprun.xml`; its final full
-suite and installed-wheel gates are recorded by the VASP implementation plan.
-Rows 4–12 remain future independent sub-projects.
+is implemented with native POSCAR/CONTCAR, lazy XDATCAR, lazy structural OUTCAR
+frames, and lazy `vasprun.xml`. Row 9 is implemented on `feature/native-xyz`
+with plain/extXYZ typed columns, conservative explicit periodicity, and lazy
+mixed-frame trajectories. Rows 4–8 and 10–12 remain future independent
+sub-projects.
 
 The CRAFT universal cutover may occur after rows 2, 3, 9, and 10 are complete,
 because those rows plus CIF cover every structure format CRAFT currently

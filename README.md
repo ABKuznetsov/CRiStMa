@@ -11,7 +11,7 @@ of application frameworks and specialized crystallographic packages.
 Every supported external structure format terminates at the CRiStMa I/O boundary:
 
 ```text
-CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml
+CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml / XYZ / extXYZ
         -> native reader and semantic mapper
         -> CrystalStructure | MolecularStructure
 ```
@@ -52,6 +52,7 @@ The current native readers are:
 - SHELX RES/INS (`.res`, `.ins`), with loss-preserving documents and canonical
   writing from `CrystalStructure`;
 - VASP POSCAR/CONTCAR, XDATCAR, structural OUTCAR frames, and `vasprun.xml`.
+- plain XYZ and extXYZ, including typed per-atom columns and lazy trajectories.
 
 Other structural formats are added to the same registry as independent native
 readers. Applications should never implement their own suffix switch or parser.
@@ -129,6 +130,24 @@ Native VASP reading requires only NumPy and the Python standard library. This
 slice deliberately excludes electronic-result parsing and canonical VASP
 writing.
 
+XYZ structure sources use the same registry and lazy sequence contract:
+
+```python
+result = cristma.read("trajectory.extxyz")
+trajectory = result.structures
+final = trajectory.final
+print(len(trajectory), final.name, tuple(final.atomic_view().properties))
+```
+
+Plain XYZ frames are molecular. An extXYZ frame becomes periodic only when it
+reports both a valid `Lattice` and explicit `pbc`; a lattice without `pbc` is
+retained as source metadata but is not treated as evidence of periodicity. All
+declared `S`, `I`, `R`, and `L` atom columns are typed, and non-structural
+columns retain their reported names and provenance without inferred units.
+Trajectories may change schema, cell, or molecular/periodic type between
+frames. Native XYZ reading uses only NumPy and the Python standard library;
+writing and bond inference are outside this reader slice.
+
 `StructureCollection` represents finite multi-model files without losing the
 role of a primary or final model. Large trajectories use the same sequence
 contract through lazy `StructureSequence`: indexing loads and caches only the
@@ -140,5 +159,6 @@ Periodic `CrystalStructure` and non-periodic `MolecularStructure` remain
 distinct physical models, while both expose an immutable numerical
 `AtomicView` for diffraction, topology, visualization, and refinement code.
 
-CIF, SHELX RES/INS, and VASP structural reading are implemented natively. Gemmi,
-pymatgen, PyXtal, CrysPy, GSAS-II, SHELX, and Qt are not required dependencies.
+CIF, SHELX RES/INS, VASP, and XYZ/extXYZ structural reading are implemented
+natively. Gemmi, pymatgen, PyXtal, CrysPy, GSAS-II, SHELX, and Qt are not
+required dependencies.
