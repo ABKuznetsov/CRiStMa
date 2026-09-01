@@ -10,15 +10,18 @@ from .orbit import (
     assign_wyckoff,
     build_orbit,
 )
+from .local_geometry import GeometricContact, geometric_contacts
 
 __all__ = [
     "AffineCoordinateMap",
     "SpaceGroupSetting",
     "SpaceGroupCatalog",
     "CrystallographicOrbit",
+    "GeometricContact",
     "SiteSymmetry",
     "WyckoffAssignment",
     "WyckoffPosition",
     "assign_wyckoff",
     "build_orbit",
+    "geometric_contacts",
 ]
