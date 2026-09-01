@@ -3,7 +3,13 @@
 from .space_group import SpaceGroupSetting
 from .wyckoff import AffineCoordinateMap, WyckoffPosition
 from .catalog import SpaceGroupCatalog
-from .orbit import CrystallographicOrbit, SiteSymmetry, build_orbit
+from .orbit import (
+    CrystallographicOrbit,
+    SiteSymmetry,
+    WyckoffAssignment,
+    assign_wyckoff,
+    build_orbit,
+)
 
 __all__ = [
     "AffineCoordinateMap",
@@ -11,6 +17,8 @@ __all__ = [
     "SpaceGroupCatalog",
     "CrystallographicOrbit",
     "SiteSymmetry",
+    "WyckoffAssignment",
     "WyckoffPosition",
+    "assign_wyckoff",
     "build_orbit",
 ]
