@@ -62,7 +62,7 @@ def test_incomplete_coordinate_row_is_error():
     assert "cif.map.coordinate_missing" in {item.code for item in diagnostics}
 
 
-def test_missing_operations_uses_visible_identity_fallback():
+def test_missing_operations_are_derived_from_unique_hm_symbol():
     source = MINIMAL.replace(
         "loop_\n_space_group_symop_operation_xyz\n'x,y,z'\n'-x,-y,-z'\n",
         "",
@@ -70,8 +70,8 @@ def test_missing_operations_uses_visible_identity_fallback():
 
     structures, diagnostics = map_cif_structures(parse_cif(source).document)
 
-    assert structures[0].space_group.provenance == "identity_fallback"
-    assert "cif.map.symmetry_operations_missing" in {item.code for item in diagnostics}
+    assert structures[0].space_group.provenance == "derived"
+    assert "cif.map.symmetry_operations_derived" in {item.code for item in diagnostics}
 
 
 def test_maps_formula_hall_symbol_and_publication_metadata():

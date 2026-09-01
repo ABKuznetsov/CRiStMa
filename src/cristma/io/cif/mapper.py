@@ -9,6 +9,9 @@ import numpy as np
 
 from cristma.chemistry.elements import normalize_element
 from cristma.core.cell import UnitCell
+from cristma.crystallography.catalog import SpaceGroupCatalog
+from cristma.crystallography.orbit import assign_wyckoff, build_orbit
+from cristma.crystallography.space_group import SpaceGroupSetting
 from cristma.structure import (
     CrystalStructure,
     DisplacementParameters,
@@ -17,7 +20,7 @@ from cristma.structure import (
 )
 from cristma.core.values import MeasuredValue, parse_measured_value
 from cristma.io.diagnostics import Diagnostic, Severity
-from cristma.symmetry.affine import parse_xyz_operation
+from cristma.symmetry.affine import AffineOperation, parse_xyz_operation
 from cristma.symmetry.displacement import SymmetryConsistencyError
 from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit
 
@@ -119,10 +122,79 @@ def _cell(
         return None
 
 
+def _normalized_space_group_symbol(value: str) -> str:
+    return "".join(value.casefold().replace("_", "").split())
+
+
+def _catalog_setting(
+    block: CifBlock,
+    catalog: SpaceGroupCatalog,
+) -> tuple[SpaceGroupSetting | None, bool]:
+    hall_symbol = _scalar_text(block, names.HALL_SYMBOL)
+    if hall_symbol is not None:
+        try:
+            return catalog.by_hall(hall_symbol), False
+        except KeyError:
+            pass
+        except LookupError:
+            return None, True
+
+    number_text = _scalar_text(block, names.IT_NUMBER)
+    choice = _scalar_text(block, names.SETTING) or _scalar_text(block, names.ORIGIN_CHOICE)
+    if number_text is not None and choice is not None:
+        try:
+            number = int(float(number_text))
+        except ValueError:
+            number = None
+        if number is not None:
+            matches = tuple(
+                setting
+                for setting in catalog.by_number(number)
+                if setting.choice.casefold() == choice.casefold()
+            )
+            if len(matches) == 1:
+                return matches[0], False
+            if len(matches) > 1:
+                return None, True
+
+    hm_symbol = _scalar_text(block, names.HM_SYMBOL)
+    if hm_symbol is not None:
+        normalized = _normalized_space_group_symbol(hm_symbol)
+        matches = tuple(
+            setting
+            for setting in catalog.settings
+            if normalized
+            in {
+                _normalized_space_group_symbol(setting.hm_short),
+                _normalized_space_group_symbol(setting.hm_full),
+            }
+        )
+        if len(matches) == 1:
+            return matches[0], False
+        if len(matches) > 1:
+            return None, True
+    return None, False
+
+
+def _operation_key(operation: AffineOperation) -> object:
+    normalized = operation.normalized()
+    return normalized.rotation, normalized.translation
+
+
+def _same_operation_set(
+    left: tuple[AffineOperation, ...],
+    right: tuple[AffineOperation, ...],
+) -> bool:
+    return {_operation_key(operation) for operation in left} == {
+        _operation_key(operation) for operation in right
+    }
+
+
 def _symmetry(
     block: CifBlock,
     diagnostics: list[Diagnostic],
-) -> SpaceGroupDefinition | None:
+    catalog: SpaceGroupCatalog,
+) -> tuple[SpaceGroupDefinition, SpaceGroupSetting | None] | None:
     operation_tokens: list[CifToken] = []
     for loop in block.loops:
         index = _column(loop, names.SYMMETRY_OPERATION)
@@ -132,9 +204,30 @@ def _symmetry(
     if scalar_operation is not None:
         operation_tokens.append(scalar_operation.value_token)
 
+    catalog_setting, lookup_ambiguous = _catalog_setting(block, catalog)
     provenance = "reported"
     if not operation_tokens:
+        if catalog_setting is not None:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.INFO,
+                    "cif.map.symmetry_operations_derived",
+                    f"Symmetry operations derived from Hall setting "
+                    f"{catalog_setting.setting_id} ({catalog_setting.hall_symbol}).",
+                    block.data_token.span,
+                )
+            )
+            return catalog_setting.definition(provenance="derived"), catalog_setting
         provenance = "identity_fallback"
+        if lookup_ambiguous:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "cif.map.space_group_lookup_ambiguous",
+                    "Reported space-group metadata identifies more than one setting.",
+                    block.data_token.span,
+                )
+            )
         diagnostics.append(
             Diagnostic(
                 Severity.WARNING,
@@ -180,7 +273,7 @@ def _symmetry(
                 )
             )
 
-    return SpaceGroupDefinition(
+    definition = SpaceGroupDefinition(
         operations=operations,
         provenance=provenance,
         number=number,
@@ -189,6 +282,21 @@ def _symmetry(
         setting=_scalar_text(block, names.SETTING),
         origin_choice=_scalar_text(block, names.ORIGIN_CHOICE),
     )
+    if catalog_setting is not None and not _same_operation_set(
+        operations,
+        catalog_setting.symmetry_operations,
+    ):
+        diagnostics.append(
+            Diagnostic(
+                Severity.WARNING,
+                "cif.map.space_group_operations_mismatch",
+                "Reported symmetry operations disagree with the identified catalog setting; "
+                "the explicit source operations were retained.",
+                block.data_token.span,
+            )
+        )
+        catalog_setting = None
+    return definition, catalog_setting
 
 
 def _optional_measured(
@@ -668,20 +776,24 @@ def _metadata(block: CifBlock) -> dict[str, object]:
 
 def map_cif_structures(
     document: CifDocument,
+    *,
+    crystallography: SpaceGroupCatalog | None = None,
 ) -> tuple[tuple[CrystalStructure, ...], tuple[Diagnostic, ...]]:
     """Map every structural CIF block to a canonical asymmetric-unit crystal."""
 
     structures: list[CrystalStructure] = []
     diagnostics: list[Diagnostic] = []
+    catalog = SpaceGroupCatalog.default() if crystallography is None else crystallography
     for block in document.blocks:
         if not _looks_structural(block):
             continue
         cell = _cell(block, diagnostics)
         if cell is None:
             continue
-        symmetry = _symmetry(block, diagnostics)
-        if symmetry is None:
+        symmetry_result = _symmetry(block, diagnostics, catalog)
+        if symmetry_result is None:
             continue
+        symmetry, catalog_setting = symmetry_result
         sites = _sites(block, diagnostics)
         if sites is None:
             continue
@@ -690,12 +802,24 @@ def map_cif_structures(
         block_failed = False
         for site in sites:
             try:
-                orbit = expand_orbit(
-                    site,
-                    symmetry.operations,
-                    cell=cell,
-                    structure_id=structure_id,
-                )
+                if catalog_setting is None:
+                    expanded = expand_orbit(
+                        site,
+                        symmetry.operations,
+                        cell=cell,
+                        structure_id=structure_id,
+                    )
+                    calculated_multiplicity = len(expanded)
+                else:
+                    orbit = build_orbit(
+                        site,
+                        catalog_setting,
+                        cell=cell,
+                        structure_id=structure_id,
+                    )
+                    assignment = assign_wyckoff(orbit, catalog_setting)
+                    diagnostics.extend(assignment.diagnostics)
+                    calculated_multiplicity = orbit.multiplicity
             except SymmetryConsistencyError as error:
                 diagnostics.append(
                     Diagnostic(
@@ -706,12 +830,13 @@ def map_cif_structures(
                 )
                 block_failed = True
                 break
-            calculated_multiplicity = len(orbit)
             checked_site = replace(
                 site,
                 calculated_multiplicity=calculated_multiplicity,
             )
             if (
+                catalog_setting is None
+                and
                 site.reported_multiplicity is not None
                 and site.reported_multiplicity != calculated_multiplicity
             ):
