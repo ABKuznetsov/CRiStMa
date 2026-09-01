@@ -27,6 +27,8 @@ class DecompositionMode(StrEnum):
 
 class GrammarOperation(StrEnum):
     CENTRE_LIGAND_SHELL = "centre_ligand_shell"
+    INTERSTITIAL_COORDINATION = "interstitial_coordination"
+    MIXED_ANION_COORDINATION = "mixed_anion_coordination"
     COVALENT_NETWORK = "covalent_network"
     INTRA_SUBSYSTEM_BONDS = "intra_subsystem_bonds"
     METALLIC_COORDINATION = "metallic_coordination"

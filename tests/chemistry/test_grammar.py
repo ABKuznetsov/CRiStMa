@@ -70,3 +70,8 @@ def test_metal_organic_grammar_separates_organic_and_metal_donor_searches() -> N
     )
     assert metal_donor.centre_elements == ("Zn",)
     assert metal_donor.ligand_elements == ("N",)
+
+
+def test_directed_coordination_operations_are_distinct() -> None:
+    assert GrammarOperation.INTERSTITIAL_COORDINATION.value == "interstitial_coordination"
+    assert GrammarOperation.MIXED_ANION_COORDINATION.value == "mixed_anion_coordination"
