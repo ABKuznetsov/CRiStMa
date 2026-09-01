@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -68,3 +69,21 @@ def test_compiler_rejects_wrong_spglib_version(
             upstream_commit=SPGLIB_COMMIT,
             compiled_date="2026-09-01",
         )
+
+
+def test_packaged_catalog_has_complete_pinned_source() -> None:
+    root = files("cristma.reference_data").joinpath("resources/crystallography")
+    groups = json.loads(
+        root.joinpath("space_groups.json").read_text(encoding="utf-8")
+    )
+    wyckoffs = json.loads(
+        root.joinpath("wyckoff_positions.json").read_text(encoding="utf-8")
+    )
+
+    assert groups["metadata"]["upstream_version"] == "2.7.0"
+    assert groups["metadata"]["upstream_commit"] == SPGLIB_COMMIT
+    assert len(groups["records"]) == 530
+    assert {record["number"] for record in groups["records"]} == set(range(1, 231))
+    assert set(wyckoffs["records"]) == {str(number) for number in range(1, 531)}
+    assert all(wyckoffs["records"][str(number)] for number in range(1, 531))
+    assert root.joinpath("SPGLIB_LICENSE.txt").is_file()
