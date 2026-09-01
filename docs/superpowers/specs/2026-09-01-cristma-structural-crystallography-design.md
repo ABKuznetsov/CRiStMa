@@ -111,17 +111,33 @@ data.
 
 ### 3.1 Provenance and external code
 
-The implementation may adapt suitable pymatgen code under its MIT license,
-retaining the required copyright and license notice. Gemmi is dual-licensed
-under MPL-2.0 or LGPLv3; directly derived Gemmi implementation files must stay
-separate and carry the selected compatible license and attribution. Where that
-would unnecessarily constrain CRiStMa distribution, Gemmi is used as an
-independent reference implementation and test comparator instead of a source
-for copied code.
+The primary source is the BSD-3-Clause licensed spglib `v2.7.0` release,
+commit `12355c77fb7c505a55f52cae36341d73b781a065`:
 
-Scientific facts and generated catalog records remain accompanied by their
-own documented source and compilation procedure. A catalog is never copied
-from an undocumented installed package.
+```text
+spglib/database/spg.csv
+spglib/database/Wyckoff.csv
+spglib database-generation scripts required to interpret them
+```
+
+A development-only compiler converts these sources into CRiStMa's normalized,
+validated JSON schema. The generated resources retain the spglib copyright and
+BSD-3-Clause notice. `SOURCE.md` records the upstream repository, exact commit,
+input checksums, compiler command, compilation date, output checksums and
+scientific conventions. The compiler is deterministic: identical pinned
+inputs produce byte-identical JSON.
+
+PyXtal is the secondary cross-check after the provenance of the relevant CSV
+files is recorded. Bilbao Crystallographic Server and Gemmi are independent
+scientific oracles for selected fixtures. Their databases are not repackaged.
+International Tables are not copied or systematically reproduced.
+
+Suitable pymatgen code may be adapted under its MIT license with the required
+copyright and license notice. Gemmi is dual-licensed under MPL-2.0 or LGPLv3;
+it is used as a comparator rather than copied into the CRiStMa implementation.
+
+None of spglib, PyXtal, pymatgen or Gemmi becomes a runtime dependency. A
+catalog is never copied from an undocumented installed package.
 
 ## 4. Space-group identity
 
@@ -130,14 +146,16 @@ canonical identity is setting-sensitive and origin-sensitive.
 
 ```text
 SpaceGroupKey
+├── hall_number
 ├── hall_symbol
-├── setting
-└── origin_choice
+└── choice
 ```
 
-The Hall symbol is the primary unambiguous lookup key. Number and
-Hermann-Mauguin symbol are searchable aliases and may return several choices.
-The caller must resolve ambiguity explicitly.
+`choice` preserves spglib's setting, unique-axis, cell-choice and origin-choice
+code without discarding distinctions. The Hall symbol is the primary
+crystallographic lookup key; `hall_number` is the pinned dataset key. Number
+and Hermann-Mauguin symbol are searchable aliases and may return several
+choices. The caller must resolve ambiguity explicitly.
 
 `SpaceGroupRecord` contains:
 
