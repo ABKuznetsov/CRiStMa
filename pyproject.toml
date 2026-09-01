@@ -17,6 +17,9 @@ test = [
     "build>=1.2",
     "pytest>=8",
 ]
+reference-build = [
+    "spglib==2.7.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

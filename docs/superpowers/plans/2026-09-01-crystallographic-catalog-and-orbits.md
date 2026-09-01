@@ -32,6 +32,7 @@
 
 ```text
 tools/
+├── __init__.py
 └── compile_spglib_crystallography.py
     Development-only deterministic compiler. Reads pinned spg.csv and
     Wyckoff.csv, asks spglib 2.7.0 for operations, and writes normalized JSON.
@@ -84,6 +85,7 @@ tests/io/cif/test_mapper_advanced.py
 ### Task 1: Deterministic spglib database compiler
 
 **Files:**
+- Create: `tools/__init__.py`
 - Create: `tools/compile_spglib_crystallography.py`
 - Create: `tests/tools/test_compile_spglib_crystallography.py`
 - Create: `tests/fixtures/spglib/spg_minimal.csv`
@@ -277,7 +279,7 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pyproject.toml tools/compile_spglib_crystallography.py tests/tools/test_compile_spglib_crystallography.py tests/fixtures/spglib
+git add pyproject.toml tools/__init__.py tools/compile_spglib_crystallography.py tests/tools/test_compile_spglib_crystallography.py tests/fixtures/spglib
 git commit -m "feat: add deterministic spglib catalog compiler"
 ```
 
