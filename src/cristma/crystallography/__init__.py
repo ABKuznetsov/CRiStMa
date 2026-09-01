@@ -1,11 +1,12 @@
 """Catalog-backed structural crystallography tools."""
 
-from .space_group import SpaceGroupKey, SpaceGroupRecord
+from .space_group import SpaceGroupSetting
 from .wyckoff import AffineCoordinateMap, WyckoffPosition
+from .catalog import SpaceGroupCatalog
 
 __all__ = [
     "AffineCoordinateMap",
-    "SpaceGroupKey",
-    "SpaceGroupRecord",
+    "SpaceGroupSetting",
+    "SpaceGroupCatalog",
     "WyckoffPosition",
 ]

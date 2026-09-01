@@ -145,10 +145,14 @@ A space-group number alone does not identify a usable catalog entry. The
 canonical identity is setting-sensitive and origin-sensitive.
 
 ```text
-SpaceGroupKey
-├── hall_number
+SpaceGroupSetting
+├── setting_id              # pinned spglib Hall number, 1..530
+├── number                  # IT space-group type, 1..230
+├── hm_short / hm_full
 ├── hall_symbol
-└── choice
+├── choice
+├── symmetry_operations
+└── wyckoff_positions
 ```
 
 `choice` preserves spglib's setting, unique-axis, cell-choice and origin-choice
@@ -157,30 +161,14 @@ crystallographic lookup key; `hall_number` is the pinned dataset key. Number
 and Hermann-Mauguin symbol are searchable aliases and may return several
 choices. The caller must resolve ambiguity explicitly.
 
-`SpaceGroupRecord` contains:
-
-```text
-key
-number
-hm_symbol
-hall_symbol
-setting
-origin_choice
-crystal_system
-centering
-operations
-wyckoff_positions
-reference provenance
-```
-
 The existing `SpaceGroupDefinition` remains the compact symmetry object stored
-inside `CrystalStructure`. A catalog record produces a
+inside `CrystalStructure`. A `SpaceGroupSetting` produces a
 `SpaceGroupDefinition`; it does not introduce a second competing structure
 model.
 
 ```python
-record = SpaceGroupCatalog.default().by_hall_symbol("P 1")
-definition = record.definition(provenance="derived")
+setting = SpaceGroupCatalog.default().by_hall("P 1")
+definition = setting.definition(provenance="derived")
 ```
 
 Lookup by number or Hermann-Mauguin symbol returns a tuple of records unless
@@ -192,11 +180,11 @@ the caller supplies enough setting/origin information to select exactly one.
 
 ```text
 WyckoffPosition
-├── space_group_key
+├── setting_id
 ├── letter
 ├── multiplicity
 ├── site_symmetry_symbol
-├── coordinate representatives
+├── coordinate_constraints
 ├── degrees of freedom
 └── reference provenance
 ```
@@ -214,25 +202,25 @@ letter from another setting is not silently accepted as equivalent.
 
 ```text
 CrystallographicOrbit
-├── source_site_id
-├── atoms: tuple[ExpandedAtom, ...]
-├── calculated_multiplicity
-├── stabilizer: tuple[SymmetryImageProvenance, ...]
-├── site_symmetry: SiteSymmetry
-├── wyckoff_position: WyckoffPosition | None
-└── diagnostics
+├── representative: IndependentSite
+├── equivalent_sites: tuple[ExpandedAtom, ...]
+├── multiplicity
+├── stabilizer
+└── site_symmetry: SiteSymmetry
 ```
 
-`OrbitAnalyzer` is a configurable stateless tool:
+Orbit construction and Wyckoff assignment are separate pure operations:
 
 ```python
-orbit = OrbitAnalyzer(tolerance=1e-6).analyze(
-    site,
-    space_group,
-    catalog=SpaceGroupCatalog.default(),
+orbit = build_orbit(
+    site=site,
+    setting=setting,
     cell=crystal.cell,
+    tolerance=1e-6,
     structure_id=crystal.id,
 )
+
+assignment = assign_wyckoff(orbit, setting, tolerance=1e-6)
 ```
 
 It reuses the established exact symmetry expansion. No second implementation
@@ -260,6 +248,16 @@ matrices using an unverified heuristic.
 
 ### 6.4 Wyckoff matching
 
+`WyckoffAssignment` contains:
+
+```text
+WyckoffAssignment
+├── position: WyckoffPosition | None
+├── calculated_multiplicity
+├── status: matched | unresolved | ambiguous | inconsistent
+└── diagnostics
+```
+
 Matching proceeds by:
 
 1. selecting the exact catalog record by Hall symbol/setting/origin;
@@ -268,7 +266,7 @@ Matching proceeds by:
    periodic equivalence and the explicit tolerance;
 4. returning one match, unresolved, or ambiguous with diagnostics.
 
-The analyzer does not choose an arbitrary candidate when several positions
+The assignment function does not choose an arbitrary candidate when several positions
 remain indistinguishable.
 
 ## 7. Diagnostics

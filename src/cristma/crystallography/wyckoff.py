@@ -4,13 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+from string import ascii_letters
 import re
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .space_group import SpaceGroupKey
-
 
 FractionVector = tuple[Fraction, Fraction, Fraction]
 FractionMatrix = tuple[FractionVector, FractionVector, FractionVector]
@@ -127,25 +122,27 @@ class AffineCoordinateMap:
 class WyckoffPosition:
     """One setting-specific Wyckoff position from the reference catalog."""
 
-    space_group_key: SpaceGroupKey
+    setting_id: int
     letter: str
     multiplicity: int
     site_symmetry_symbol: str
-    representatives: tuple[AffineCoordinateMap, ...]
+    coordinate_constraints: tuple[AffineCoordinateMap, ...]
 
     def __post_init__(self) -> None:
-        if len(self.letter) != 1 or self.letter not in "abcdefghijklmnopqrstuvwxyz":
-            raise ValueError("Wyckoff letter must be one lower-case ASCII letter")
+        if isinstance(self.setting_id, bool) or not 1 <= self.setting_id <= 530:
+            raise ValueError("Hall number must be between 1 and 530")
+        if len(self.letter) != 1 or self.letter not in ascii_letters:
+            raise ValueError("Wyckoff letter must be one ASCII letter")
         if isinstance(self.multiplicity, bool) or self.multiplicity <= 0:
             raise ValueError("Wyckoff multiplicity must be positive")
-        if len(self.representatives) != self.multiplicity:
+        if len(self.coordinate_constraints) != self.multiplicity:
             raise ValueError("representative count must equal Wyckoff multiplicity")
         if not self.site_symmetry_symbol:
             raise ValueError("site-symmetry symbol must not be empty")
 
     @property
     def degrees_of_freedom(self) -> int:
-        return self.representatives[0].degrees_of_freedom
+        return self.coordinate_constraints[0].degrees_of_freedom
 
 
 __all__ = ["AffineCoordinateMap", "WyckoffPosition"]

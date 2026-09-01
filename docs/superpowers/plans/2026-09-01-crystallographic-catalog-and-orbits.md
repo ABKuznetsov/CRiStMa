@@ -4,7 +4,7 @@
 
 **Goal:** Ship a self-contained, setting-aware space-group and Wyckoff catalog and use it to calculate and validate crystallographic orbits from CRiStMa structures.
 
-**Architecture:** A development-only compiler converts the pinned spglib 2.7.0 database into deterministic CRiStMa JSON resources. Small immutable catalog records load those resources; `OrbitAnalyzer` reuses the existing exact `expand_orbit()` implementation to calculate multiplicity and stabilizers, then matches catalog Wyckoff positions and emits explicit diagnostics. CIF mapping may resolve missing operations from the catalog, but file-specific representations terminate at the I/O boundary.
+**Architecture:** A development-only compiler converts the pinned spglib 2.7.0 database into deterministic CRiStMa JSON resources. Five small immutable scientific types represent a setting, Wyckoff position, site symmetry, orbit and assignment; `SpaceGroupCatalog` is only a read-only facade. Pure functions reuse the existing exact `expand_orbit()` implementation, and CIF mapping compares reported values with calculated results.
 
 **Tech Stack:** Python 3.11+, standard library, NumPy 1.26+, pytest 8+; development-only `spglib==2.7.0`; no new runtime dependency.
 
@@ -47,13 +47,14 @@ src/cristma/reference_data/resources/crystallography/
 src/cristma/crystallography/
 ├── __init__.py
 ├── space_group.py
-│   Immutable keys and records; conversion to SpaceGroupDefinition.
+│   Immutable SpaceGroupSetting; conversion to SpaceGroupDefinition.
 ├── wyckoff.py
 │   Exact affine Wyckoff representatives and typed positions.
 ├── catalog.py
 │   Resource loading, validation and lookup indexes.
 └── orbit.py
-    OrbitAnalyzer, SiteSymmetry, CrystallographicOrbit and diagnostics.
+    build_orbit(), assign_wyckoff(), SiteSymmetry, CrystallographicOrbit,
+    WyckoffAssignment and diagnostics.
 
 tests/tools/
 └── test_compile_spglib_crystallography.py
@@ -399,25 +400,27 @@ git commit -m "data: add pinned spglib crystallography catalog"
 
 **Interfaces:**
 - Consumes: existing `AffineOperation`, `SpaceGroupDefinition` and exact `Fraction` values.
-- Produces: `SpaceGroupKey`, `SpaceGroupRecord`, `AffineCoordinateMap`, `WyckoffPosition`.
+- Produces: `SpaceGroupSetting`, `AffineCoordinateMap`, `WyckoffPosition`.
 
 - [ ] **Step 1: Write failing model tests**
 
 ```python
-def test_space_group_record_builds_existing_definition() -> None:
+def test_space_group_setting_builds_existing_definition() -> None:
     identity = parse_xyz_operation("x,y,z", operation_id="hall:1:op:1")
-    record = SpaceGroupRecord(
-        key=SpaceGroupKey(1, "P 1", ""),
+    setting = SpaceGroupSetting(
+        setting_id=1,
         number=1,
+        hall_symbol="P 1",
+        choice="",
         hm_short="P 1",
         hm_full="P 1",
         point_group="1",
         centering="P",
         crystal_system="triclinic",
-        operations=(identity,),
+        symmetry_operations=(identity,),
         wyckoff_positions=(),
     )
-    definition = record.definition(provenance="derived")
+    definition = setting.definition(provenance="derived")
     assert isinstance(definition, SpaceGroupDefinition)
     assert definition.number == 1
     assert definition.hall_symbol == "P 1"
@@ -434,11 +437,11 @@ def test_affine_coordinate_map_evaluates_exact_parameterization() -> None:
 def test_wyckoff_position_rejects_wrong_representative_count() -> None:
     with pytest.raises(ValueError, match="multiplicity"):
         WyckoffPosition(
-            space_group_key=SpaceGroupKey(390, "P -4 2ab", ""),
+            setting_id=390,
             letter="a",
             multiplicity=2,
             site_symmetry_symbol="-4..",
-            representatives=(AffineCoordinateMap.from_xyz("0,0,0"),),
+            coordinate_constraints=(AffineCoordinateMap.from_xyz("0,0,0"),),
         )
 ```
 
@@ -458,12 +461,6 @@ Use these contracts:
 
 ```python
 @dataclass(frozen=True, slots=True)
-class SpaceGroupKey:
-    hall_number: int
-    hall_symbol: str
-    choice: str
-
-
 @dataclass(frozen=True, slots=True)
 class AffineCoordinateMap:
     parameter_matrix: tuple[tuple[Fraction, Fraction, Fraction], ...]
@@ -481,33 +478,35 @@ class AffineCoordinateMap:
 
 @dataclass(frozen=True, slots=True)
 class WyckoffPosition:
-    space_group_key: SpaceGroupKey
+    setting_id: int
     letter: str
     multiplicity: int
     site_symmetry_symbol: str
-    representatives: tuple[AffineCoordinateMap, ...]
+    coordinate_constraints: tuple[AffineCoordinateMap, ...]
 
     @property
     def degrees_of_freedom(self) -> int:
-        return _matrix_rank_over_rationals(self.representatives[0].parameter_matrix)
+        return _matrix_rank_over_rationals(self.coordinate_constraints[0].parameter_matrix)
 
 
 @dataclass(frozen=True, slots=True)
-class SpaceGroupRecord:
-    key: SpaceGroupKey
+class SpaceGroupSetting:
+    setting_id: int
     number: int
+    hall_symbol: str
+    choice: str
     hm_short: str
     hm_full: str
     point_group: str
     centering: str
     crystal_system: str
-    operations: tuple[AffineOperation, ...]
+    symmetry_operations: tuple[AffineOperation, ...]
     wyckoff_positions: tuple[WyckoffPosition, ...]
 
     def definition(self, *, provenance: SymmetryProvenance) -> SpaceGroupDefinition: ...
 ```
 
-`SpaceGroupRecord.definition()` stores `key.choice or None` in the existing
+`SpaceGroupSetting.definition()` stores `choice or None` in the existing
 `SpaceGroupDefinition.setting` field so axis, setting and origin-choice codes
 survive conversion. It does not invent a separate origin value when the
 upstream choice is composite.
@@ -530,7 +529,7 @@ Validation includes:
 - Wyckoff letter `a..z`;
 - positive multiplicity;
 - representative count equals multiplicity;
-- all positions in one record refer to the same `SpaceGroupKey`.
+- all positions in one setting refer to the same `setting_id`.
 
 - [ ] **Step 4: Run model tests**
 
@@ -562,7 +561,7 @@ git commit -m "feat: add crystallographic catalog models"
 
 **Interfaces:**
 - Consumes: Task 2 resources and Task 3 typed records.
-- Produces: `SpaceGroupCatalog.default()`, `by_hall_number()`, `by_hall_symbol()`, `by_number()`, `by_hm_symbol()`, and `ReferenceData.crystallography`.
+- Produces: `SpaceGroupCatalog.default()`, `by_setting()`, `by_hall()`, `by_number()`, `wyckoff_positions()`, and `ReferenceData.crystallography`.
 
 - [ ] **Step 1: Write failing catalog tests**
 
@@ -570,8 +569,8 @@ git commit -m "feat: add crystallographic catalog models"
 def test_default_catalog_has_all_hall_settings() -> None:
     catalog = SpaceGroupCatalog.default()
     assert len(catalog) == 530
-    assert catalog.by_hall_number(390).number == 113
-    assert catalog.by_hall_number(390).key.hall_symbol == "P -4 2ab"
+    assert catalog.by_setting(390).number == 113
+    assert catalog.by_setting(390).hall_symbol == "P -4 2ab"
 
 
 def test_number_lookup_preserves_setting_ambiguity() -> None:
@@ -581,8 +580,8 @@ def test_number_lookup_preserves_setting_ambiguity() -> None:
 
 
 def test_hall_symbol_lookup_is_exact_after_whitespace_normalization() -> None:
-    record = SpaceGroupCatalog.default().by_hall_symbol("  P   -4   2ab ")
-    assert record.key.hall_number == 390
+    setting = SpaceGroupCatalog.default().by_hall("  P   -4   2ab ")
+    assert setting.setting_id == 390
 
 
 def test_reference_data_exposes_same_cached_catalog() -> None:
@@ -613,7 +612,7 @@ Use:
 ```python
 @dataclass(frozen=True, slots=True)
 class SpaceGroupCatalog:
-    records: tuple[SpaceGroupRecord, ...]
+    settings: tuple[SpaceGroupSetting, ...]
     dataset_id: str
     schema_version: str
     resource_sha256: tuple[str, str]
@@ -622,10 +621,10 @@ class SpaceGroupCatalog:
     @lru_cache(maxsize=1)
     def default(cls) -> "SpaceGroupCatalog": ...
 
-    def by_hall_number(self, hall_number: int) -> SpaceGroupRecord: ...
-    def by_hall_symbol(self, hall_symbol: str) -> SpaceGroupRecord: ...
-    def by_number(self, number: int) -> tuple[SpaceGroupRecord, ...]: ...
-    def by_hm_symbol(self, symbol: str) -> tuple[SpaceGroupRecord, ...]: ...
+    def by_setting(self, setting_id: int) -> SpaceGroupSetting: ...
+    def by_hall(self, hall_symbol: str) -> SpaceGroupSetting: ...
+    def by_number(self, number: int) -> tuple[SpaceGroupSetting, ...]: ...
+    def wyckoff_positions(self, setting_id: int) -> tuple[WyckoffPosition, ...]: ...
 ```
 
 Lookup normalization may collapse whitespace and case only. It must not remove
@@ -687,18 +686,17 @@ git commit -m "feat: add space group and Wyckoff catalog"
 - Modify: `src/cristma/crystallography/__init__.py`
 
 **Interfaces:**
-- Consumes: `IndependentSite`, `UnitCell`, `SpaceGroupDefinition`, optional exact `SpaceGroupRecord`, and existing `expand_orbit()`.
-- Produces: `SiteSymmetry`, `CrystallographicOrbit`, `OrbitAnalyzer.analyze()`.
+- Consumes: `IndependentSite`, `UnitCell`, `SpaceGroupSetting`, and existing `expand_orbit()`.
+- Produces: `SiteSymmetry`, `CrystallographicOrbit`, `build_orbit()`.
 
 - [ ] **Step 1: Write failing analytic orbit tests**
 
 ```python
 def test_p_minus_one_general_position_has_multiplicity_two() -> None:
-    record = SpaceGroupCatalog.default().by_hall_number(2)
-    result = OrbitAnalyzer().analyze(
+    setting = SpaceGroupCatalog.default().by_setting(2)
+    result = build_orbit(
         site_at(0.1, 0.2, 0.3),
-        record.definition(provenance="derived"),
-        catalog_record=record,
+        setting,
         cell=cubic_cell(),
     )
     assert result.calculated_multiplicity == 2
@@ -707,11 +705,10 @@ def test_p_minus_one_general_position_has_multiplicity_two() -> None:
 
 
 def test_p_minus_one_origin_is_special_position() -> None:
-    record = SpaceGroupCatalog.default().by_hall_number(2)
-    result = OrbitAnalyzer().analyze(
+    setting = SpaceGroupCatalog.default().by_setting(2)
+    result = build_orbit(
         site_at(0, 0, 0, wyckoff="a", reported_multiplicity=1),
-        record.definition(provenance="derived"),
-        catalog_record=record,
+        setting,
         cell=cubic_cell(),
     )
     assert result.calculated_multiplicity == 1
@@ -735,7 +732,7 @@ Run:
 pytest tests/crystallography/test_orbit_analyzer.py -q
 ```
 
-Expected: import failures for `OrbitAnalyzer` and result types.
+Expected: import failures for `build_orbit` and result types.
 
 - [ ] **Step 3: Implement result types and analyzer configuration**
 
@@ -743,42 +740,33 @@ Expected: import failures for `OrbitAnalyzer` and result types.
 @dataclass(frozen=True, slots=True)
 class SiteSymmetry:
     symbol: str | None
-    stabilizer: tuple[SymmetryImageProvenance, ...]
+    stabilizer_operations: tuple[SymmetryImageProvenance, ...]
 
     @property
     def order(self) -> int:
-        return len(self.stabilizer)
+        return len(self.stabilizer_operations)
 
 
 @dataclass(frozen=True, slots=True)
 class CrystallographicOrbit:
-    source_site_id: str
-    atoms: tuple[ExpandedAtom, ...]
-    calculated_multiplicity: int
+    representative: IndependentSite
+    equivalent_sites: tuple[ExpandedAtom, ...]
+    multiplicity: int
     stabilizer: tuple[SymmetryImageProvenance, ...]
     site_symmetry: SiteSymmetry
-    wyckoff_position: WyckoffPosition | None
-    diagnostics: tuple[Diagnostic, ...]
 
 
-@dataclass(frozen=True, slots=True)
-class OrbitAnalyzer:
-    tolerance: float = 1e-6
-
-    def get_config(self) -> dict[str, float]: ...
-    def clone(self, **changes: float) -> "OrbitAnalyzer": ...
-    def analyze(
-        self,
-        site: IndependentSite,
-        space_group: SpaceGroupDefinition,
-        *,
-        cell: UnitCell,
-        catalog_record: SpaceGroupRecord | None = None,
-        structure_id: str | None = None,
-    ) -> CrystallographicOrbit: ...
+def build_orbit(
+    site: IndependentSite,
+    setting: SpaceGroupSetting,
+    *,
+    cell: UnitCell,
+    tolerance: float = 1e-6,
+    structure_id: str | None = None,
+) -> CrystallographicOrbit: ...
 ```
 
-`analyze()` calls `expand_orbit()` once. The stabilizer is the complete
+`build_orbit()` calls `expand_orbit()` once. The stabilizer is the complete
 `equivalent_images` tuple of the expanded atom periodically equal to the source
 coordinates. This works because `expand_orbit()` already merges operations
 that map a special position onto one expanded atom while retaining every
@@ -793,23 +781,13 @@ len(space_group.operations) == calculated_multiplicity * len(stabilizer)
 If it fails, raise `ValueError("inconsistent orbit and stabilizer sizes")`;
 this indicates an invalid group/tolerance, not uncertain source reporting.
 
-Before Task 6, `site_symmetry.symbol` is populated only when exactly one
-catalog position with matching multiplicity and stabilizer order has a unique
-symbol; otherwise it is `None`. Full coordinate matching follows in Task 6.
+Before Task 6, `site_symmetry.symbol` is `None`; it is populated in the
+`WyckoffAssignment` after exact coordinate matching.
 
-- [ ] **Step 4: Emit reported-multiplicity diagnostics**
+- [ ] **Step 4: Keep source validation out of the orbit fact**
 
-When `site.reported_multiplicity` is non-null and differs from the calculated
-value, append:
-
-```python
-Diagnostic(
-    Severity.WARNING,
-    "crystallography.orbit.reported_multiplicity_mismatch",
-    f"Site {site.label!r} reports multiplicity {reported}, "
-    f"but its symmetry orbit contains {calculated} positions",
-)
-```
+`CrystallographicOrbit` contains calculated structural facts only. Reported
+CIF values and diagnostics belong to `WyckoffAssignment` in Task 6.
 
 - [ ] **Step 5: Run focused tests**
 
@@ -838,7 +816,7 @@ git commit -m "feat: calculate crystallographic orbits and stabilizers"
 
 **Interfaces:**
 - Consumes: Task 5 orbit/stabilizer result and Task 3 exact Wyckoff representatives.
-- Produces: deterministic `wyckoff_position`, validated `SiteSymmetry.symbol`, unresolved/ambiguous/mismatch diagnostics.
+- Produces: immutable `WyckoffAssignment`, validated site-symmetry symbol, unresolved/ambiguous/mismatch diagnostics.
 
 - [ ] **Step 1: Add failing Wyckoff fixtures**
 
@@ -860,35 +838,35 @@ def test_p421m_wyckoff_positions_are_identified(
     multiplicity: int,
     site_symmetry: str,
 ) -> None:
-    record = SpaceGroupCatalog.default().by_hall_number(390)
-    result = OrbitAnalyzer(tolerance=1e-6).analyze(
+    setting = SpaceGroupCatalog.default().by_setting(390)
+    orbit = build_orbit(
         site_at(*fractional),
-        record.definition(provenance="derived"),
-        catalog_record=record,
+        setting,
         cell=tetragonal_cell(),
     )
-    assert result.wyckoff_position is not None
-    assert result.wyckoff_position.letter == letter
+    result = assign_wyckoff(orbit, setting, tolerance=1e-6)
+    assert result.position is not None
+    assert result.position.letter == letter
     assert result.calculated_multiplicity == multiplicity
     assert result.site_symmetry.symbol == site_symmetry
 
 
 def test_rounded_special_coordinate_respects_explicit_tolerance() -> None:
-    record = SpaceGroupCatalog.default().by_hall_number(390)
-    close = analyze(record, (0.0, 0.5, 0.2300004), tolerance=1e-6)
-    assert close.wyckoff_position.letter == "c"
+    setting = SpaceGroupCatalog.default().by_setting(390)
+    close = assign_wyckoff(build(setting, (0.0, 0.5, 0.2300004)), setting, tolerance=1e-6)
+    assert close.position.letter == "c"
 
 
 def test_reported_wyckoff_mismatch_is_not_silently_rewritten() -> None:
     result = analyze_p421m(site_at(0, 0, 0, wyckoff="b"))
-    assert result.wyckoff_position.letter == "a"
+    assert result.position.letter == "a"
     assert "crystallography.orbit.reported_wyckoff_mismatch" in {
         item.code for item in result.diagnostics
     }
 ```
 
 Add synthetic tests where two candidate representatives match and ensure the
-result is `None` with `crystallography.orbit.wyckoff_ambiguous`, plus a no-match
+assignment position is `None` with `crystallography.orbit.wyckoff_ambiguous`, plus a no-match
 case with `crystallography.orbit.wyckoff_unresolved`.
 
 - [ ] **Step 2: Run tests and verify failure**
@@ -926,17 +904,22 @@ Outcomes:
 
 ```python
 if len(matches) == 1:
-    wyckoff_position = matches[0]
+    position = matches[0]
+    status = "matched"
 elif not matches:
-    wyckoff_position = None
+    position = None
+    status = "unresolved"
     diagnostics += (Diagnostic(Severity.WARNING, "crystallography.orbit.wyckoff_unresolved", ...),)
 else:
-    wyckoff_position = None
+    position = None
+    status = "ambiguous"
     diagnostics += (Diagnostic(Severity.WARNING, "crystallography.orbit.wyckoff_ambiguous", ...),)
 ```
 
-When matched, set `SiteSymmetry.symbol` from the catalog record and retain the
-computed stabilizer. Compare `site.wyckoff`, reported multiplicity and the
+`WyckoffAssignment` contains `position`, `calculated_multiplicity`, `status`,
+`site_symmetry`, and `diagnostics`. When matched, set its `SiteSymmetry.symbol`
+from the catalog and retain the computed stabilizer operations. Compare the
+representative site's reported Wyckoff letter and multiplicity with the
 catalog multiplicity independently; never overwrite source-reported values.
 
 If a reported Wyckoff letter exists, resolve that letter in the selected
