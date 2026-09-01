@@ -178,6 +178,8 @@ class ComponentPairInterpretation:
     radius_sum: float
     normalized_distance: float
     occupancy_weight: float
+    interaction_type: GrammarOperation
+    grammar_priority: InteractionPriority
 
     @property
     def species_symbols(self) -> tuple[str | None, str | None]:
@@ -363,8 +365,8 @@ def _interpret_contact(
     records: list[ComponentPairInterpretation] = []
     for first in first_components:
         for second in second_components:
-            request = _matching_interaction(first, second, grammar)
-            if request is None:
+            requests = _matching_interactions(first, second, grammar)
+            if not requests:
                 continue
             radius_sum = (
                 reference.covalent_radii.find(first.element).value
@@ -372,12 +374,14 @@ def _interpret_contact(
             )
             rho = contact.distance / radius_sum
             if rho <= policy.candidate_rho_max:
-                records.append(ComponentPairInterpretation(
-                    first.species, second.species,
-                    float(first.occupancy.value), float(second.occupancy.value),
-                    radius_sum, rho,
-                    float(first.occupancy.value) * float(second.occupancy.value),
-                ))
+                for request in requests:
+                    records.append(ComponentPairInterpretation(
+                        first.species, second.species,
+                        float(first.occupancy.value), float(second.occupancy.value),
+                        radius_sum, rho,
+                        float(first.occupancy.value) * float(second.occupancy.value),
+                        request.operation, request.priority,
+                    ))
     return InterpretationOutcome(tuple(records), ())
 ```
 
@@ -408,14 +412,15 @@ def _allowed_radius_sums(
                     continue
     return tuple(values)
 
-def _matching_interaction(
+def _matching_interactions(
     first: SiteComponent,
     second: SiteComponent,
     grammar: CompositionGrammar,
-) -> CandidateInteraction | None:
+) -> tuple[CandidateInteraction, ...]:
     first_symbol, second_symbol = first.element, second.element
     if first_symbol is None or second_symbol is None:
-        return None
+        return ()
+    matches: list[CandidateInteraction] = []
     for request in grammar.candidate_interactions:
         forward = (
             first_symbol in request.first_elements
@@ -426,11 +431,11 @@ def _matching_interaction(
             and first_symbol in request.second_elements
         )
         if forward or reverse:
-            return request
-    return None
+            matches.append(request)
+    return tuple(matches)
 ```
 
-Their bodies perform only catalog lookup and exact element-set matching; they do not inspect coordinates, compound names, or expected CN.
+Their bodies perform only catalog lookup and exact element-set matching; they do not inspect coordinates, compound names, or expected CN. Each match remains a separate scope keyed by source site, interaction, and centre view. Missing radii may be omitted only while deriving the numerical cutoff: interpretation records `radius_missing`, and a missing PRIMARY pair makes its scope `INCOMPLETE`.
 
 - [ ] **Step 5: Add explicit reference/source failure tests**
 
@@ -641,12 +646,17 @@ def test_octahedral_shell_has_eight_triangular_faces(octahedral_shell, view):
 - [ ] **Step 2: Write rejection tests**
 
 ```python
-@pytest.mark.parametrize("fixture", ["linear", "planar", "ambiguous", "incomplete"])
-def test_non_volume_shells_are_not_polyhedra(fixture, request):
+@pytest.mark.parametrize("fixture,status", [
+    ("linear", ResolutionStatus.NOT_APPLICABLE),
+    ("planar", ResolutionStatus.NOT_APPLICABLE),
+    ("ambiguous", ResolutionStatus.AMBIGUOUS),
+    ("incomplete", ResolutionStatus.INCOMPLETE),
+])
+def test_non_success_reason_is_preserved(fixture, status, request):
     shell, view = request.getfixturevalue(fixture)
     result = PolyhedronBuilder().build(shell, view)
     assert result.polyhedron is None
-    assert result.status is ResolutionStatus.NOT_APPLICABLE
+    assert result.status is status
 ```
 
 - [ ] **Step 3: Verify failures**
@@ -664,7 +674,7 @@ class CoordinationPolyhedron:
     shell_provenance: tuple[tuple[str, object], ...]
     vertex_contacts: tuple[ResolvedContact, ...]
     local_vertices: tuple[tuple[float, float, float], ...]
-    faces: tuple[tuple[int, int, int], ...]
+    faces: tuple[tuple[int, ...], ...]
     volume: float
     geometric_centroid: tuple[float, float, float]
     center_offset: float
@@ -683,9 +693,7 @@ class PolyhedronBuilder:
         view: AtomicView,
     ) -> PolyhedronBuildResult:
         if shell.status is not ResolutionStatus.RESOLVED:
-            return PolyhedronBuildResult.not_applicable(
-                "crystal_chemistry.polyhedron.shell_not_resolved"
-            )
+            return PolyhedronBuildResult.from_shell_failure(shell)
         vertices = _local_vertices(shell, view)
         if np.linalg.matrix_rank(vertices[1:] - vertices[0]) < 3:
             return PolyhedronBuildResult.not_applicable(
@@ -712,7 +720,9 @@ class PolyhedronBuilder:
 
 Implement `PolyhedronBuildResult.resolved(...)` and `.not_applicable(code)` as constructors that guarantee exactly one of a polyhedron or failure diagnostics. Implement `_local_vertices`, `_convex_hull_faces`, and `_make_polyhedron` in the same module; they are private numerical helpers, not public APIs.
 
-Translate periodic ligand positions using each contact vector. Check affine rank with `numpy.linalg.matrix_rank`. Enumerate all vertex triples; retain supporting planes with all remaining points on one side; orient faces outward; merge duplicate coplanar triangles deterministically; calculate signed tetrahedral volume and centroid. Keep one vertex per geometric contact regardless of occupancy.
+Translate periodic ligand positions using each contact vector. Check affine rank with `numpy.linalg.matrix_rank`. Enumerate all vertex triples; retain supporting planes with all remaining points on one side; merge coplanar triangles into maximal ordered polygon faces; orient them outward; calculate volume and centroid using an internal triangulation. Keep one vertex per geometric contact regardless of occupancy.
+
+Add a cube test: eight vertices expose six quadrilateral faces, not twelve triangles.
 
 - [ ] **Step 5: Add symmetry-topology test, run and commit**
 
@@ -778,7 +788,7 @@ def test_established_shells_are_discovered_not_supplied(name, center, cn):
     assert shells and {shell.geometric_CN for shell in shells} == {cn}
 ```
 
-Add explicit tests for Ca-N plus N-N where present, Na-P shells, retained Bi-Te secondary candidates, BO3/BO4 in LiB3O5, and Al/Si-O polyhedra in anorthite. The helper passes only structure, grammar, reference, and policy to production code.
+Add explicit tests for Ca-N plus N-N where present, Na-P shells, retained Bi-Te secondary candidates, and BO3/BO4 in LiB3O5. For anorthite accept resolved Al/SiO4 polyhedra or an explicit `AMBIGUOUS`/`INCOMPLETE` shell with no forced polyhedron. The helper passes only structure, grammar, reference, and policy to production code.
 
 - [ ] **Step 4: Calibrate one explicit test policy, not a hidden default**
 

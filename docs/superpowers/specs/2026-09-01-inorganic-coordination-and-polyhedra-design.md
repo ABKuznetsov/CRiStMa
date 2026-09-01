@@ -156,6 +156,11 @@ probability.
 
 Mixed components never create additional geometric edges.
 
+One geometric contact may produce several `ResolvedContact` records when its
+component pair participates in distinct interaction contexts. Resolution scope
+is `source_site_id + interaction + centre view`; matching never stops at the
+first `CandidateInteraction`.
+
 ### 3.3 `CoordinationShell`
 
 `CoordinationShell` groups resolved contacts around one expanded centre while
@@ -290,6 +295,10 @@ the resolver does not silently extend its search.
 Missing radii, unknown species, invalid occupancy, unsupported disorder,
 insufficient geometric candidates, or an incomplete orbit also produce
 `INCOMPLETE`, not a guessed shell.
+
+A missing radius remains a diagnostic in its interaction scope. A missing
+`PRIMARY` component-pair radius makes that scope `INCOMPLETE`; the resolver may
+not silently resolve from only the remaining components.
 
 ## 7. Orbit-level resolution
 
@@ -493,7 +502,7 @@ CoordinationPolyhedron
 ├── shell_provenance
 ├── vertex_contacts
 ├── local_vertices
-├── faces
+├── faces                         # maximal coplanar polygons
 ├── volume
 ├── geometric_centroid
 ├── center_offset
@@ -509,8 +518,14 @@ remain accessible through the vertex's `ResolvedContact`.
 
 Faces are the convex hull of ligand positions around the centre. Equivalent
 centres must have the same face topology under an orbit-aware signature.
+Public faces are ordered maximal coplanar polygons (`tuple[int, ...]`), not an
+internal triangular tessellation. A cube has six quadrilateral faces.
 Distortion, BVS, and future rigidity analysis describe a constructed
 polyhedron; they do not determine whether its shell contacts exist.
+
+Failure status is preserved: linear and planar resolved shells return
+`NOT_APPLICABLE`; ambiguous and incomplete shells return `AMBIGUOUS` and
+`INCOMPLETE` respectively.
 
 ## 11. Package organization
 
@@ -577,7 +592,8 @@ Na3P      resolved Na–P ionic shell
 Bi2Te3    Bi–Te shell with retained secondary candidates
 CaMoO4    MoO4 and Ca coordination shells
 LiB3O5    BO3 and BO4 environments
-anorthite Al/Si–O coordination polyhedra
+anorthite resolved Al/SiO4 polyhedra, or explicit AMBIGUOUS/INCOMPLETE shells
+          with no forced polyhedron when the generic resolver cannot prove them
 ```
 
 Acceptance tests assert scientifically established outcomes, but those values
