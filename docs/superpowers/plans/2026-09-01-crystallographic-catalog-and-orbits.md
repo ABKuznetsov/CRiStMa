@@ -950,7 +950,7 @@ git commit -m "feat: match Wyckoff positions from exact orbits"
 
 ---
 
-### Task 7: Catalog-aware CIF mapping and structure analysis
+### Task 7: Catalog-aware CIF mapping and site validation
 
 **Files:**
 - Modify: `src/cristma/io/cif/mapper.py`
@@ -961,7 +961,7 @@ git commit -m "feat: match Wyckoff positions from exact orbits"
 
 **Interfaces:**
 - Consumes: canonical CIF metadata and Task 4 catalog.
-- Produces: catalog-resolved `SpaceGroupDefinition` when operations are absent and `analyze_structure_orbits(crystal, *, catalog=None, tolerance=1e-6) -> tuple[CrystallographicOrbit, ...]`.
+- Produces: catalog-resolved `SpaceGroupDefinition` when operations are absent and site-level orbit/Wyckoff diagnostics during CIF mapping.
 
 - [ ] **Step 1: Write failing CIF resolution tests**
 
@@ -1043,39 +1043,18 @@ When operations are explicit, keep them authoritative. If catalog identity is
 also unambiguous, compare normalized exact operation sets and emit a warning on
 mismatch.
 
-Replace the mapper's existing direct `expand_orbit()` multiplicity loop with
-`OrbitAnalyzer`. Append its diagnostics to the CIF result, and build a new
+When a catalog setting is resolved, replace the mapper's existing direct
+`expand_orbit()` multiplicity loop with `build_orbit()` and `assign_wyckoff()`.
+Append assignment diagnostics to the CIF result, and build a new
 `IndependentSite` snapshot with `calculated_multiplicity` set from the result.
 This removes the second high-level multiplicity path while preserving the
 immutable structure contract.
 
-- [ ] **Step 4: Add whole-structure orbit analysis**
+- [ ] **Step 4: Keep whole-structure workflow outside the library core**
 
-```python
-def analyze_structure_orbits(
-    crystal: CrystalStructure,
-    *,
-    catalog: SpaceGroupCatalog | None = None,
-    tolerance: float = 1e-6,
-) -> tuple[CrystallographicOrbit, ...]:
-    selected = SpaceGroupCatalog.default() if catalog is None else catalog
-    record = selected.resolve_definition(crystal.space_group)
-    analyzer = OrbitAnalyzer(tolerance=tolerance)
-    return tuple(
-        analyzer.analyze(
-            site,
-            crystal.space_group,
-            cell=crystal.cell,
-            catalog_record=record,
-            structure_id=crystal.id,
-        )
-        for site in crystal.sites
-    )
-```
-
-`resolve_definition()` requires exact Hall identity or a unique fully qualified
-match. It raises `LookupError` for unresolved/ambiguous definitions rather than
-guessing.
+The CIF mapper composes the two independent functions per site. Applications
+that need stored orbit/assignment results may compose the same functions and
+own their caching. No session-like structure analyzer is added.
 
 - [ ] **Step 5: Test the real gehlenite fixture and geometry compatibility**
 
@@ -1133,14 +1112,12 @@ Document:
 
 ```python
 import cristma
-from cristma.crystallography import (
-    SpaceGroupCatalog,
-    analyze_structure_orbits,
-)
+from cristma.crystallography import SpaceGroupCatalog, assign_wyckoff, build_orbit
 
 crystal = cristma.read("sample.cif").structures[0]
-group = SpaceGroupCatalog.default().by_hall_symbol("P -4 2ab")
-orbits = analyze_structure_orbits(crystal)
+group = SpaceGroupCatalog.default().by_hall("P -4 2ab")
+orbit = build_orbit(crystal.sites[0], group, cell=crystal.cell)
+assignment = assign_wyckoff(orbit, group)
 ```
 
 State explicitly that spglib is a data-compilation dependency, not a runtime
@@ -1194,8 +1171,8 @@ Run:
 ```bash
 python -m venv /private/tmp/cristma-crystallography-wheel
 /private/tmp/cristma-crystallography-wheel/bin/python -m pip install --no-deps dist/cristma-0.1.0.dev0-py3-none-any.whl
-/private/tmp/cristma-crystallography-wheel/bin/python -c "from cristma.crystallography import SpaceGroupCatalog; c=SpaceGroupCatalog.default(); assert len(c)==530; assert c.by_hall_number(390).number==113"
-/private/tmp/cristma-crystallography-wheel/bin/python -c "import importlib.metadata as m; assert m.requires('cristma') == ['numpy>=1.26']"
+/private/tmp/cristma-crystallography-wheel/bin/python -c "from cristma.crystallography import SpaceGroupCatalog; c=SpaceGroupCatalog.default(); assert len(c)==530; assert c.by_setting(390).number==113"
+/private/tmp/cristma-crystallography-wheel/bin/python -c "import importlib.metadata as m; from packaging.requirements import Requirement; base=[str(r) for text in m.requires('cristma') or () for r in (Requirement(text),) if r.marker is None or r.marker.evaluate({'extra':''})]; assert base == ['numpy>=1.26']"
 ```
 
 Expected: both commands exit 0; no spglib, pymatgen or Gemmi dependency is

@@ -44,6 +44,42 @@ CRiStMa does not assign modules to applications. Finder, CRAFT, Rietveld, a
 script, or any future consumer may import any public scientific tool it needs.
 Applications choose their workflow; CRiStMa supplies the shared implementation.
 
+## Structural crystallography
+
+The packaged crystallographic catalog contains all 530 Hall settings and their
+Wyckoff positions. Calculated symmetry orbits are the source of multiplicity;
+catalog records are used to identify and validate the corresponding Wyckoff
+position.
+
+```python
+import cristma
+from cristma.crystallography import (
+    SpaceGroupCatalog,
+    assign_wyckoff,
+    build_orbit,
+)
+
+crystal = cristma.read("sample.cif").structures[0]
+setting = SpaceGroupCatalog.default().by_hall("P -4 2ab")
+
+orbit = build_orbit(crystal.sites[0], setting, cell=crystal.cell)
+assignment = assign_wyckoff(orbit, setting)
+
+print(orbit.multiplicity)
+print(assignment.position.letter if assignment.position else assignment.status)
+```
+
+When a CIF omits symmetry operations but identifies one catalog setting
+unambiguously, the CIF reader derives the operations and records that decision
+as a diagnostic. Explicit source operations remain authoritative and a
+catalog disagreement is reported rather than silently corrected.
+
+The normalized catalog is compiled from pinned spglib 2.7.0 data during
+development. spglib is not a runtime dependency; installed CRiStMa packages
+use their own versioned JSON resources. Source hashes, attribution, and the
+BSD-3-Clause notice are stored beside those resources in
+`cristma/reference_data/resources/crystallography/`.
+
 ## Native structure I/O
 
 The current native readers are:
