@@ -27,6 +27,8 @@ where = ["src"]
 [tool.setuptools.package-data]
 cristma = [
     "reference_data/resources/*.json",
+    "reference_data/resources/*.md",
+    "reference_data/resources/*.txt",
     "reference_data/resources/crystallography/*.json",
     "reference_data/resources/crystallography/*.md",
     "reference_data/resources/crystallography/*.txt",

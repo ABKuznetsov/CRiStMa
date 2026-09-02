@@ -13,6 +13,7 @@ from .contacts import (
 )
 from .policy import ShellResolutionPolicy
 from .resolver import CoordinationShellResolver
+from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -26,4 +27,6 @@ __all__ = [
     "SecondaryEvidence",
     "ShellAlternative",
     "ShellResolutionPolicy",
+    "ShannonDistanceCheck",
+    "ShannonDistanceValidator",
 ]

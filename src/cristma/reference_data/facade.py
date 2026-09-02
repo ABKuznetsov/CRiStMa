@@ -8,12 +8,14 @@ from functools import lru_cache
 from .chemical_reference import ChemicalReference, load_chemical_reference
 from .elements import ElementCatalog
 from .radii import CovalentRadii
+from .shannon import ShannonRadii
 
 
 @dataclass(frozen=True, slots=True)
 class ReferenceData:
     elements: ElementCatalog
     covalent_radii: CovalentRadii
+    shannon_radii: ShannonRadii
     chemical: ChemicalReference
 
     @classmethod
@@ -22,6 +24,7 @@ class ReferenceData:
         return cls(
             elements=ElementCatalog.default(),
             covalent_radii=CovalentRadii.default(),
+            shannon_radii=ShannonRadii.default(),
             chemical=load_chemical_reference(),
         )
 

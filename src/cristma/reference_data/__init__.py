@@ -9,6 +9,7 @@ from .chemical_reference import (
 )
 from .facade import ReferenceData
 from .radii import CovalentRadii, CovalentRadiusRecord
+from .shannon import ShannonRadii, ShannonRadiusRecord, ShannonSpinState
 
 __all__ = [
     "ChemicalReference",
@@ -19,6 +20,9 @@ __all__ = [
     "ElementCategory",
     "ElementRecord",
     "ReferenceData",
+    "ShannonRadii",
+    "ShannonRadiusRecord",
+    "ShannonSpinState",
     "load_chemical_reference",
     "validate_reference_integrity",
 ]

@@ -260,6 +260,24 @@ would create a circular dependency.
 If an oxidation state is known independently, ionic radii may later add
 validation evidence without replacing the primary scale.
 
+CRiStMa packages the Shannon table as versioned `ReferenceData`, retaining
+both ionic and crystal radii. Lookup is exact by element, oxidation state,
+coordination label, and spin state; missing values are never inferred. Because
+coordination belongs to the lookup key, Shannon radii are applied only after a
+shell or other independent analysis has supplied the required coordination.
+
+An optional `ShannonDistanceValidator` compares an observed distance with an
+explicit caller-selected lower-bound ratio:
+
+```text
+minimum_distance = minimum_ratio * (r_first + r_second)
+```
+
+This is secondary evidence only. A short-distance contradiction is reported
+but does not delete the geometric contact or alter the primary shell boundary.
+The threshold is part of the validator configuration and result provenance;
+CRiStMa does not hide a universal hard cutoff in the resolver.
+
 Contacts with mixed ligands are compared in normalized space rather than by raw
 angstrom distances.
 
@@ -447,6 +465,10 @@ They do not create a contact absent from geometric candidates and do not enter
 the primary comparison through hidden weights. Contradictory secondary evidence
 may prevent an otherwise close decision from being declared resolved, but it
 does not silently replace the recorded lexicographic outcome.
+
+Shannon-radius distance checks follow the same separation: they report
+`SUPPORTIVE` or `CONTRADICTORY` evidence for an explicitly supplied threshold,
+but never select or exclude a contact themselves.
 
 ## 9. Resolution policy and provenance
 
