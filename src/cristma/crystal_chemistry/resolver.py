@@ -2,32 +2,59 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 import statistics
+from types import MappingProxyType
 
-from cristma.chemistry import CandidateInteraction, CompositionGrammar
+from cristma.chemistry import CandidateInteraction, CompositionGrammar, InteractionPriority
 from cristma.chemistry.grammar import GrammarOperation
-from cristma.crystallography import GeometricContact
+from cristma.crystallography import GeometricContact, geometric_contacts
 from cristma.diagnostics import Diagnostic, Severity
+from cristma.geometry import NeighborFinder
 from cristma.reference_data import ReferenceData
-from cristma.structure import SiteComponent
+from cristma.structure import AtomicView, CrystalStructure, SiteComponent
 
 from .contacts import (
     ComponentPairInterpretation,
+    ContactClassification,
+    CoordinationShell,
+    CrystalChemistryResolution,
     EvidenceStatus,
     ResolutionStatus,
     SecondaryEvidence,
     ShellAlternative,
+    ResolvedContact,
 )
 from .policy import ShellResolutionPolicy
+
+
+@dataclass(frozen=True, slots=True)
+class InteractionScope:
+    operation: GrammarOperation
+    priority: InteractionPriority
+    centre_elements: tuple[str, ...]
+    ligand_elements: tuple[str, ...]
+
+    @classmethod
+    def from_request(cls, request: CandidateInteraction) -> InteractionScope:
+        return cls(
+            request.operation, request.priority,
+            request.centre_elements, request.ligand_elements,
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class InterpretationOutcome:
     interpretations: tuple[ComponentPairInterpretation, ...]
     diagnostics: tuple[Diagnostic, ...]
-    incomplete_interactions: tuple[GrammarOperation, ...] = ()
+    incomplete_scopes: tuple[InteractionScope, ...] = ()
+
+    @property
+    def incomplete_interactions(self) -> tuple[GrammarOperation, ...]:
+        return tuple(
+            sorted({item.operation for item in self.incomplete_scopes}, key=lambda item: item.value)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,7 +238,7 @@ def _interpret_contact(
 ) -> InterpretationOutcome:
     records: list[ComponentPairInterpretation] = []
     diagnostics: list[Diagnostic] = []
-    incomplete: set[GrammarOperation] = set()
+    incomplete: set[InteractionScope] = set()
     reported_missing: set[tuple[str, GrammarOperation]] = set()
     for first in first_components:
         for second in second_components:
@@ -228,7 +255,7 @@ def _interpret_contact(
                     missing_symbols.append(symbol or "unknown")
             if missing_symbols:
                 for request in requests:
-                    incomplete.add(request.operation)
+                    incomplete.add(InteractionScope.from_request(request))
                     for missing_symbol in missing_symbols:
                         key = (missing_symbol, request.operation)
                         if key not in reported_missing:
@@ -263,8 +290,302 @@ def _interpret_contact(
     return InterpretationOutcome(
         tuple(records),
         tuple(diagnostics),
-        tuple(sorted(incomplete, key=lambda item: item.value)),
+        tuple(sorted(
+            incomplete,
+            key=lambda item: (
+                item.operation.value, item.priority.value,
+                item.centre_elements, item.ligand_elements,
+            ),
+        )),
     )
 
 
-__all__ = ["InterpretationOutcome", "derive_search_cutoff"]
+_SHELL_OPERATIONS = frozenset({
+    GrammarOperation.CENTRE_LIGAND_SHELL,
+    GrammarOperation.INTERSTITIAL_COORDINATION,
+    GrammarOperation.MIXED_ANION_COORDINATION,
+})
+
+
+def _component_symbols(atom: object) -> frozenset[str]:
+    return frozenset(
+        component.element
+        for component in getattr(atom, "components")
+        if component.element is not None
+    )
+
+
+def _make_resolved_contact(
+    contact: GeometricContact,
+    interpretations: tuple[ComponentPairInterpretation, ...],
+    classification: ContactClassification,
+    neighbor_occupancy: float,
+) -> ResolvedContact:
+    operation = interpretations[0].interaction_type
+    priority = interpretations[0].grammar_priority
+    return ResolvedContact(
+        geometric_contact=contact,
+        interaction_type=operation,
+        grammar_priority=priority,
+        contact_classification=classification,
+        component_interpretations=interpretations,
+        normalized_distance_min=min(item.normalized_distance for item in interpretations),
+        normalized_distance_max=max(item.normalized_distance for item in interpretations),
+        neighbor_total_occupancy=neighbor_occupancy,
+        evidence=_secondary_evidence(),
+        provenance=(("method", "cristma.contact_interpretation:1"),),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class CoordinationShellResolver:
+    policy: ShellResolutionPolicy
+    reference: ReferenceData = field(default_factory=ReferenceData.default)
+
+    def resolve(
+        self,
+        structure: CrystalStructure,
+        grammar: CompositionGrammar,
+    ) -> CrystalChemistryResolution:
+        view = structure.atomic_view()
+        try:
+            cutoff = derive_search_cutoff(grammar, self.reference, self.policy)
+        except ValueError:
+            diagnostic = Diagnostic(
+                Severity.WARNING,
+                "crystal_chemistry.contact.radius_missing",
+                "No complete covalent-radius pair is available for geometric search",
+            )
+            shells = tuple(
+                CoordinationShell(
+                    getattr(atom, "source_site_id", atom.id),
+                    atom.id,
+                    (), 0, 0.0, ResolutionStatus.INCOMPLETE,
+                    diagnostics=(diagnostic,),
+                )
+                for request in grammar.candidate_interactions
+                if request.operation in _SHELL_OPERATIONS
+                for atom in view.atoms
+                if _component_symbols(atom) & set(request.centre_elements)
+            )
+            provenance = (
+                ("policy", MappingProxyType(self.policy.get_config())),
+                ("search_cutoff_angstrom", None),
+                ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
+                ("reference_version", grammar.reference_version),
+                ("resolver_method", "cristma.coordination_shell_resolver:1"),
+                ("structure_id", structure.id),
+            )
+            return CrystalChemistryResolution((), shells, (diagnostic,), provenance)
+        graph = NeighborFinder(cutoff=cutoff).find(view)
+        geometric = geometric_contacts(view, graph)
+        atoms = {atom.id: atom for atom in view.atoms}
+        interpreted: dict[str, InterpretationOutcome] = {}
+        diagnostics: list[Diagnostic] = list(graph.diagnostics)
+        for contact in geometric:
+            outcome = _interpret_contact(
+                contact,
+                atoms[contact.first_atom_id].components,
+                atoms[contact.second_atom_id].components,
+                grammar,
+                self.reference,
+                self.policy,
+            )
+            interpreted[contact.contact_id] = outcome
+            diagnostics.extend(outcome.diagnostics)
+
+        contacts: list[ResolvedContact] = []
+        shells: list[CoordinationShell] = []
+        for request in grammar.candidate_interactions:
+            if request.operation not in _SHELL_OPERATIONS:
+                contacts.extend(self._network_contacts(geometric, interpreted, atoms, request))
+                continue
+            request_shells, request_contacts, request_diagnostics = self._shells_for_request(
+                view, geometric, interpreted, atoms, request
+            )
+            shells.extend(request_shells)
+            contacts.extend(request_contacts)
+            diagnostics.extend(request_diagnostics)
+
+        maximum_rho = max(
+            (
+                item.normalized_distance
+                for outcome in interpreted.values()
+                for item in outcome.interpretations
+            ),
+            default=0.0,
+        )
+        provenance = (
+            ("policy", MappingProxyType(self.policy.get_config())),
+            ("search_cutoff_angstrom", cutoff),
+            ("maximum_observed_rho", maximum_rho),
+            ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
+            ("reference_version", grammar.reference_version),
+            ("resolver_method", "cristma.coordination_shell_resolver:1"),
+            ("structure_id", structure.id),
+        )
+        return CrystalChemistryResolution(
+            tuple(contacts), tuple(shells), tuple(diagnostics), provenance
+        )
+
+    def _matching_records(
+        self,
+        outcome: InterpretationOutcome,
+        request: CandidateInteraction,
+    ) -> tuple[ComponentPairInterpretation, ...]:
+        return tuple(
+            item for item in outcome.interpretations
+            if item.interaction_type is request.operation
+            and item.grammar_priority is request.priority
+            and item.centre_elements == request.centre_elements
+            and item.ligand_elements == request.ligand_elements
+        )
+
+    def _network_contacts(self, geometric, interpreted, atoms, request):
+        results: list[ResolvedContact] = []
+        for contact in geometric:
+            records = self._matching_records(interpreted[contact.contact_id], request)
+            if records:
+                occupancy = sum(
+                    float(item.occupancy.value)
+                    for item in atoms[contact.second_atom_id].components
+                )
+                results.append(_make_resolved_contact(
+                    contact, records, ContactClassification.PRIMARY, occupancy
+                ))
+        return results
+
+    def _shells_for_request(self, view, geometric, interpreted, atoms, request):
+        orbit_rows: dict[str, list[tuple[object, list[tuple[float, GeometricContact, tuple[ComponentPairInterpretation, ...], float]]]]] = {}
+        for center in view.atoms:
+            if not (_component_symbols(center) & set(request.centre_elements)):
+                continue
+            rows = []
+            for contact in geometric:
+                if center.id not in {contact.first_atom_id, contact.second_atom_id}:
+                    continue
+                other_id = (
+                    contact.second_atom_id
+                    if center.id == contact.first_atom_id
+                    else contact.first_atom_id
+                )
+                other = atoms[other_id]
+                if not (_component_symbols(other) & set(request.ligand_elements)):
+                    continue
+                records = self._matching_records(interpreted[contact.contact_id], request)
+                if not records:
+                    continue
+                rho = statistics.median(item.normalized_distance for item in records)
+                occupancy = sum(float(item.occupancy.value) for item in other.components)
+                rows.append((rho, contact, records, occupancy))
+            source_site_id = getattr(center, "source_site_id", center.id)
+            orbit_rows.setdefault(source_site_id, []).append((center, rows))
+
+        shells: list[CoordinationShell] = []
+        resolved_contacts: list[ResolvedContact] = []
+        diagnostics: list[Diagnostic] = []
+        for source_site_id, center_rows in orbit_rows.items():
+            request_scope = InteractionScope.from_request(request)
+            center_ids = {center.id for center, _ in center_rows}
+            missing_outcomes = tuple(
+                interpreted[contact.contact_id]
+                for contact in geometric
+                if center_ids & {contact.first_atom_id, contact.second_atom_id}
+                and request_scope in interpreted[contact.contact_id].incomplete_scopes
+            )
+            if missing_outcomes:
+                shell_diagnostics = tuple(dict.fromkeys(
+                    diagnostic
+                    for outcome in missing_outcomes
+                    for diagnostic in outcome.diagnostics
+                ))
+                for center, _ in center_rows:
+                    shells.append(CoordinationShell(
+                        source_site_id, center.id, (), 0, 0.0,
+                        ResolutionStatus.INCOMPLETE,
+                        diagnostics=shell_diagnostics,
+                    ))
+                continue
+            signatures = {
+                tuple((round(row[0], 10), row[1].first_source_site_id, row[1].second_source_site_id)
+                      for row in sorted(rows, key=lambda item: item[0]))
+                for _, rows in center_rows
+            }
+            if len(signatures) != 1:
+                diagnostic = Diagnostic(
+                    Severity.WARNING,
+                    "crystal_chemistry.shell.symmetry_inconsistent",
+                    f"Equivalent centres for {source_site_id} have different contact signatures",
+                )
+                diagnostics.append(diagnostic)
+                for center, _ in center_rows:
+                    shells.append(CoordinationShell(
+                        source_site_id, center.id, (), 0, 0.0,
+                        ResolutionStatus.INCOMPLETE, diagnostics=(diagnostic,),
+                    ))
+                continue
+            template_rows = sorted(center_rows[0][1], key=lambda item: item[0])
+            decision = _resolve_rho_values(tuple(row[0] for row in template_rows), self.policy)
+            lower_decision = _resolve_rho_values(
+                tuple(min(item.normalized_distance for item in row[2]) for row in template_rows),
+                self.policy,
+            )
+            upper_decision = _resolve_rho_values(
+                tuple(max(item.normalized_distance for item in row[2]) for row in template_rows),
+                self.policy,
+            )
+            lower_cn = lower_decision.selected.geometric_CN if lower_decision.selected else None
+            upper_cn = upper_decision.selected.geometric_CN if upper_decision.selected else None
+            if (lower_decision.status, lower_cn) != (upper_decision.status, upper_cn):
+                diagnostic = Diagnostic(
+                    Severity.WARNING,
+                    "crystal_chemistry.shell.mixed_occupancy_disagreement",
+                    "Valid component interpretations imply different shell boundaries",
+                )
+                alternatives = tuple(dict.fromkeys(
+                    lower_decision.alternatives + upper_decision.alternatives
+                ))
+                decision = BoundaryDecision(
+                    ResolutionStatus.AMBIGUOUS,
+                    None,
+                    alternatives,
+                    _secondary_evidence(),
+                    (diagnostic,),
+                )
+            for center, rows in center_rows:
+                ordered = sorted(rows, key=lambda item: item[0])
+                selected_count = decision.selected.geometric_CN if decision.selected else 0
+                center_contacts: list[ResolvedContact] = []
+                for index, (_, contact, records, occupancy) in enumerate(ordered):
+                    classification = (
+                        ContactClassification.PRIMARY
+                        if index < selected_count else ContactClassification.SECONDARY
+                    )
+                    resolved = _make_resolved_contact(contact, records, classification, occupancy)
+                    resolved_contacts.append(resolved)
+                    if index < selected_count:
+                        center_contacts.append(resolved)
+                shells.append(CoordinationShell(
+                    source_site_id=source_site_id,
+                    center_atom_id=center.id,
+                    contacts=tuple(center_contacts),
+                    geometric_CN=len(center_contacts),
+                    mean_occupied_neighbors=math.fsum(
+                        item.neighbor_total_occupancy for item in center_contacts
+                    ),
+                    status=decision.status,
+                    alternatives=decision.alternatives,
+                    evidence=decision.evidence,
+                    diagnostics=decision.diagnostics,
+                    provenance=(("interaction", request.operation.value),),
+                ))
+                diagnostics.extend(decision.diagnostics)
+        return shells, resolved_contacts, diagnostics
+
+
+__all__ = [
+    "BoundaryDecision",
+    "CoordinationShellResolver",
+    "InterpretationOutcome",
+    "derive_search_cutoff",
+]

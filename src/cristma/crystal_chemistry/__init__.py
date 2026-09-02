@@ -12,11 +12,13 @@ from .contacts import (
     ShellAlternative,
 )
 from .policy import ShellResolutionPolicy
+from .resolver import CoordinationShellResolver
 
 __all__ = [
     "ComponentPairInterpretation",
     "ContactClassification",
     "CoordinationShell",
+    "CoordinationShellResolver",
     "CrystalChemistryResolution",
     "EvidenceStatus",
     "ResolutionStatus",
