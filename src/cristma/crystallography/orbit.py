@@ -14,6 +14,7 @@ from cristma.diagnostics import Diagnostic, Severity
 from cristma.structure.crystal import IndependentSite
 from cristma.structure.identity import ExpandedAtom, SymmetryImageProvenance
 from cristma.symmetry.orbit import expand_orbit
+from cristma.symmetry.orbit import DEFAULT_FRACTIONAL_TOLERANCE
 
 from .space_group import SpaceGroupSetting
 from .wyckoff import AffineCoordinateMap, WyckoffPosition
@@ -187,7 +188,7 @@ def build_orbit(
     setting: SpaceGroupSetting,
     *,
     cell: UnitCell,
-    tolerance: float = 1e-6,
+    tolerance: float = DEFAULT_FRACTIONAL_TOLERANCE,
     structure_id: str | None = None,
 ) -> CrystallographicOrbit:
     """Calculate an orbit and stabilizer from a site and one group setting."""

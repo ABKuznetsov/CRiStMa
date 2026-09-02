@@ -180,8 +180,27 @@ def compile_composition_grammar(
         }
         anions = elements & selectors[family]
         centres, ligands = tuple(sorted(elements - anions)), tuple(sorted(anions))
-        interactions.append(_interaction(centres, ligands, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=centres, ligands=ligands))
-        if family == "inorganic.chalcogenide":
+        contains_metal = any(
+            reference.elements.by_symbol(symbol).is_metal for symbol in elements
+        )
+        if family == "inorganic.carbide" and not contains_metal:
+            mode = DecompositionMode.COVALENT_NETWORK
+            group = tuple(sorted(elements))
+            interactions.append(_interaction(
+                group, group, GrammarOperation.COVALENT_NETWORK,
+                InteractionPriority.PRIMARY, evidence,
+                centres=group, ligands=group,
+                layer=InteractionLayer.INTRAMOLECULAR,
+            ))
+        else:
+            interactions.append(_interaction(centres, ligands, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=centres, ligands=ligands))
+        if family in {
+            "inorganic.chalcogenide",
+            "inorganic.nitride",
+            "inorganic.pnictide",
+            "inorganic.carbide",
+            "inorganic.boride",
+        } and mode is not DecompositionMode.COVALENT_NETWORK:
             interactions.append(_interaction(ligands, ligands, GrammarOperation.INTRA_SUBSYSTEM_BONDS, InteractionPriority.ALLOWED, evidence, centres=ligands, ligands=ligands, layer=InteractionLayer.INTRA_SUBSYSTEM))
     elif family == "organic.molecular":
         mode = DecompositionMode.MOLECULAR_COMPONENTS

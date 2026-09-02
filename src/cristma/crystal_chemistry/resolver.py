@@ -317,6 +317,29 @@ def _component_symbols(atom: object) -> frozenset[str]:
     )
 
 
+def _orbit_rows_equivalent(left, right, tolerance: float) -> bool:
+    """Compare symmetry-equivalent environments at the resolution policy scale."""
+
+    left_rows = sorted(left, key=lambda item: item[0])
+    right_rows = sorted(right, key=lambda item: item[0])
+    if len(left_rows) != len(right_rows):
+        return False
+    for left_row, right_row in zip(left_rows, right_rows, strict=True):
+        if abs(left_row[0] - right_row[0]) > tolerance + 1e-12:
+            return False
+        left_sites = tuple(sorted((
+            left_row[1].first_source_site_id,
+            left_row[1].second_source_site_id,
+        )))
+        right_sites = tuple(sorted((
+            right_row[1].first_source_site_id,
+            right_row[1].second_source_site_id,
+        )))
+        if left_sites != right_sites:
+            return False
+    return True
+
+
 def _make_resolved_contact(
     contact: GeometricContact,
     interpretations: tuple[ComponentPairInterpretation, ...],
@@ -512,12 +535,15 @@ class CoordinationShellResolver:
                         diagnostics=shell_diagnostics,
                     ))
                 continue
-            signatures = {
-                tuple((round(row[0], 10), row[1].first_source_site_id, row[1].second_source_site_id)
-                      for row in sorted(rows, key=lambda item: item[0]))
-                for _, rows in center_rows
-            }
-            if len(signatures) != 1:
+            template_environment = center_rows[0][1]
+            if any(
+                not _orbit_rows_equivalent(
+                    template_environment,
+                    rows,
+                    self.policy.distance_group_tolerance,
+                )
+                for _, rows in center_rows[1:]
+            ):
                 diagnostic = Diagnostic(
                     Severity.WARNING,
                     "crystal_chemistry.shell.symmetry_inconsistent",
@@ -568,11 +594,11 @@ class CoordinationShellResolver:
                         if index < selected_count else ContactClassification.SECONDARY
                     )
                     resolved = _make_resolved_contact(contact, records, classification, occupancy)
-                    if any(
-                        item.normalized_distance <= self.policy.candidate_rho_max
-                        for item in records
-                    ):
-                        resolved_contacts.append(resolved)
+                    # Keep the observed contacts beyond the chosen first shell
+                    # as explicit SECONDARY results. They remain bounded by the
+                    # separate search horizon and are useful for distorted or
+                    # layered environments without being promoted to the CN.
+                    resolved_contacts.append(resolved)
                     if index < selected_count:
                         center_contacts.append(resolved)
                 shells.append(CoordinationShell(

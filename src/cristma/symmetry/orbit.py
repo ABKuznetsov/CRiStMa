@@ -26,6 +26,12 @@ SymmetryProvenance = Literal[
 ]
 
 
+# CIF fractional coordinates are commonly rounded to five decimal places.
+# This tolerance merges symmetry images that differ only by the corresponding
+# source precision while remaining far below chemically meaningful distances.
+DEFAULT_FRACTIONAL_TOLERANCE = 1e-5
+
+
 @dataclass(frozen=True, slots=True)
 class SpaceGroupDefinition:
     """Reported or derived space-group identity and exact operations."""
@@ -92,7 +98,7 @@ def _periodically_equal(
     tolerance: float,
 ) -> bool:
     return all(
-        abs((a - b + 0.5) % 1.0 - 0.5) <= tolerance
+        abs((a - b + 0.5) % 1.0 - 0.5) <= tolerance + 1e-12
         for a, b in zip(left, right, strict=True)
     )
 
@@ -100,7 +106,7 @@ def _periodically_equal(
 def expand_orbit(
     site: IndependentSite,
     operations: tuple[AffineOperation, ...],
-    tolerance: float = 1e-8,
+    tolerance: float = DEFAULT_FRACTIONAL_TOLERANCE,
     *,
     cell: UnitCell,
     structure_id: str | None = None,
@@ -157,7 +163,7 @@ def expand_orbit(
 
 def expand_structure(
     crystal: CrystalStructure,
-    tolerance: float = 1e-8,
+    tolerance: float = DEFAULT_FRACTIONAL_TOLERANCE,
 ) -> AtomicView[ExpandedAtom]:
     """Expand all independent sites into one finite reference-cell atomic view."""
 

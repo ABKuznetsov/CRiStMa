@@ -64,6 +64,34 @@ def test_orbit_keeps_translation_and_distinct_general_positions():
     assert expanded[1].representative_image.normalization_translation == (1, 1, 1)
 
 
+def test_orbit_merges_cif_rounded_one_third_special_position() -> None:
+    operations = tuple(
+        parse_xyz_operation(value, operation_id=f"op:{index}")
+        for index, value in enumerate(
+            (
+                "x,y,z",
+                "x-y,-y,1/2+z",
+                "-y,x-y,z",
+                "y,x,1/2+z",
+                "-x+y,-x,z",
+                "-x,-x+y,1/2+z",
+            ),
+            start=1,
+        )
+    )
+
+    expanded = expand_orbit(
+        site_at(0.33333, 0.66667, 0.634),
+        operations,
+        cell=UnitCell(
+            number(7.765), number(7.765), number(5.6275),
+            number(90), number(90), number(120),
+        ),
+    )
+
+    assert len(expanded) == 2
+
+
 def test_orbit_records_normalization_translation_with_explicit_sign() -> None:
     operation = parse_xyz_operation("x,y,z", operation_id="op:identity")
 
