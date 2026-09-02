@@ -1,0 +1,21 @@
+data_CaN2_analytic
+_chemical_formula_sum            'Ca N2'
+_space_group_IT_number           139
+_symmetry_space_group_name_H-M   'I 4/m m m'
+_cell_length_a                   3.5747
+_cell_length_b                   3.5747
+_cell_length_c                   5.9844
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                90
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_symmetry_multiplicity
+_atom_site_Wyckoff_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+Ca1 Ca 2 a 0 0 0 1
+N1  N  4 e 0 0 0.399572 1
