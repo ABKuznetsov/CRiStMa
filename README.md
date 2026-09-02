@@ -44,6 +44,37 @@ CRiStMa does not assign modules to applications. Finder, CRAFT, Rietveld, a
 script, or any future consumer may import any public scientific tool it needs.
 Applications choose their workflow; CRiStMa supplies the shared implementation.
 
+## Inorganic crystal chemistry
+
+The current crystal-chemistry slice resolves chemically requested contacts,
+coordination shells, and three-dimensional coordination polyhedra without
+compound-specific branches or expected coordination-number tables:
+
+```python
+from cristma.chemistry import ChemistryAnalyzer, Composition
+from cristma.crystal_chemistry import (
+    CoordinationShellResolver,
+    PolyhedronBuilder,
+    ShellResolutionPolicy,
+)
+
+structure = cristma.read("sample.cif").structures[0]
+chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(structure))
+policy = ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01, 2.00)
+resolution = CoordinationShellResolver(policy).resolve(structure, chemistry.grammar)
+view = structure.atomic_view()
+polyhedra = tuple(
+    PolyhedronBuilder().build(shell, view)
+    for shell in resolution.coordination_shells
+)
+```
+
+The policy is explicit configuration, not a hidden universal preset. CRAFT can
+retain these immutable results and render them directly; all workflow and UI
+state remain application-owned. Scientific semantics, statuses, provenance,
+radii policy, and current limits are documented in
+[`docs/inorganic-crystal-chemistry.md`](docs/inorganic-crystal-chemistry.md).
+
 ## Structural crystallography
 
 The packaged crystallographic catalog contains all 530 Hall settings and their
