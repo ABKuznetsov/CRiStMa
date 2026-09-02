@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 import math
 
-from cristma.diagnostics import Diagnostic
+from cristma.diagnostics import Diagnostic, Severity
 from cristma.reference_data import ReferenceData
 
 from .classification import ChemicalClassification
@@ -35,9 +35,12 @@ class GrammarOperation(StrEnum):
 
 
 class InteractionLayer(StrEnum):
-    PRIMARY_COORDINATION = "primary_coordination"
+    STRUCTURAL = "structural"
+    INTERSTITIAL = "interstitial"
+    COORDINATION = "coordination"
     INTRA_SUBSYSTEM = "intra_subsystem"
     INTRAMOLECULAR = "intramolecular"
+    METALLIC = "metallic"
 
 
 class InteractionPriority(StrEnum):
@@ -110,7 +113,7 @@ def _interaction(
     *,
     centres: tuple[str, ...] | None = None,
     ligands: tuple[str, ...] | None = None,
-    layer: InteractionLayer = InteractionLayer.PRIMARY_COORDINATION,
+    layer: InteractionLayer = InteractionLayer.COORDINATION,
 ) -> CandidateInteraction:
     return CandidateInteraction(
         first,
@@ -129,7 +132,7 @@ def compile_composition_grammar(
     classification: ChemicalClassification,
     reference: ReferenceData | None = None,
 ) -> CompositionGrammar:
-    """Translate one material family into concrete element-pair searches."""
+    """Compile declarative reference-data templates into concrete searches."""
 
     reference = reference or ReferenceData.default()
     elements = frozenset(composition.elements)
@@ -142,85 +145,123 @@ def compile_composition_grammar(
             (family,) if family else (),
         ),
     )
-    interactions: list[CandidateInteraction] = []
-    mode = DecompositionMode.UNRESOLVED
-
-    if family == "elemental.metallic":
-        group = tuple(elements)
-        mode = DecompositionMode.METALLIC_SUBLATTICES
-        interactions.append(_interaction(group, group, GrammarOperation.METALLIC_COORDINATION, InteractionPriority.PRIMARY, evidence))
-    elif family in {"elemental.covalent", "elemental.molecular"}:
-        group = tuple(elements)
-        mode = DecompositionMode.COVALENT_NETWORK if family.endswith("covalent") else DecompositionMode.MOLECULAR_COMPONENTS
-        interactions.append(_interaction(group, group, GrammarOperation.COVALENT_NETWORK, InteractionPriority.PRIMARY, evidence, layer=InteractionLayer.INTRAMOLECULAR))
-    elif family == "inorganic.intermetallic":
-        mode = DecompositionMode.METALLIC_SUBLATTICES
-        ordered = tuple(sorted(elements))
-        for index, first in enumerate(ordered):
-            for second in ordered[index + 1:]:
-                interactions.append(_interaction((first,), (second,), GrammarOperation.METALLIC_COORDINATION, InteractionPriority.PRIMARY, evidence))
-    elif family == "inorganic.oxide":
-        mode = DecompositionMode.STRUCTURAL_ANION_SUBSYSTEM
-        centres, ligands = tuple(sorted(elements - {"O"})), ("O",)
-        interactions.append(_interaction(centres, ligands, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=centres, ligands=ligands))
-    elif family == "inorganic.halide":
-        mode = DecompositionMode.IONIC_SUBLATTICES
-        halogens = elements & reference.chemical.element_set("halogens")
-        centres, ligands = tuple(sorted(elements - halogens)), tuple(sorted(halogens))
-        interactions.append(_interaction(centres, ligands, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=centres, ligands=ligands))
-    elif family in {"inorganic.chalcogenide", "inorganic.nitride", "inorganic.pnictide", "inorganic.carbide", "inorganic.boride", "inorganic.tetrelide"}:
-        mode = DecompositionMode.CATION_ANION_SUBSYSTEM
-        selectors = {
-            "inorganic.chalcogenide": reference.chemical.element_set("chalcogens") - {"O"},
-            "inorganic.nitride": frozenset({"N"}),
-            "inorganic.pnictide": reference.chemical.element_set("pnictogens") - {"N"},
-            "inorganic.carbide": frozenset({"C"}),
-            "inorganic.boride": frozenset({"B"}),
-            "inorganic.tetrelide": frozenset({"Si", "Ge", "Sn", "Pb"}),
-        }
-        anions = elements & selectors[family]
-        centres, ligands = tuple(sorted(elements - anions)), tuple(sorted(anions))
-        contains_metal = any(
-            reference.elements.by_symbol(symbol).is_metal for symbol in elements
+    if family is None:
+        return CompositionGrammar(
+            mode=DecompositionMode.UNRESOLVED,
+            candidate_interactions=(),
+            confidence=classification.confidence,
+            evidence=evidence,
+            diagnostics=classification.diagnostics,
+            reference_version=reference.chemical.schema_version,
+            method_version="2",
         )
-        if family == "inorganic.carbide" and not contains_metal:
-            mode = DecompositionMode.COVALENT_NETWORK
-            group = tuple(sorted(elements))
-            interactions.append(_interaction(
-                group, group, GrammarOperation.COVALENT_NETWORK,
-                InteractionPriority.PRIMARY, evidence,
-                centres=group, ligands=group,
-                layer=InteractionLayer.INTRAMOLECULAR,
-            ))
-        else:
-            interactions.append(_interaction(centres, ligands, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=centres, ligands=ligands))
-        if family in {
-            "inorganic.chalcogenide",
-            "inorganic.nitride",
-            "inorganic.pnictide",
-            "inorganic.carbide",
-            "inorganic.boride",
-        } and mode is not DecompositionMode.COVALENT_NETWORK:
-            interactions.append(_interaction(ligands, ligands, GrammarOperation.INTRA_SUBSYSTEM_BONDS, InteractionPriority.ALLOWED, evidence, centres=ligands, ligands=ligands, layer=InteractionLayer.INTRA_SUBSYSTEM))
-    elif family == "organic.molecular":
-        mode = DecompositionMode.MOLECULAR_COMPONENTS
-        group = tuple(sorted(elements))
-        interactions.append(_interaction(group, group, GrammarOperation.COVALENT_NETWORK, InteractionPriority.PRIMARY, evidence, layer=InteractionLayer.INTRAMOLECULAR))
-    elif family in {"coordination.metal_organic_discrete", "organic.organometallic_molecular"}:
-        mode = DecompositionMode.METAL_ORGANIC
-        metals = tuple(sorted(symbol for symbol in elements if reference.elements.by_symbol(symbol).is_metal))
-        organic = tuple(sorted(elements - set(metals)))
-        interactions.append(_interaction(organic, organic, GrammarOperation.COVALENT_NETWORK, InteractionPriority.PRIMARY, evidence, layer=InteractionLayer.INTRAMOLECULAR))
-        donors = tuple(sorted((elements & {"N", "O", "S", "P", "F", "Cl", "Br", "I"}) or (elements & {"C"})))
-        interactions.append(_interaction(metals, donors, GrammarOperation.CENTRE_LIGAND_SHELL, InteractionPriority.PRIMARY, evidence, centres=metals, ligands=donors))
+
+    route_key = family.rsplit(".", 1)[-1]
+    try:
+        routed_family = reference.chemical.composition_family_route(
+            route_key, elements
+        )
+        template_id = reference.chemical.grammar_route(routed_family)
+    except KeyError:
+        try:
+            template_id = reference.chemical.grammar_route(family)
+        except KeyError:
+            diagnostic = Diagnostic(
+                Severity.WARNING,
+                "chemistry.grammar_unresolved",
+                f"No declarative composition grammar is routed for {family}.",
+            )
+            return CompositionGrammar(
+                mode=DecompositionMode.UNRESOLVED,
+                candidate_interactions=(),
+                confidence=classification.confidence,
+                evidence=evidence,
+                diagnostics=classification.diagnostics + (diagnostic,),
+                reference_version=reference.chemical.schema_version,
+                method_version="2",
+            )
+
+    template = reference.chemical.grammar_template(template_id)
+    records = tuple(template["interactions"])
+    selector_names = {
+        str(record[field])
+        for record in records
+        for field in ("first", "second", "centres", "ligands")
+    }
+    fixed: dict[str, frozenset[str]] = {}
+    for selector in selector_names:
+        if selector in {
+            "all_elements",
+            "remaining_elements",
+            "remaining_electropositive_elements",
+            "metal_elements",
+            "nonmetal_elements",
+        }:
+            continue
+        try:
+            selected = reference.chemical.grammar_element_set(selector)
+        except KeyError:
+            selected = reference.chemical.element_set(selector)
+        fixed[selector] = elements & selected
+    explicitly_selected = frozenset().union(*fixed.values()) if fixed else frozenset()
+
+    def select(identifier: str) -> frozenset[str]:
+        if identifier == "all_elements":
+            return elements
+        if identifier == "remaining_elements":
+            return elements - explicitly_selected
+        if identifier == "remaining_electropositive_elements":
+            return frozenset(
+                symbol
+                for symbol in elements - explicitly_selected
+                if reference.elements.by_symbol(symbol).is_metal or symbol == "H"
+            )
+        if identifier == "metal_elements":
+            return frozenset(
+                symbol for symbol in elements
+                if reference.elements.by_symbol(symbol).is_metal
+            )
+        if identifier == "nonmetal_elements":
+            return frozenset(
+                symbol for symbol in elements
+                if not reference.elements.by_symbol(symbol).is_metal
+            )
+        return fixed[identifier]
+
+    interactions: list[CandidateInteraction] = []
+    for record in records:
+        first = tuple(sorted(select(str(record["first"]))))
+        second = tuple(sorted(select(str(record["second"]))))
+        centres = tuple(sorted(select(str(record["centres"]))))
+        ligands = tuple(sorted(select(str(record["ligands"]))))
+        if not first or not second or not centres or not ligands:
+            continue
+        operation = GrammarOperation(str(record["operation"]))
+        layer = InteractionLayer(str(record["layer"]))
+        priority = InteractionPriority(str(record["priority"]))
+        if record.get("expand") == "distinct_unordered_pairs":
+            ordered = tuple(sorted(set(first) | set(second)))
+            for index, first_symbol in enumerate(ordered):
+                for second_symbol in ordered[index + 1:]:
+                    interactions.append(_interaction(
+                        (first_symbol,), (second_symbol,), operation, priority,
+                        evidence, centres=(first_symbol,), ligands=(second_symbol,),
+                        layer=layer,
+                    ))
+            continue
+        interactions.append(_interaction(
+            first, second, operation, priority, evidence,
+            centres=centres, ligands=ligands, layer=layer,
+        ))
 
     return CompositionGrammar(
-        mode=mode,
+        mode=DecompositionMode(str(template["mode"])),
         candidate_interactions=tuple(interactions),
         confidence=classification.confidence,
         evidence=evidence,
         diagnostics=classification.diagnostics,
         reference_version=reference.chemical.schema_version,
+        method_version="2",
     )
 
 

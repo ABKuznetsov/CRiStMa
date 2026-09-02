@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 import math
 
-from cristma.chemistry import GrammarOperation, InteractionPriority
+from cristma.chemistry import GrammarOperation, InteractionLayer, InteractionPriority
 from cristma.chemistry.species import ChemicalSpecies
 from cristma.crystallography import GeometricContact
 from cristma.diagnostics import Diagnostic
@@ -53,6 +53,7 @@ class ComponentPairInterpretation:
     normalized_distance: float
     occupancy_weight: float
     interaction_type: GrammarOperation
+    interaction_layer: InteractionLayer
     grammar_priority: InteractionPriority
     centre_elements: tuple[str, ...]
     ligand_elements: tuple[str, ...]
@@ -95,6 +96,7 @@ class ShellAlternative:
 class ResolvedContact:
     geometric_contact: GeometricContact
     interaction_type: GrammarOperation
+    interaction_layer: InteractionLayer
     grammar_priority: InteractionPriority
     contact_classification: ContactClassification
     component_interpretations: tuple[ComponentPairInterpretation, ...]
@@ -116,6 +118,8 @@ class ResolvedContact:
             raise ValueError("normalized-distance bounds must cover every interpretation")
         if any(item.interaction_type is not self.interaction_type for item in self.component_interpretations):
             raise ValueError("component interpretations must share the contact interaction")
+        if any(item.interaction_layer is not self.interaction_layer for item in self.component_interpretations):
+            raise ValueError("component interpretations must share the interaction layer")
         if any(item.grammar_priority is not self.grammar_priority for item in self.component_interpretations):
             raise ValueError("component interpretations must share the grammar priority")
         if not math.isfinite(self.neighbor_total_occupancy) or not 0 <= self.neighbor_total_occupancy <= 1:

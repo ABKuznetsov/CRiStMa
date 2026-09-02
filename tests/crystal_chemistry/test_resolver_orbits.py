@@ -176,7 +176,7 @@ def test_result_records_reproducible_method_provenance() -> None:
     provenance = dict(result.provenance)
     assert provenance["policy"] == POLICY.get_config()
     assert provenance["search_cutoff_angstrom"] == pytest.approx(4.84)
-    assert provenance["grammar_method"] == "cristma.composition_grammar:1"
+    assert provenance["grammar_method"] == "cristma.composition_grammar:2"
     assert provenance["resolver_method"] == "cristma.coordination_shell_resolver:1"
     assert provenance["structure_id"] == "structure:equivalent-tetrahedra"
 
@@ -225,7 +225,7 @@ def test_mixed_components_with_different_boundaries_remain_ambiguous() -> None:
     request = CandidateInteraction(
         first_elements=("Ca",), second_elements=("F", "O"),
         operation=GrammarOperation.CENTRE_LIGAND_SHELL,
-        layer=InteractionLayer.PRIMARY_COORDINATION,
+        layer=InteractionLayer.COORDINATION,
         priority=InteractionPriority.PRIMARY,
         centre_elements=("Ca",), ligand_elements=("F", "O"), evidence=evidence,
     )
@@ -254,7 +254,7 @@ def test_primary_scope_with_no_available_radius_is_incomplete() -> None:
     evidence = (ChemicalEvidence("test", "missing radius grammar"),)
     request = CandidateInteraction(
         ("Cf",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
-        InteractionLayer.PRIMARY_COORDINATION, InteractionPriority.PRIMARY,
+        InteractionLayer.COORDINATION, InteractionPriority.PRIMARY,
         ("Cf",), ("O",), evidence,
     )
     grammar = CompositionGrammar(
@@ -286,7 +286,7 @@ def test_partly_missing_primary_mixed_site_radius_blocks_resolution() -> None:
     evidence = (ChemicalEvidence("test", "mixed centre grammar"),)
     request = CandidateInteraction(
         ("Ca", "Cf"), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
-        InteractionLayer.PRIMARY_COORDINATION, InteractionPriority.PRIMARY,
+        InteractionLayer.COORDINATION, InteractionPriority.PRIMARY,
         ("Ca", "Cf"), ("O",), evidence,
     )
     grammar = CompositionGrammar(

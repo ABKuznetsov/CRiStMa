@@ -122,6 +122,7 @@ not change the directed neighbour graph used to enumerate environments.
 ResolvedContact
 ├── geometric_contact
 ├── interaction_type
+├── interaction_layer         # STRUCTURAL | INTERSTITIAL | COORDINATION | ...
 ├── grammar_priority          # PRIMARY | ALLOWED
 ├── contact_classification    # PRIMARY | SECONDARY
 ├── component_interpretations
@@ -134,6 +135,9 @@ ResolvedContact
 
 Grammar priority and calculated contact classification are independent facts.
 A `PRIMARY` grammar request cannot make geometrically poor contact primary.
+The interaction layer is independent from both and is preserved unchanged
+from `CandidateInteraction`, so later graph builders need no second chemistry
+or geometry pass.
 
 One contact may have several component-pair interpretations. For example:
 

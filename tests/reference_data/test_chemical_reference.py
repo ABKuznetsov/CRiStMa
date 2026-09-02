@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
+from types import MappingProxyType
+
 import pytest
 
 from cristma.reference_data import (
@@ -50,3 +53,17 @@ def test_v31_routes_concrete_grammar_templates() -> None:
     assert reference.grammar_route("inorganic.halide.bromide") == "ionic_halide"
     assert reference.composition_family_route("halide") == "inorganic.halide"
     assert reference.grammar_template("ionic_halide")["interactions"][0]["operation"] == "centre_ligand_shell"
+
+
+def test_reference_rejects_unknown_interaction_layer() -> None:
+    reference = ReferenceData.default().chemical
+    templates = dict(reference._grammar_templates)
+    template = dict(templates["ionic_halide"])
+    interactions = list(template["interactions"])
+    interactions[0] = MappingProxyType({**interactions[0], "layer": "unknown"})
+    template["interactions"] = tuple(interactions)
+    templates["ionic_halide"] = MappingProxyType(template)
+    invalid = replace(reference, _grammar_templates=MappingProxyType(templates))
+
+    with pytest.raises(ValueError, match="unknown grammar layer"):
+        validate_reference_integrity(invalid)

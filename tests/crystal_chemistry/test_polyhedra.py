@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from cristma.chemistry import GrammarOperation, InteractionPriority
+from cristma.chemistry import GrammarOperation, InteractionLayer, InteractionPriority
 from cristma.core.values import MeasuredValue
 from cristma.crystallography import GeometricContact
 from cristma.crystal_chemistry import (
@@ -44,12 +44,14 @@ def build_shell(
             center_component.species, ligand_component.species,
             1.0, 1.0, 2.42, distance / 2.42, 1.0,
             GrammarOperation.CENTRE_LIGAND_SHELL,
+            InteractionLayer.COORDINATION,
             InteractionPriority.PRIMARY,
             ("Ca",), ("O",),
         )
         contacts.append(ResolvedContact(
             geometric,
             GrammarOperation.CENTRE_LIGAND_SHELL,
+            InteractionLayer.COORDINATION,
             InteractionPriority.PRIMARY,
             ContactClassification.PRIMARY,
             (interpretation,),

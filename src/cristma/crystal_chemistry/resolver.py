@@ -7,7 +7,7 @@ import math
 import statistics
 from types import MappingProxyType
 
-from cristma.chemistry import CandidateInteraction, CompositionGrammar, InteractionPriority
+from cristma.chemistry import CandidateInteraction, CompositionGrammar, InteractionLayer, InteractionPriority
 from cristma.chemistry.grammar import GrammarOperation
 from cristma.crystallography import GeometricContact, geometric_contacts
 from cristma.diagnostics import Diagnostic, Severity
@@ -32,6 +32,7 @@ from .policy import ShellResolutionPolicy
 @dataclass(frozen=True, slots=True)
 class InteractionScope:
     operation: GrammarOperation
+    layer: InteractionLayer
     priority: InteractionPriority
     centre_elements: tuple[str, ...]
     ligand_elements: tuple[str, ...]
@@ -39,7 +40,7 @@ class InteractionScope:
     @classmethod
     def from_request(cls, request: CandidateInteraction) -> InteractionScope:
         return cls(
-            request.operation, request.priority,
+            request.operation, request.layer, request.priority,
             request.centre_elements, request.ligand_elements,
         )
 
@@ -285,6 +286,7 @@ def _interpret_contact(
                         float(first.occupancy.value) * float(second.occupancy.value)
                     ),
                     interaction_type=request.operation,
+                    interaction_layer=request.layer,
                     grammar_priority=request.priority,
                     centre_elements=request.centre_elements,
                     ligand_elements=request.ligand_elements,
@@ -295,7 +297,7 @@ def _interpret_contact(
         tuple(sorted(
             incomplete,
             key=lambda item: (
-                item.operation.value, item.priority.value,
+                item.operation.value, item.layer.value, item.priority.value,
                 item.centre_elements, item.ligand_elements,
             ),
         )),
@@ -347,10 +349,12 @@ def _make_resolved_contact(
     neighbor_occupancy: float,
 ) -> ResolvedContact:
     operation = interpretations[0].interaction_type
+    layer = interpretations[0].interaction_layer
     priority = interpretations[0].grammar_priority
     return ResolvedContact(
         geometric_contact=contact,
         interaction_type=operation,
+        interaction_layer=layer,
         grammar_priority=priority,
         contact_classification=classification,
         component_interpretations=interpretations,
@@ -461,6 +465,7 @@ class CoordinationShellResolver:
         return tuple(
             item for item in outcome.interpretations
             if item.interaction_type is request.operation
+            and item.interaction_layer is request.layer
             and item.grammar_priority is request.priority
             and item.centre_elements == request.centre_elements
             and item.ligand_elements == request.ligand_elements

@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from cristma.chemistry import GrammarOperation, InteractionPriority
+from cristma.chemistry import GrammarOperation, InteractionLayer, InteractionPriority
 from cristma.core.values import MeasuredValue
 from cristma.crystallography import GeometricContact
 from cristma.crystal_chemistry import (
@@ -32,6 +32,7 @@ def interpretation() -> ComponentPairInterpretation:
         normalized_distance=1.0,
         occupancy_weight=0.75,
         interaction_type=GrammarOperation.CENTRE_LIGAND_SHELL,
+        interaction_layer=InteractionLayer.COORDINATION,
         grammar_priority=InteractionPriority.PRIMARY,
         centre_elements=("Ca",),
         ligand_elements=("O",),
@@ -54,6 +55,7 @@ def resolved_contact(index: int) -> ResolvedContact:
     return ResolvedContact(
         geometric_contact=geometric,
         interaction_type=GrammarOperation.CENTRE_LIGAND_SHELL,
+        interaction_layer=InteractionLayer.COORDINATION,
         grammar_priority=InteractionPriority.PRIMARY,
         contact_classification=ContactClassification.PRIMARY,
         component_interpretations=(pair,),
@@ -109,6 +111,7 @@ def test_resolved_contact_bounds_must_cover_every_interpretation() -> None:
         ResolvedContact(
             geometric_contact=contact.geometric_contact,
             interaction_type=contact.interaction_type,
+            interaction_layer=contact.interaction_layer,
             grammar_priority=contact.grammar_priority,
             contact_classification=contact.contact_classification,
             component_interpretations=contact.component_interpretations,
@@ -125,4 +128,5 @@ def test_component_interpretation_keeps_interaction_context() -> None:
 
     assert pair.species_symbols == ("Ca", "O")
     assert pair.interaction_type is GrammarOperation.CENTRE_LIGAND_SHELL
+    assert pair.interaction_layer is InteractionLayer.COORDINATION
     assert pair.grammar_priority is InteractionPriority.PRIMARY

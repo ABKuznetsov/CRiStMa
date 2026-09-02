@@ -6,6 +6,7 @@ from cristma.chemistry import (
     ChemistryAnalyzer,
     Composition,
     GrammarOperation,
+    InteractionLayer,
     InteractionPriority,
 )
 
@@ -29,7 +30,7 @@ def signatures(formula: dict[str, float]) -> set[tuple[tuple[str, ...], tuple[st
         ({"Fe": 1}, {(('Fe',), ('Fe',), "metallic_coordination", "primary")}),
         ({"Si": 1}, {(('Si',), ('Si',), "covalent_network", "primary")}),
         ({"Fe": 1, "Al": 1}, {(('Al',), ('Fe',), "metallic_coordination", "primary")}),
-        ({"Ca": 1, "O": 1}, {(('Ca',), ('O',), "centre_ligand_shell", "primary")}),
+        ({"Ca": 1, "O": 1}, {(('Ca',), ('O',), "interstitial_coordination", "allowed")}),
         ({"Na": 1, "Cl": 1}, {(('Cl',), ('Na',), "centre_ligand_shell", "primary")}),
         (
             {"Fe": 1, "S": 2},
@@ -75,3 +76,66 @@ def test_metal_organic_grammar_separates_organic_and_metal_donor_searches() -> N
 def test_directed_coordination_operations_are_distinct() -> None:
     assert GrammarOperation.INTERSTITIAL_COORDINATION.value == "interstitial_coordination"
     assert GrammarOperation.MIXED_ANION_COORDINATION.value == "mixed_anion_coordination"
+
+
+def test_oxide_template_separates_structural_former_from_interstitial_cation() -> None:
+    grammar = ChemistryAnalyzer().analyze(
+        Composition.from_mapping({"Ca": 1, "Mo": 1, "O": 4})
+    ).grammar
+
+    assert {
+        (
+            item.centre_elements,
+            item.ligand_elements,
+            item.operation,
+            item.layer,
+            item.priority,
+        )
+        for item in grammar.candidate_interactions
+    } == {
+        (
+            ("Mo",),
+            ("O",),
+            GrammarOperation.CENTRE_LIGAND_SHELL,
+            "structural",
+            InteractionPriority.PRIMARY,
+        ),
+        (
+            ("Ca",),
+            ("O",),
+            GrammarOperation.INTERSTITIAL_COORDINATION,
+            "interstitial",
+            InteractionPriority.ALLOWED,
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ("formula", "expected"),
+    (
+        (
+            {"Li": 1, "B": 3, "O": 5},
+            {
+                ("B", "O", "structural"),
+                ("Li", "O", "interstitial"),
+            },
+        ),
+        (
+            {"Fe": 1, "S": 2},
+            {
+                ("Fe", "S", "coordination"),
+                ("S", "S", "intra_subsystem"),
+            },
+        ),
+    ),
+)
+def test_reference_templates_assign_structural_interaction_layers(
+    formula: dict[str, float],
+    expected: set[tuple[str, str, str]],
+) -> None:
+    grammar = ChemistryAnalyzer().analyze(Composition.from_mapping(formula)).grammar
+
+    assert {
+        (item.centre_elements[0], item.ligand_elements[0], item.layer.value)
+        for item in grammar.candidate_interactions
+    } == expected

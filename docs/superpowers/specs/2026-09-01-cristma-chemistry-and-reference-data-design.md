@@ -307,6 +307,19 @@ questions from CRAFT: centre-ligand shell, covalent network,
 intra-subsystem bonds, interstitial coordination, mixed-anion coordination,
 and metallic coordination.
 
+Grammar records are compiled from versioned Reference Data templates. Python
+does not select an interaction through material-family branches. The axes of
+meaning remain independent:
+
+```text
+GrammarOperation       chemical interaction mode
+InteractionLayer       role in the structure
+InteractionPriority    primary or allowed chemistry request
+```
+
+Later, `ContactClassification` records primary/secondary geometric-shell
+membership and must not replace any of these fields.
+
 The practical purpose of the grammar is to tell downstream crystallographic
 tools what to search for. Typical outputs are:
 
@@ -314,7 +327,8 @@ tools what to search for. Typical outputs are:
 elemental metallic -> metallic coordination candidates
 intermetallic       -> heteroatomic and metallic coordination candidates,
                        without assuming cation/anion roles
-oxide               -> cation-O primary coordination candidates
+oxide/oxysalt       -> structural-former-O structural candidates
+                       + remaining electropositive-O interstitial candidates
 halide              -> centre-halogen primary coordination candidates
 organic             -> intramolecular covalent candidates first;
                        intermolecular contacts remain a separate layer
@@ -331,9 +345,9 @@ hypothesis generation:
 Fe      -> elemental.metallic -> metallic coordination
 Si      -> elemental.covalent -> covalent network
 FeAl    -> inorganic.intermetallic -> Fe-Al/metallic coordination
-CaO     -> inorganic.oxide -> Ca-O primary coordination
+CaO     -> inorganic.oxide -> Ca-O interstitial coordination candidate
 NaCl    -> inorganic.halide -> Na-Cl primary coordination
-FeS2    -> inorganic.chalcogenide -> Fe-S primary + allowed S-S
+FeS2    -> inorganic.chalcogenide -> Fe-S coordination + S-S intra-subsystem
 ```
 
 Only curated grey-zone examples are expected to remain unresolved.

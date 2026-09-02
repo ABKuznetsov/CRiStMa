@@ -49,8 +49,9 @@ or convex-hull mathematics.
 
 ## Scientific stages
 
-1. `ChemistryAnalyzer` classifies the composition and emits interaction
-   requests without reading coordinates.
+1. `ChemistryAnalyzer` classifies the composition and compiles interaction
+   requests from Reference Data `grammar_templates`, without reading
+   coordinates or using material-family Python branches.
 2. `NeighborFinder` enumerates periodic geometry using a cutoff derived from
    the interaction grammar and the complete Cordero covalent-radius catalog.
 3. `CoordinationShellResolver` groups normalized distances and chooses a shell
@@ -65,6 +66,24 @@ first-shell distance. An outer group must be observed before a boundary can be
 called resolved. Contacts after the selected boundary are retained as
 `SECONDARY`, allowing viewers to expose long contacts without adding them to
 the geometric coordination number.
+
+Three independent meanings are retained on the way to the result:
+
+```text
+GrammarOperation       chemical mode of the requested interaction
+InteractionLayer       structural / interstitial / coordination / ... role
+ContactClassification  primary or secondary geometric-shell membership
+```
+
+`ResolvedContact` keeps all three. A later structural graph can therefore be
+built directly from resolved contacts without rerunning Chemistry or the
+neighbour search. Current acceptance examples are:
+
+```text
+CaMoO4  Mo-O structural;    Ca-O interstitial
+LiB3O5  B-O structural;     Li-O interstitial
+FeS2    Fe-S coordination;  S-S intra-subsystem
+```
 
 ## Result statuses
 

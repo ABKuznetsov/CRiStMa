@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 import cristma
-from cristma.chemistry import ChemistryAnalyzer, Composition, GrammarOperation
+from cristma.chemistry import (
+    ChemistryAnalyzer,
+    Composition,
+    GrammarOperation,
+    InteractionLayer,
+)
 from cristma.crystal_chemistry import (
     ContactClassification,
     CoordinationShellResolver,
@@ -43,6 +48,54 @@ def shell_elements(calculation: Calculation):
         (atoms[shell.center_atom_id].components[0].element, shell)
         for shell in calculation.result.coordination_shells
     )
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    (
+        (
+            "CaMoO4_9009632.cif",
+            {
+                ("Ca-O", GrammarOperation.INTERSTITIAL_COORDINATION, InteractionLayer.INTERSTITIAL),
+                ("Mo-O", GrammarOperation.CENTRE_LIGAND_SHELL, InteractionLayer.STRUCTURAL),
+            },
+        ),
+        (
+            "LiB3O5_3000122.cif",
+            {
+                ("B-O", GrammarOperation.CENTRE_LIGAND_SHELL, InteractionLayer.STRUCTURAL),
+                ("Li-O", GrammarOperation.INTERSTITIAL_COORDINATION, InteractionLayer.INTERSTITIAL),
+            },
+        ),
+        (
+            "FeS2_9000594.cif",
+            {
+                ("Fe-S", GrammarOperation.CENTRE_LIGAND_SHELL, InteractionLayer.COORDINATION),
+                ("S-S", GrammarOperation.INTRA_SUBSYSTEM_BONDS, InteractionLayer.INTRA_SUBSYSTEM),
+            },
+        ),
+    ),
+)
+def test_resolved_contacts_preserve_reference_interaction_roles(
+    filename: str,
+    expected: set[tuple[str, GrammarOperation, InteractionLayer]],
+) -> None:
+    calculation = calculate(filename)
+    atoms = {atom.id: atom for atom in calculation.structure.atomic_view().atoms}
+
+    actual = {
+        (
+            "-".join(sorted((
+                atoms[contact.geometric_contact.first_atom_id].components[0].element,
+                atoms[contact.geometric_contact.second_atom_id].components[0].element,
+            ))),
+            contact.interaction_type,
+            contact.interaction_layer,
+        )
+        for contact in calculation.result.contacts
+    }
+
+    assert actual == expected
 
 
 def test_alpha_si3n4_rounded_special_position_is_not_duplicated() -> None:

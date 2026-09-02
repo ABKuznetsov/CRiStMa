@@ -36,7 +36,7 @@ def interaction(
         first_elements=first,
         second_elements=second,
         operation=operation,
-        layer=InteractionLayer.PRIMARY_COORDINATION,
+        layer=InteractionLayer.COORDINATION,
         priority=InteractionPriority.PRIMARY,
         centre_elements=first,
         ligand_elements=second,
@@ -84,6 +84,30 @@ def test_same_pair_retains_every_matching_interaction_context() -> None:
     }
 
 
+def test_component_interpretation_preserves_interaction_layer() -> None:
+    request = CandidateInteraction(
+        first_elements=("S",),
+        second_elements=("S",),
+        operation=GrammarOperation.INTRA_SUBSYSTEM_BONDS,
+        layer=InteractionLayer.INTRA_SUBSYSTEM,
+        priority=InteractionPriority.ALLOWED,
+        centre_elements=("S",),
+        ligand_elements=("S",),
+        evidence=EVIDENCE,
+    )
+
+    outcome = _interpret_contact(
+        contact(2.0),
+        (component("S", 1.0),),
+        (component("S", 1.0),),
+        grammar(request),
+        ReferenceData.default(),
+        POLICY,
+    )
+
+    assert outcome.interpretations[0].interaction_layer is InteractionLayer.INTRA_SUBSYSTEM
+
+
 def test_same_operation_retains_distinct_centre_views() -> None:
     forward = interaction(
         ("Ca",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL
@@ -91,7 +115,7 @@ def test_same_operation_retains_distinct_centre_views() -> None:
     reverse = CandidateInteraction(
         first_elements=("Ca",), second_elements=("O",),
         operation=GrammarOperation.CENTRE_LIGAND_SHELL,
-        layer=InteractionLayer.PRIMARY_COORDINATION,
+        layer=InteractionLayer.COORDINATION,
         priority=InteractionPriority.ALLOWED,
         centre_elements=("O",), ligand_elements=("Ca",), evidence=EVIDENCE,
     )

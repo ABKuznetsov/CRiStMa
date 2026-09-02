@@ -155,10 +155,20 @@ def validate_reference_integrity(
         "mixed_anion_coordination",
         "metallic_coordination",
     }
+    layer_ids = {
+        "structural",
+        "interstitial",
+        "coordination",
+        "intra_subsystem",
+        "intramolecular",
+        "metallic",
+    }
     generic_selectors = {
         "all_elements",
         "remaining_elements",
         "remaining_electropositive_elements",
+        "metal_elements",
+        "nonmetal_elements",
         "oxygen",
         "halogens",
     }
@@ -197,6 +207,9 @@ def validate_reference_integrity(
             operation = record.get("operation")
             if operation is not None and operation not in operation_ids:
                 raise ValueError(f"unknown grammar operation {operation!r} in {template_id!r}")
+            layer = record.get("layer")
+            if layer is not None and layer not in layer_ids:
+                raise ValueError(f"unknown grammar layer {layer!r} in {template_id!r}")
 
     group_parents: dict[str, str] = {}
     for identifier, group in reference._group_signatures.items():
