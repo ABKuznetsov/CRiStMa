@@ -84,6 +84,29 @@ def test_same_pair_retains_every_matching_interaction_context() -> None:
     }
 
 
+def test_same_operation_retains_distinct_centre_views() -> None:
+    forward = interaction(
+        ("Ca",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL
+    )
+    reverse = CandidateInteraction(
+        first_elements=("Ca",), second_elements=("O",),
+        operation=GrammarOperation.CENTRE_LIGAND_SHELL,
+        layer=InteractionLayer.PRIMARY_COORDINATION,
+        priority=InteractionPriority.ALLOWED,
+        centre_elements=("O",), ligand_elements=("Ca",), evidence=EVIDENCE,
+    )
+
+    outcome = _interpret_contact(
+        contact(), (component("Ca", 1.0),), (component("O", 1.0),),
+        grammar(forward, reverse), ReferenceData.default(), POLICY,
+    )
+
+    assert {(item.centre_elements, item.ligand_elements) for item in outcome.interpretations} == {
+        (("Ca",), ("O",)),
+        (("O",), ("Ca",)),
+    }
+
+
 def test_missing_primary_radius_is_reported_not_silently_skipped() -> None:
     requests = grammar(
         interaction(("Xe",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL)

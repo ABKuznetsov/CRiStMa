@@ -257,6 +257,8 @@ def _interpret_contact(
                     ),
                     interaction_type=request.operation,
                     grammar_priority=request.priority,
+                    centre_elements=request.centre_elements,
+                    ligand_elements=request.ligand_elements,
                 ))
     return InterpretationOutcome(
         tuple(records),

@@ -54,6 +54,8 @@ class ComponentPairInterpretation:
     occupancy_weight: float
     interaction_type: GrammarOperation
     grammar_priority: InteractionPriority
+    centre_elements: tuple[str, ...]
+    ligand_elements: tuple[str, ...]
 
     def __post_init__(self) -> None:
         values = (
@@ -72,6 +74,8 @@ class ComponentPairInterpretation:
         expected_weight = self.first_occupancy * self.second_occupancy
         if not math.isclose(self.occupancy_weight, expected_weight, abs_tol=1e-12):
             raise ValueError("occupancy weight must equal the component occupancy product")
+        if not self.centre_elements or not self.ligand_elements:
+            raise ValueError("component interpretation requires centre and ligand views")
 
     @property
     def species_symbols(self) -> tuple[str | None, str | None]:

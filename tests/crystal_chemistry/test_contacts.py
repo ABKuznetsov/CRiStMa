@@ -33,6 +33,8 @@ def interpretation() -> ComponentPairInterpretation:
         occupancy_weight=0.75,
         interaction_type=GrammarOperation.CENTRE_LIGAND_SHELL,
         grammar_priority=InteractionPriority.PRIMARY,
+        centre_elements=("Ca",),
+        ligand_elements=("O",),
     )
 
 

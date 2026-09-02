@@ -180,6 +180,8 @@ class ComponentPairInterpretation:
     occupancy_weight: float
     interaction_type: GrammarOperation
     grammar_priority: InteractionPriority
+    centre_elements: tuple[str, ...]
+    ligand_elements: tuple[str, ...]
 
     @property
     def species_symbols(self) -> tuple[str | None, str | None]:
@@ -381,6 +383,7 @@ def _interpret_contact(
                         radius_sum, rho,
                         float(first.occupancy.value) * float(second.occupancy.value),
                         request.operation, request.priority,
+                        request.centre_elements, request.ligand_elements,
                     ))
     return InterpretationOutcome(tuple(records), ())
 ```
