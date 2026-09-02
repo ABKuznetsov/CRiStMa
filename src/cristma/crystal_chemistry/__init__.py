@@ -12,6 +12,12 @@ from .contacts import (
     ShellAlternative,
 )
 from .policy import ShellResolutionPolicy
+from .polyhedra import (
+    CoordinationPolyhedron,
+    PolyhedronBuildResult,
+    PolyhedronBuilder,
+    polyhedron_face_signature,
+)
 from .resolver import CoordinationShellResolver
 from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
 
@@ -20,13 +26,17 @@ __all__ = [
     "ContactClassification",
     "CoordinationShell",
     "CoordinationShellResolver",
+    "CoordinationPolyhedron",
     "CrystalChemistryResolution",
     "EvidenceStatus",
     "ResolutionStatus",
     "ResolvedContact",
+    "PolyhedronBuildResult",
+    "PolyhedronBuilder",
     "SecondaryEvidence",
     "ShellAlternative",
     "ShellResolutionPolicy",
     "ShannonDistanceCheck",
     "ShannonDistanceValidator",
+    "polyhedron_face_signature",
 ]
