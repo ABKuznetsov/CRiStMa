@@ -92,6 +92,8 @@ def _candidate_boundaries(
         inside.extend(group)
         rho_last_inside = group[-1]
         rho_first_outside = groups[index + 1][0]
+        if rho_last_inside > policy.candidate_rho_max:
+            continue
         relative_gap = (rho_first_outside - rho_last_inside) / rho_last_inside
         median = statistics.median(inside)
         internal_spread = (max(inside) - min(inside)) / median
@@ -225,7 +227,7 @@ def derive_search_cutoff(
     sums = _allowed_radius_sums(grammar, reference)
     if not sums:
         raise ValueError("grammar has no component pairs with known covalent radii")
-    return max(sums) * policy.candidate_rho_max
+    return max(sums) * policy.search_rho_max
 
 
 def _interpret_contact(
@@ -269,7 +271,7 @@ def _interpret_contact(
                 continue
             radius_sum = radii[0] + radii[1]
             rho = contact.distance / radius_sum
-            if rho > policy.candidate_rho_max:
+            if rho > policy.search_rho_max:
                 continue
             for request in requests:
                 records.append(ComponentPairInterpretation(
@@ -445,6 +447,10 @@ class CoordinationShellResolver:
         results: list[ResolvedContact] = []
         for contact in geometric:
             records = self._matching_records(interpreted[contact.contact_id], request)
+            records = tuple(
+                item for item in records
+                if item.normalized_distance <= self.policy.candidate_rho_max
+            )
             if records:
                 occupancy = sum(
                     float(item.occupancy.value)
@@ -562,7 +568,11 @@ class CoordinationShellResolver:
                         if index < selected_count else ContactClassification.SECONDARY
                     )
                     resolved = _make_resolved_contact(contact, records, classification, occupancy)
-                    resolved_contacts.append(resolved)
+                    if any(
+                        item.normalized_distance <= self.policy.candidate_rho_max
+                        for item in records
+                    ):
+                        resolved_contacts.append(resolved)
                     if index < selected_count:
                         center_contacts.append(resolved)
                 shells.append(CoordinationShell(

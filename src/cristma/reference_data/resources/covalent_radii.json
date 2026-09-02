@@ -1,0 +1,726 @@
+{
+  "metadata": {
+    "dataset_id": "cristma.covalent_radii.cordero_2008",
+    "version": "1",
+    "original_reference": "B. Cordero et al., Dalton Trans. (2008) 2832-2838",
+    "doi": "10.1039/B801115J",
+    "source_repository": "https://github.com/MolSSI/QCElemental",
+    "source_commit": "c4eb31cff9c7041f4767804a0076e35343df8177",
+    "source_path": "qcelemental/data/alvarez_2008_covalent_radii.py",
+    "source_license": "BSD-3-Clause",
+    "source_sha256": "9ac22bedfc04ead3567ebf0484fe09583e959d679aec99b69a0aef13388cb63e",
+    "generated": "2026-09-02",
+    "record_count": 101,
+    "element_count": 96,
+    "generic_policy": "largest published variant"
+  },
+  "records": [
+    {
+      "symbol": "H",
+      "variant": "unspecified",
+      "value": 0.31,
+      "comment": "e.s.d.=5 n=129",
+      "default": true
+    },
+    {
+      "symbol": "He",
+      "variant": "unspecified",
+      "value": 0.28,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Li",
+      "variant": "unspecified",
+      "value": 1.28,
+      "comment": "e.s.d.=7 n=5789",
+      "default": true
+    },
+    {
+      "symbol": "Be",
+      "variant": "unspecified",
+      "value": 0.96,
+      "comment": "e.s.d.=3 n=310",
+      "default": true
+    },
+    {
+      "symbol": "B",
+      "variant": "unspecified",
+      "value": 0.84,
+      "comment": "e.s.d.=3 n=1770",
+      "default": true
+    },
+    {
+      "symbol": "C",
+      "variant": "sp3",
+      "value": 0.76,
+      "comment": "e.s.d.=1 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "C",
+      "variant": "sp2",
+      "value": 0.73,
+      "comment": "e.s.d.=2 n=10 000",
+      "default": false
+    },
+    {
+      "symbol": "C",
+      "variant": "sp",
+      "value": 0.69,
+      "comment": "e.s.d.=1 n=171",
+      "default": false
+    },
+    {
+      "symbol": "N",
+      "variant": "unspecified",
+      "value": 0.71,
+      "comment": "e.s.d.=1 n=2200",
+      "default": true
+    },
+    {
+      "symbol": "O",
+      "variant": "unspecified",
+      "value": 0.66,
+      "comment": "e.s.d.=2 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "F",
+      "variant": "unspecified",
+      "value": 0.57,
+      "comment": "e.s.d.=3 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "Ne",
+      "variant": "unspecified",
+      "value": 0.58,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Na",
+      "variant": "unspecified",
+      "value": 1.66,
+      "comment": "e.s.d.=9 n=1629",
+      "default": true
+    },
+    {
+      "symbol": "Mg",
+      "variant": "unspecified",
+      "value": 1.41,
+      "comment": "e.s.d.=7 n=3234",
+      "default": true
+    },
+    {
+      "symbol": "Al",
+      "variant": "unspecified",
+      "value": 1.21,
+      "comment": "e.s.d.=4 n=3206",
+      "default": true
+    },
+    {
+      "symbol": "Si",
+      "variant": "unspecified",
+      "value": 1.11,
+      "comment": "e.s.d.=2 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "P",
+      "variant": "unspecified",
+      "value": 1.07,
+      "comment": "e.s.d.=3 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "S",
+      "variant": "unspecified",
+      "value": 1.05,
+      "comment": "e.s.d.=3 n=10 000",
+      "default": true
+    },
+    {
+      "symbol": "Cl",
+      "variant": "unspecified",
+      "value": 1.02,
+      "comment": "e.s.d.=4 n=1987",
+      "default": true
+    },
+    {
+      "symbol": "Ar",
+      "variant": "unspecified",
+      "value": 1.06,
+      "comment": "e.s.d.=10 n=9",
+      "default": true
+    },
+    {
+      "symbol": "K",
+      "variant": "unspecified",
+      "value": 2.03,
+      "comment": "e.s.d.=12 n=435",
+      "default": true
+    },
+    {
+      "symbol": "Ca",
+      "variant": "unspecified",
+      "value": 1.76,
+      "comment": "e.s.d.=10 n=2647",
+      "default": true
+    },
+    {
+      "symbol": "Sc",
+      "variant": "unspecified",
+      "value": 1.7,
+      "comment": "e.s.d.=7 n=32",
+      "default": true
+    },
+    {
+      "symbol": "Ti",
+      "variant": "unspecified",
+      "value": 1.6,
+      "comment": "e.s.d.=8 n=231",
+      "default": true
+    },
+    {
+      "symbol": "V",
+      "variant": "unspecified",
+      "value": 1.53,
+      "comment": "e.s.d.=8 n=389",
+      "default": true
+    },
+    {
+      "symbol": "Cr",
+      "variant": "unspecified",
+      "value": 1.39,
+      "comment": "e.s.d.=5 n=916",
+      "default": true
+    },
+    {
+      "symbol": "Mn",
+      "variant": "low_spin",
+      "value": 1.39,
+      "comment": "e.s.d.=5 n=321",
+      "default": false
+    },
+    {
+      "symbol": "Mn",
+      "variant": "high_spin",
+      "value": 1.61,
+      "comment": "e.s.d.=8 n=929",
+      "default": true
+    },
+    {
+      "symbol": "Fe",
+      "variant": "low_spin",
+      "value": 1.32,
+      "comment": "e.s.d.=3 n=336",
+      "default": false
+    },
+    {
+      "symbol": "Fe",
+      "variant": "high_spin",
+      "value": 1.52,
+      "comment": "e.s.d.=6 n=1540",
+      "default": true
+    },
+    {
+      "symbol": "Co",
+      "variant": "low_spin",
+      "value": 1.26,
+      "comment": "e.s.d.=3 n=5733",
+      "default": false
+    },
+    {
+      "symbol": "Co",
+      "variant": "high_spin",
+      "value": 1.5,
+      "comment": "e.s.d.=7 n=780",
+      "default": true
+    },
+    {
+      "symbol": "Ni",
+      "variant": "unspecified",
+      "value": 1.24,
+      "comment": "e.s.d.=4 n=1030",
+      "default": true
+    },
+    {
+      "symbol": "Cu",
+      "variant": "unspecified",
+      "value": 1.32,
+      "comment": "e.s.d.=4 n=1149",
+      "default": true
+    },
+    {
+      "symbol": "Zn",
+      "variant": "unspecified",
+      "value": 1.22,
+      "comment": "e.s.d.=4 n=443",
+      "default": true
+    },
+    {
+      "symbol": "Ga",
+      "variant": "unspecified",
+      "value": 1.22,
+      "comment": "e.s.d.=3 n=1330",
+      "default": true
+    },
+    {
+      "symbol": "Ge",
+      "variant": "unspecified",
+      "value": 1.2,
+      "comment": "e.s.d.=4 n=1013",
+      "default": true
+    },
+    {
+      "symbol": "As",
+      "variant": "unspecified",
+      "value": 1.19,
+      "comment": "e.s.d.=4 n=2015",
+      "default": true
+    },
+    {
+      "symbol": "Se",
+      "variant": "unspecified",
+      "value": 1.2,
+      "comment": "e.s.d.=4 n=1717",
+      "default": true
+    },
+    {
+      "symbol": "Br",
+      "variant": "unspecified",
+      "value": 1.2,
+      "comment": "e.s.d.=3 n=2140",
+      "default": true
+    },
+    {
+      "symbol": "Kr",
+      "variant": "unspecified",
+      "value": 1.16,
+      "comment": "e.s.d.=4 n=5",
+      "default": true
+    },
+    {
+      "symbol": "Rb",
+      "variant": "unspecified",
+      "value": 2.2,
+      "comment": "e.s.d.=9 n=23",
+      "default": true
+    },
+    {
+      "symbol": "Sr",
+      "variant": "unspecified",
+      "value": 1.95,
+      "comment": "e.s.d.=10 n=1500",
+      "default": true
+    },
+    {
+      "symbol": "Y",
+      "variant": "unspecified",
+      "value": 1.9,
+      "comment": "e.s.d.=7 n=30",
+      "default": true
+    },
+    {
+      "symbol": "Zr",
+      "variant": "unspecified",
+      "value": 1.75,
+      "comment": "e.s.d.=7 n=93",
+      "default": true
+    },
+    {
+      "symbol": "Nb",
+      "variant": "unspecified",
+      "value": 1.64,
+      "comment": "e.s.d.=6 n=18",
+      "default": true
+    },
+    {
+      "symbol": "Mo",
+      "variant": "unspecified",
+      "value": 1.54,
+      "comment": "e.s.d.=5 n=97",
+      "default": true
+    },
+    {
+      "symbol": "Tc",
+      "variant": "unspecified",
+      "value": 1.47,
+      "comment": "e.s.d.=7 n=96",
+      "default": true
+    },
+    {
+      "symbol": "Ru",
+      "variant": "unspecified",
+      "value": 1.46,
+      "comment": "e.s.d.=7 n=1032",
+      "default": true
+    },
+    {
+      "symbol": "Rh",
+      "variant": "unspecified",
+      "value": 1.42,
+      "comment": "e.s.d.=7 n=458",
+      "default": true
+    },
+    {
+      "symbol": "Pd",
+      "variant": "unspecified",
+      "value": 1.39,
+      "comment": "e.s.d.=6 n=1892",
+      "default": true
+    },
+    {
+      "symbol": "Ag",
+      "variant": "unspecified",
+      "value": 1.45,
+      "comment": "e.s.d.=5 n=1728",
+      "default": true
+    },
+    {
+      "symbol": "Cd",
+      "variant": "unspecified",
+      "value": 1.44,
+      "comment": "e.s.d.=9 n=19",
+      "default": true
+    },
+    {
+      "symbol": "In",
+      "variant": "unspecified",
+      "value": 1.42,
+      "comment": "e.s.d.=5 n=546",
+      "default": true
+    },
+    {
+      "symbol": "Sn",
+      "variant": "unspecified",
+      "value": 1.39,
+      "comment": "e.s.d.=4 n=2999",
+      "default": true
+    },
+    {
+      "symbol": "Sb",
+      "variant": "unspecified",
+      "value": 1.39,
+      "comment": "e.s.d.=5 n=609",
+      "default": true
+    },
+    {
+      "symbol": "Te",
+      "variant": "unspecified",
+      "value": 1.38,
+      "comment": "e.s.d.=4 n=692",
+      "default": true
+    },
+    {
+      "symbol": "I",
+      "variant": "unspecified",
+      "value": 1.39,
+      "comment": "e.s.d.=3 n=451",
+      "default": true
+    },
+    {
+      "symbol": "Xe",
+      "variant": "unspecified",
+      "value": 1.4,
+      "comment": "e.s.d.=9 n=2",
+      "default": true
+    },
+    {
+      "symbol": "Cs",
+      "variant": "unspecified",
+      "value": 2.44,
+      "comment": "e.s.d.=11 n=24",
+      "default": true
+    },
+    {
+      "symbol": "Ba",
+      "variant": "unspecified",
+      "value": 2.15,
+      "comment": "e.s.d.=11 n=3076",
+      "default": true
+    },
+    {
+      "symbol": "La",
+      "variant": "unspecified",
+      "value": 2.07,
+      "comment": "e.s.d.=8 n=190",
+      "default": true
+    },
+    {
+      "symbol": "Ce",
+      "variant": "unspecified",
+      "value": 2.04,
+      "comment": "e.s.d.=9 n=47",
+      "default": true
+    },
+    {
+      "symbol": "Pr",
+      "variant": "unspecified",
+      "value": 2.03,
+      "comment": "e.s.d.=7 n=58",
+      "default": true
+    },
+    {
+      "symbol": "Nd",
+      "variant": "unspecified",
+      "value": 2.01,
+      "comment": "e.s.d.=6 n=96",
+      "default": true
+    },
+    {
+      "symbol": "Pm",
+      "variant": "unspecified",
+      "value": 1.99,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Sm",
+      "variant": "unspecified",
+      "value": 1.98,
+      "comment": "e.s.d.=8 n=53",
+      "default": true
+    },
+    {
+      "symbol": "Eu",
+      "variant": "unspecified",
+      "value": 1.98,
+      "comment": "e.s.d.=6 n=167",
+      "default": true
+    },
+    {
+      "symbol": "Gd",
+      "variant": "unspecified",
+      "value": 1.96,
+      "comment": "e.s.d.=6 n=178",
+      "default": true
+    },
+    {
+      "symbol": "Tb",
+      "variant": "unspecified",
+      "value": 1.94,
+      "comment": "e.s.d.=5 n=55",
+      "default": true
+    },
+    {
+      "symbol": "Dy",
+      "variant": "unspecified",
+      "value": 1.92,
+      "comment": "e.s.d.=7 n=59",
+      "default": true
+    },
+    {
+      "symbol": "Ho",
+      "variant": "unspecified",
+      "value": 1.92,
+      "comment": "e.s.d.=7 n=48",
+      "default": true
+    },
+    {
+      "symbol": "Er",
+      "variant": "unspecified",
+      "value": 1.89,
+      "comment": "e.s.d.=6 n=66",
+      "default": true
+    },
+    {
+      "symbol": "Tm",
+      "variant": "unspecified",
+      "value": 1.9,
+      "comment": "e.s.d.=10 n=15",
+      "default": true
+    },
+    {
+      "symbol": "Yb",
+      "variant": "unspecified",
+      "value": 1.87,
+      "comment": "e.s.d.=8 n=122",
+      "default": true
+    },
+    {
+      "symbol": "Lu",
+      "variant": "unspecified",
+      "value": 1.87,
+      "comment": "e.s.d.=8 n=61",
+      "default": true
+    },
+    {
+      "symbol": "Hf",
+      "variant": "unspecified",
+      "value": 1.75,
+      "comment": "e.s.d.=10 n=53",
+      "default": true
+    },
+    {
+      "symbol": "Ta",
+      "variant": "unspecified",
+      "value": 1.7,
+      "comment": "e.s.d.=8 n=88",
+      "default": true
+    },
+    {
+      "symbol": "W",
+      "variant": "unspecified",
+      "value": 1.62,
+      "comment": "e.s.d.=7 n=219",
+      "default": true
+    },
+    {
+      "symbol": "Re",
+      "variant": "unspecified",
+      "value": 1.51,
+      "comment": "e.s.d.=7 n=476",
+      "default": true
+    },
+    {
+      "symbol": "Os",
+      "variant": "unspecified",
+      "value": 1.44,
+      "comment": "e.s.d.=4 n=99",
+      "default": true
+    },
+    {
+      "symbol": "Ir",
+      "variant": "unspecified",
+      "value": 1.41,
+      "comment": "e.s.d.=6 n=131",
+      "default": true
+    },
+    {
+      "symbol": "Pt",
+      "variant": "unspecified",
+      "value": 1.36,
+      "comment": "e.s.d.=5 n=1768",
+      "default": true
+    },
+    {
+      "symbol": "Au",
+      "variant": "unspecified",
+      "value": 1.36,
+      "comment": "e.s.d.=6 n=114",
+      "default": true
+    },
+    {
+      "symbol": "Hg",
+      "variant": "unspecified",
+      "value": 1.32,
+      "comment": "e.s.d.=5 n=137",
+      "default": true
+    },
+    {
+      "symbol": "Tl",
+      "variant": "unspecified",
+      "value": 1.45,
+      "comment": "e.s.d.=7 n=291",
+      "default": true
+    },
+    {
+      "symbol": "Pb",
+      "variant": "unspecified",
+      "value": 1.46,
+      "comment": "e.s.d.=5 n=112",
+      "default": true
+    },
+    {
+      "symbol": "Bi",
+      "variant": "unspecified",
+      "value": 1.48,
+      "comment": "e.s.d.=4 n=51",
+      "default": true
+    },
+    {
+      "symbol": "Po",
+      "variant": "unspecified",
+      "value": 1.4,
+      "comment": "e.s.d.=4 n=4",
+      "default": true
+    },
+    {
+      "symbol": "At",
+      "variant": "unspecified",
+      "value": 1.5,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Rn",
+      "variant": "unspecified",
+      "value": 1.5,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Fr",
+      "variant": "unspecified",
+      "value": 2.6,
+      "comment": "",
+      "default": true
+    },
+    {
+      "symbol": "Ra",
+      "variant": "unspecified",
+      "value": 2.21,
+      "comment": "e.s.d.=2 n=3",
+      "default": true
+    },
+    {
+      "symbol": "Ac",
+      "variant": "unspecified",
+      "value": 2.15,
+      "comment": "e.s.d.=1",
+      "default": true
+    },
+    {
+      "symbol": "Th",
+      "variant": "unspecified",
+      "value": 2.06,
+      "comment": "e.s.d.=6 n=11",
+      "default": true
+    },
+    {
+      "symbol": "Pa",
+      "variant": "unspecified",
+      "value": 2.0,
+      "comment": "e.s.d.=1",
+      "default": true
+    },
+    {
+      "symbol": "U",
+      "variant": "unspecified",
+      "value": 1.96,
+      "comment": "e.s.d.=7 n=57",
+      "default": true
+    },
+    {
+      "symbol": "Np",
+      "variant": "unspecified",
+      "value": 1.9,
+      "comment": "e.s.d.=1 n=22",
+      "default": true
+    },
+    {
+      "symbol": "Pu",
+      "variant": "unspecified",
+      "value": 1.87,
+      "comment": "e.s.d.=1 n=9",
+      "default": true
+    },
+    {
+      "symbol": "Am",
+      "variant": "unspecified",
+      "value": 1.8,
+      "comment": "e.s.d.=6 n=11",
+      "default": true
+    },
+    {
+      "symbol": "Cm",
+      "variant": "unspecified",
+      "value": 1.69,
+      "comment": "e.s.d.=3 n=16",
+      "default": true
+    }
+  ]
+}

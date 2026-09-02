@@ -49,3 +49,12 @@ def test_reference_data_exposes_shannon_catalog() -> None:
     assert radius.unit == "angstrom"
     assert radius.dataset_id == "cristma.shannon_radii.pymatgen"
 
+
+def test_shannon_catalog_has_complete_unique_pinned_dataset() -> None:
+    records = ShannonRadii.default().records
+
+    assert len(records) == 493
+    assert len({
+        (record.symbol, record.oxidation_state, record.coordination, record.spin_state)
+        for record in records
+    }) == 493

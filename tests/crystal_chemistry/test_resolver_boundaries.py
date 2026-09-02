@@ -6,7 +6,7 @@ from cristma.crystal_chemistry import EvidenceStatus, ResolutionStatus, ShellRes
 from cristma.crystal_chemistry.resolver import _resolve_rho_values
 
 
-POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01)
+POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01, 2.0)
 
 
 def codes(decision) -> set[str]:
@@ -24,7 +24,7 @@ def test_candidate_uses_relative_gap_and_internal_spread() -> None:
 
 
 def test_close_non_dominated_boundaries_remain_ambiguous() -> None:
-    tolerant = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.25)
+    tolerant = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.25, 2.0)
 
     decision = _resolve_rho_values((0.95, 1.00, 1.10, 1.16, 1.28), tolerant)
 

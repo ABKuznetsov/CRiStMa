@@ -19,7 +19,7 @@ from cristma.reference_data import ReferenceData
 from cristma.structure import SiteComponent
 
 
-POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01)
+POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01, 2.0)
 EVIDENCE = (ChemicalEvidence("test.grammar", "analytic grammar"),)
 
 
@@ -109,11 +109,11 @@ def test_same_operation_retains_distinct_centre_views() -> None:
 
 def test_missing_primary_radius_is_reported_not_silently_skipped() -> None:
     requests = grammar(
-        interaction(("Xe",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL)
+        interaction(("Cf",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL)
     )
 
     outcome = _interpret_contact(
-        contact(), (component("Xe", 1.0),), (component("O", 1.0),),
+        contact(), (component("Cf", 1.0),), (component("O", 1.0),),
         requests, ReferenceData.default(), POLICY,
     )
 
@@ -128,15 +128,15 @@ def test_missing_primary_radius_is_reported_not_silently_skipped() -> None:
 
 def test_missing_second_component_radius_names_the_missing_element() -> None:
     requests = grammar(
-        interaction(("O",), ("Xe",), GrammarOperation.CENTRE_LIGAND_SHELL)
+        interaction(("O",), ("Cf",), GrammarOperation.CENTRE_LIGAND_SHELL)
     )
 
     outcome = _interpret_contact(
-        contact(), (component("O", 1.0),), (component("Xe", 1.0),),
+        contact(), (component("O", 1.0),), (component("Cf", 1.0),),
         requests, ReferenceData.default(), POLICY,
     )
 
-    assert "Xe" in outcome.diagnostics[0].message
+    assert "Cf" in outcome.diagnostics[0].message
 
 
 def test_search_cutoff_uses_largest_available_allowed_radius_sum() -> None:
@@ -147,4 +147,4 @@ def test_search_cutoff_uses_largest_available_allowed_radius_sum() -> None:
 
     cutoff = derive_search_cutoff(requests, ReferenceData.default(), POLICY)
 
-    assert cutoff == pytest.approx((1.76 + 0.66) * 1.6)
+    assert cutoff == pytest.approx((1.76 + 0.66) * 2.0)

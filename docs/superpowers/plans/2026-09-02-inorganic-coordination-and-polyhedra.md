@@ -126,7 +126,7 @@ git commit -m "feat: add canonical geometric contacts"
 
 ```python
 def test_policy_is_explicit_cloneable_and_dimensionless():
-    policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01)
+    policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01, 2.0)
     assert policy.get_config() == {
         "candidate_rho_max": 1.45,
         "distance_group_tolerance": 0.01,
@@ -135,7 +135,7 @@ def test_policy_is_explicit_cloneable_and_dimensionless():
     }
     assert policy.clone(candidate_rho_max=1.60).candidate_rho_max == 1.60
     with pytest.raises(ValueError):
-        ShellResolutionPolicy(0.0, 0.01, 0.08, 0.01)
+        ShellResolutionPolicy(0.0, 0.01, 0.08, 0.01, 2.0)
 
 def test_shell_counts_positions_and_occupancy_separately(resolved_contacts):
     shell = CoordinationShell.resolved("site:M", "atom:M", resolved_contacts)
@@ -795,7 +795,7 @@ Add explicit tests for Ca-N plus N-N where present, Na-P shells, retained Bi-Te 
 
 - [ ] **Step 4: Calibrate one explicit test policy, not a hidden default**
 
-Keep `ACCEPTANCE_POLICY = ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01)` in the test module as the first calibration candidate. If one policy cannot cover the corpus, report failing structures and revise the scientific algorithm; do not add compound-name branches or per-compound production constants.
+Keep `ACCEPTANCE_POLICY = ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01, 2.0)` in the test module as the first calibration candidate. The final value is an explicit search horizon used only to observe the group beyond a candidate shell. If one policy cannot cover the corpus, report failing structures and revise the scientific algorithm; do not add compound-name branches or per-compound production constants.
 
 - [ ] **Step 5: Run only the acceptance slice and commit**
 
@@ -834,7 +834,7 @@ def test_crystal_chemistry_tools_import_from_package():
 ```python
 structure = cristma.read("sample.cif").structures[0]
 chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(structure))
-policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01)
+policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01, 2.0)
 resolution = CoordinationShellResolver(policy).resolve(structure, chemistry.grammar)
 polyhedra = [PolyhedronBuilder().build(shell, structure.atomic_view())
              for shell in resolution.coordination_shells]

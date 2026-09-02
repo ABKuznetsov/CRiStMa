@@ -30,7 +30,7 @@ from cristma.structure import CrystalStructure, IndependentSite, SiteComponent
 from cristma.symmetry import SpaceGroupDefinition, parse_xyz_operation
 
 
-POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01)
+POLICY = ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01, 2.0)
 
 
 def number(value: float) -> MeasuredValue:
@@ -99,6 +99,29 @@ def mixed_boundary_structure() -> CrystalStructure:
     )
 
 
+def rocksalt_naf() -> CrystalStructure:
+    symmetry = SpaceGroupDefinition(
+        operations=tuple(
+            parse_xyz_operation(expression, operation_id=f"op:{index}")
+            for index, expression in enumerate((
+                "x,y,z",
+                "x,y+1/2,z+1/2",
+                "x+1/2,y,z+1/2",
+                "x+1/2,y+1/2,z",
+            ), start=1)
+        ),
+        provenance="derived",
+    )
+    return CrystalStructure(
+        "NaF",
+        UnitCell.cubic(number(4.634)),
+        (
+            site("Na", "Na", (0.0, 0.0, 0.0)),
+            site("F", "F", (0.5, 0.5, 0.5)),
+        ),
+        id="structure:naf",
+        space_group=symmetry,
+    )
 def resolve(structure: CrystalStructure):
     composition = Composition.from_structure(structure)
     grammar = ChemistryAnalyzer().analyze(composition).grammar
@@ -123,6 +146,19 @@ def test_resolver_projects_one_orbit_decision_to_every_equivalent_center() -> No
     assert {shell.geometric_CN for shell in shells} == {4}
 
 
+def test_search_horizon_observes_outer_group_for_single_distance_shell() -> None:
+    result = resolve(rocksalt_naf())
+
+    shells = [
+        shell for shell in result.coordination_shells
+        if shell.source_site_id == "site:Na"
+    ]
+
+    assert shells
+    assert {shell.status for shell in shells} == {ResolutionStatus.RESOLVED}
+    assert {shell.geometric_CN for shell in shells} == {6}
+
+
 def test_vacancy_changes_mean_occupancy_not_geometric_cn() -> None:
     result = resolve(equivalent_tetrahedra(ligand_occupancy=0.75))
 
@@ -139,7 +175,7 @@ def test_result_records_reproducible_method_provenance() -> None:
 
     provenance = dict(result.provenance)
     assert provenance["policy"] == POLICY.get_config()
-    assert provenance["search_cutoff_angstrom"] == pytest.approx(3.872)
+    assert provenance["search_cutoff_angstrom"] == pytest.approx(4.84)
     assert provenance["grammar_method"] == "cristma.composition_grammar:1"
     assert provenance["resolver_method"] == "cristma.coordination_shell_resolver:1"
     assert provenance["structure_id"] == "structure:equivalent-tetrahedra"
@@ -210,16 +246,16 @@ def test_mixed_components_with_different_boundaries_remain_ambiguous() -> None:
 
 def test_primary_scope_with_no_available_radius_is_incomplete() -> None:
     structure = CrystalStructure.explicit(
-        "xenon oxide",
+        "californium oxide",
         UnitCell.cubic(number(10.0)),
-        (site("Xe", "Xe", (0.5, 0.5, 0.5)), site("O", "O", (0.7, 0.5, 0.5))),
+        (site("Cf", "Cf", (0.5, 0.5, 0.5)), site("O", "O", (0.7, 0.5, 0.5))),
         id="structure:missing-radius",
     )
     evidence = (ChemicalEvidence("test", "missing radius grammar"),)
     request = CandidateInteraction(
-        ("Xe",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
+        ("Cf",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
         InteractionLayer.PRIMARY_COORDINATION, InteractionPriority.PRIMARY,
-        ("Xe",), ("O",), evidence,
+        ("Cf",), ("O",), evidence,
     )
     grammar = CompositionGrammar(
         DecompositionMode.CATION_ANION_SUBSYSTEM, (request,), 1.0,
@@ -235,10 +271,10 @@ def test_primary_scope_with_no_available_radius_is_incomplete() -> None:
 def test_partly_missing_primary_mixed_site_radius_blocks_resolution() -> None:
     base = equivalent_tetrahedra()
     mixed_center = IndependentSite(
-        id="site:Ca", label="CaXe",
+        id="site:Ca", label="CaCf",
         components=(
             SiteComponent("Ca", number(0.5)),
-            SiteComponent("Xe", number(0.5)),
+            SiteComponent("Cf", number(0.5)),
         ),
         fractional=base.sites[0].fractional,
         calculated_multiplicity=2,
@@ -249,9 +285,9 @@ def test_partly_missing_primary_mixed_site_radius_blocks_resolution() -> None:
     )
     evidence = (ChemicalEvidence("test", "mixed centre grammar"),)
     request = CandidateInteraction(
-        ("Ca", "Xe"), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
+        ("Ca", "Cf"), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
         InteractionLayer.PRIMARY_COORDINATION, InteractionPriority.PRIMARY,
-        ("Ca", "Xe"), ("O",), evidence,
+        ("Ca", "Cf"), ("O",), evidence,
     )
     grammar = CompositionGrammar(
         DecompositionMode.CATION_ANION_SUBSYSTEM, (request,), 1.0,

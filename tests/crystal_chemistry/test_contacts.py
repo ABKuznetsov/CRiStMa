@@ -66,7 +66,7 @@ def resolved_contact(index: int) -> ResolvedContact:
 
 
 def test_policy_is_explicit_cloneable_and_dimensionless() -> None:
-    policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01)
+    policy = ShellResolutionPolicy(1.45, 0.01, 0.08, 0.01, 2.0)
 
     clone = policy.clone(candidate_rho_max=1.60)
 
@@ -75,6 +75,7 @@ def test_policy_is_explicit_cloneable_and_dimensionless() -> None:
         "distance_group_tolerance": 0.01,
         "minimum_shell_gap": 0.08,
         "ambiguity_tolerance": 0.01,
+        "search_rho_max": 2.0,
     }
     assert clone.candidate_rho_max == 1.60
     assert policy.candidate_rho_max == 1.45
@@ -83,7 +84,12 @@ def test_policy_is_explicit_cloneable_and_dimensionless() -> None:
 @pytest.mark.parametrize("value", [0.0, -0.1, math.inf, math.nan, True])
 def test_policy_rejects_nonpositive_nonfinite_and_boolean_values(value) -> None:
     with pytest.raises(ValueError):
-        ShellResolutionPolicy(value, 0.01, 0.08, 0.01)
+        ShellResolutionPolicy(value, 0.01, 0.08, 0.01, 2.0)
+
+
+def test_search_horizon_must_extend_beyond_candidate_contacts() -> None:
+    with pytest.raises(ValueError, match="search_rho_max"):
+        ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01, 1.6)
 
 
 def test_shell_counts_geometric_positions_and_occupancy_separately() -> None:
