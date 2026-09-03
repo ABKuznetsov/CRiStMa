@@ -37,6 +37,11 @@ from .representation import (
     StructuralRepresentationBuilder,
     StructuralSelectionPolicy,
 )
+from .periodic_connectivity import (
+    PeriodicComponent,
+    PeriodicConnectivityAnalyzer,
+    PeriodicConnectivityResult,
+)
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -66,5 +71,8 @@ __all__ = [
     "StructuralRepresentation",
     "StructuralRepresentationBuilder",
     "StructuralSelectionPolicy",
+    "PeriodicComponent",
+    "PeriodicConnectivityAnalyzer",
+    "PeriodicConnectivityResult",
     "polyhedron_face_signature",
 ]
