@@ -9,12 +9,18 @@ import cristma
 from cristma.chemistry import ChemistryAnalyzer, Composition
 from cristma.crystal_chemistry import (
     CoordinationShellResolver,
+    PeriodicConnectivityAnalyzer,
     PolyhedronBuilder,
     ResolutionStatus,
     ShellResolutionPolicy,
+    StructuralBlockFinder,
     StructuralGraphBuilder,
+    StructuralRepresentationBuilder,
+    StructuralSelectionPolicy,
     StructuralUnitBuilder,
 )
+from cristma.chemistry import InteractionLayer
+from cristma.crystal_chemistry import ContactClassification
 
 structure = cristma.read("sample.cif").structures[0]
 chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(structure))
@@ -48,6 +54,14 @@ unit_graph = StructuralGraphBuilder().build(
     unit_result.units,
     resolution.contacts,
 )
+
+selection = StructuralSelectionPolicy(
+    included_layers=frozenset({InteractionLayer.STRUCTURAL}),
+    included_classifications=frozenset({ContactClassification.PRIMARY}),
+)
+representation = StructuralRepresentationBuilder(selection).build(unit_graph)
+connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+blocks = StructuralBlockFinder().find(representation, connectivity)
 ```
 
 This is also the intended CRAFT boundary: CRAFT retains `structure`,
@@ -83,9 +97,44 @@ Every connection is canonical under reversal, so `(A, B, t)` and
 connection. The graph never accepts raw distances and never reruns Chemistry,
 neighbour search, shell resolution, or polyhedron construction.
 
-This result is deliberately an **unclassified finite periodic quotient
-graph**. It does not yet claim periodic rank and does not label a component as
-a block, chain, layer, framework, ring, motif, or mechanically rigid body.
+`StructuralUnitGraph` itself remains an unclassified finite periodic quotient
+graph. Classification is an explicit later operation:
+
+```text
+StructuralUnitGraph
+    -> StructuralRepresentationBuilder
+    -> StructuralRepresentation
+    -> PeriodicConnectivityAnalyzer
+    -> PeriodicConnectivityResult
+    -> StructuralBlockFinder
+    -> StructuralBlockResult
+```
+
+The selection policy reuses the `InteractionLayer` and
+`ContactClassification` already assigned by Chemistry and crystal chemistry;
+it does not classify the composition again. Excluded unit and connection IDs
+remain in the representation, so applications can explain why an interstitial
+or secondary interaction did not affect a particular block model.
+
+Periodic rank is calculated from exact integer cycle closures in the selected
+gain graph. A lattice-crossing tree edge only chooses an image and remains
+rank 0. Independent non-zero closures produce:
+
+```text
+rank 0  finite_block
+rank 1  one_periodic
+rank 2  layer
+rank 3  framework
+```
+
+Rank 1 is intentionally called `one_periodic`: distinguishing a chain from a
+ribbon requires a later morphology analysis. Rings and other motifs are also
+not searched in this slice. A crystal-chemical block makes no claim of
+mechanical rigidity.
+
+Current scientific fixtures give four isolated rank-0 MoO4 blocks for
+CaMoO4, one rank-3 B-O framework for LiB3O5, and one rank-3 framework for FeS2
+when its Fe-S coordination and S-S subsystem contacts are selected together.
 
 ## Scientific stages
 

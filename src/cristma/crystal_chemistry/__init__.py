@@ -42,6 +42,12 @@ from .periodic_connectivity import (
     PeriodicConnectivityAnalyzer,
     PeriodicConnectivityResult,
 )
+from .structural_blocks import (
+    StructuralBlock,
+    StructuralBlockClassification,
+    StructuralBlockFinder,
+    StructuralBlockResult,
+)
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -74,5 +80,9 @@ __all__ = [
     "PeriodicComponent",
     "PeriodicConnectivityAnalyzer",
     "PeriodicConnectivityResult",
+    "StructuralBlock",
+    "StructuralBlockClassification",
+    "StructuralBlockFinder",
+    "StructuralBlockResult",
     "polyhedron_face_signature",
 ]

@@ -16,10 +16,14 @@ from cristma.crystal_chemistry import (
     ContactClassification,
     CoordinationShellResolver,
     CrystalChemistryResolution,
+    PeriodicConnectivityAnalyzer,
     PolyhedronBuilder,
     ResolutionStatus,
     ShellResolutionPolicy,
+    StructuralBlockFinder,
     StructuralGraphBuilder,
+    StructuralRepresentationBuilder,
+    StructuralSelectionPolicy,
     StructuralUnitBuilder,
     StructuralUnitKind,
 )
@@ -65,6 +69,17 @@ def build_unit_graph(filename: str):
     )
     units = StructuralUnitBuilder().build(calculation.result, polyhedra).units
     return StructuralGraphBuilder().build(units, calculation.result.contacts)
+
+
+def build_blocks(filename: str, layers: set[InteractionLayer]):
+    graph = build_unit_graph(filename)
+    policy = StructuralSelectionPolicy(
+        included_layers=frozenset(layers),
+        included_classifications=frozenset({ContactClassification.PRIMARY}),
+    )
+    representation = StructuralRepresentationBuilder(policy).build(graph)
+    connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+    return StructuralBlockFinder().find(representation, connectivity)
 
 
 @pytest.mark.parametrize(
@@ -145,6 +160,20 @@ def test_structural_graph_preserves_contact_semantics(
         for layer in connection.interaction_layers
     }
     assert actual_layers >= expected_layers
+
+
+def test_camo4_primary_structural_representation_keeps_moo4_finite() -> None:
+    blocks = build_blocks("CaMoO4_9009632.cif", {InteractionLayer.STRUCTURAL})
+
+    assert blocks.blocks
+    assert {block.periodic_rank for block in blocks.blocks} == {0}
+
+
+def test_lib3o5_primary_boron_oxygen_component_is_periodic() -> None:
+    blocks = build_blocks("LiB3O5_3000122.cif", {InteractionLayer.STRUCTURAL})
+
+    assert blocks.blocks
+    assert {block.periodic_rank for block in blocks.blocks} == {3}
 
 
 def test_alpha_si3n4_rounded_special_position_is_not_duplicated() -> None:
