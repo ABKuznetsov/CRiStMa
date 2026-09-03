@@ -19,6 +19,9 @@ from cristma.crystal_chemistry import (
     PolyhedronBuilder,
     ResolutionStatus,
     ShellResolutionPolicy,
+    StructuralGraphBuilder,
+    StructuralUnitBuilder,
+    StructuralUnitKind,
 )
 from cristma.structure import CrystalStructure
 
@@ -48,6 +51,20 @@ def shell_elements(calculation: Calculation):
         (atoms[shell.center_atom_id].components[0].element, shell)
         for shell in calculation.result.coordination_shells
     )
+
+
+def build_unit_graph(filename: str):
+    calculation = calculate(filename)
+    view = calculation.structure.atomic_view()
+    polyhedra = tuple(
+        built.polyhedron
+        for shell in calculation.result.coordination_shells
+        if shell.status is ResolutionStatus.RESOLVED
+        for built in (PolyhedronBuilder().build(shell, view),)
+        if built.polyhedron is not None
+    )
+    units = StructuralUnitBuilder().build(calculation.result, polyhedra).units
+    return StructuralGraphBuilder().build(units, calculation.result.contacts)
 
 
 @pytest.mark.parametrize(
@@ -96,6 +113,38 @@ def test_resolved_contacts_preserve_reference_interaction_roles(
     }
 
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected_layers"),
+    (
+        (
+            "CaMoO4_9009632.cif",
+            {InteractionLayer.STRUCTURAL, InteractionLayer.INTERSTITIAL},
+        ),
+        (
+            "LiB3O5_3000122.cif",
+            {InteractionLayer.STRUCTURAL, InteractionLayer.INTERSTITIAL},
+        ),
+        (
+            "FeS2_9000594.cif",
+            {InteractionLayer.COORDINATION, InteractionLayer.INTRA_SUBSYSTEM},
+        ),
+    ),
+)
+def test_structural_graph_preserves_contact_semantics(
+    filename: str,
+    expected_layers: set[InteractionLayer],
+) -> None:
+    graph = build_unit_graph(filename)
+
+    assert any(unit.kind is StructuralUnitKind.POLYHEDRON for unit in graph.units)
+    actual_layers = {
+        layer
+        for connection in graph.connections
+        for layer in connection.interaction_layers
+    }
+    assert actual_layers >= expected_layers
 
 
 def test_alpha_si3n4_rounded_special_position_is_not_duplicated() -> None:

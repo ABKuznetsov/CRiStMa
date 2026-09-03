@@ -12,6 +12,8 @@ from cristma.crystal_chemistry import (
     PolyhedronBuilder,
     ResolutionStatus,
     ShellResolutionPolicy,
+    StructuralGraphBuilder,
+    StructuralUnitBuilder,
 )
 
 structure = cristma.read("sample.cif").structures[0]
@@ -40,12 +42,50 @@ polyhedra = tuple(
     for item in polyhedron_results
     if item.status is ResolutionStatus.RESOLVED and item.polyhedron is not None
 )
+
+unit_result = StructuralUnitBuilder().build(resolution, polyhedra)
+unit_graph = StructuralGraphBuilder().build(
+    unit_result.units,
+    resolution.contacts,
+)
 ```
 
 This is also the intended CRAFT boundary: CRAFT retains `structure`,
 `resolution`, and `polyhedra`, then decides how to display, select, compare, or
 cache them. CRAFT does not reproduce symmetry expansion, contact resolution,
 or convex-hull mathematics.
+
+## Structural units and their periodic graph
+
+The next derived layer consumes only results already calculated by crystal
+chemistry:
+
+```text
+CrystalChemistryResolution + CoordinationPolyhedron
+    -> StructuralUnitBuilder
+    -> StructuralUnit
+    -> StructuralGraphBuilder
+    -> StructuralUnitGraph
+```
+
+A polyhedron becomes one unit whose centre is in the reference cell and whose
+ligands retain their exact integer lattice translations. A resolved-contact
+endpoint that belongs to no polyhedron remains available as an atomic unit.
+The graph then records two independent kinds of evidence:
+
+- common unit membership gives `shared_vertex`, `shared_edge`, or
+  `shared_face`;
+- a supplied `ResolvedContact` gives `direct_contact`.
+
+Every connection is canonical under reversal, so `(A, B, t)` and
+`(B, A, -t)` describe one physical relation. Source contact IDs,
+`InteractionLayer`, and `ContactClassification` remain attached to the graph
+connection. The graph never accepts raw distances and never reruns Chemistry,
+neighbour search, shell resolution, or polyhedron construction.
+
+This result is deliberately an **unclassified finite periodic quotient
+graph**. It does not yet claim periodic rank and does not label a component as
+a block, chain, layer, framework, ring, motif, or mechanically rigid body.
 
 ## Scientific stages
 
