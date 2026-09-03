@@ -20,6 +20,12 @@ from .polyhedra import (
 )
 from .resolver import CoordinationShellResolver
 from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
+from .structural_units import (
+    StructuralUnit,
+    StructuralUnitBuildResult,
+    StructuralUnitBuilder,
+    StructuralUnitKind,
+)
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -38,5 +44,9 @@ __all__ = [
     "ShellResolutionPolicy",
     "ShannonDistanceCheck",
     "ShannonDistanceValidator",
+    "StructuralUnit",
+    "StructuralUnitBuildResult",
+    "StructuralUnitBuilder",
+    "StructuralUnitKind",
     "polyhedron_face_signature",
 ]
