@@ -79,6 +79,12 @@ def _xyz_handler() -> FormatHandler:
     return XyzFormatHandler()
 
 
+def _pdb_handler() -> FormatHandler:
+    from .pdb.handler import PdbFormatHandler
+
+    return PdbFormatHandler()
+
+
 def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
     """Return built-ins without importing their parser or mapper modules."""
 
@@ -86,6 +92,7 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
     from .shelx.probe import probe_shelx
     from .vasp.probe import probe_vasp
     from .xyz.probe import probe_xyz
+    from .pdb.probe import probe_pdb
 
     return (
         FormatDescriptor(
@@ -123,6 +130,15 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
             probe=probe_xyz,
             factory=_xyz_handler,
             capabilities=FormatCapabilities(text=True, multiple=True, lazy_frames=True),
+        ),
+        FormatDescriptor(
+            name="pdb",
+            aliases=(),
+            suffixes=(".pdb",),
+            basenames=(),
+            probe=probe_pdb,
+            factory=_pdb_handler,
+            capabilities=FormatCapabilities(text=True, multiple=True),
         ),
     )
 

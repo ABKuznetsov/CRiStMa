@@ -13,13 +13,19 @@ from .io.shelx.writer import (
     write_crystal_shelx,
     write_shelx_document,
 )
-from .io.formats import builtin_format_descriptors
+from .io.formats import FormatDescriptor, builtin_format_descriptors
 from .io.registry import FormatRegistry
 from .io.result import ReadResult
 
 __version__ = "0.1.0.dev0"
 
 _formats = FormatRegistry(builtin_format_descriptors())
+
+
+def structure_formats() -> tuple[FormatDescriptor, ...]:
+    """Return immutable descriptions of built-in structural formats."""
+
+    return builtin_format_descriptors()
 
 
 def read(path: str | Path, *, format: str | None = None) -> ReadResult:
@@ -89,4 +95,11 @@ def write(
     Path(path).write_bytes(rendered.encode("utf-8"))
 
 
-__all__ = ["ReadResult", "__version__", "read", "read_text", "write"]
+__all__ = [
+    "ReadResult",
+    "__version__",
+    "read",
+    "read_text",
+    "structure_formats",
+    "write",
+]

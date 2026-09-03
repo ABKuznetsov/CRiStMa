@@ -39,3 +39,15 @@ def test_public_read_maps_poscar(tmp_path: Path) -> None:
 
     assert result.ok
     assert result.structures[0].name == "Silicon"
+
+
+def test_structure_formats_exposes_immutable_read_capabilities() -> None:
+    formats = cristma.structure_formats()
+
+    assert isinstance(formats, tuple)
+    assert {item.name for item in formats} >= {"cif", "shelx", "vasp", "xyz", "pdb"}
+    assert next(item for item in formats if item.name == "pdb").suffixes == (".pdb",)
+    vasp = next(item for item in formats if item.name == "vasp")
+    assert {"POSCAR", "CONTCAR", "XDATCAR", "OUTCAR", "vasprun.xml"} <= set(
+        vasp.basenames
+    )

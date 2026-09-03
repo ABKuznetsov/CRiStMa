@@ -115,3 +115,12 @@ def test_builtin_descriptor_does_not_import_xyz_parser_or_mapper() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+def test_pdb_descriptor_reports_multiple_model_capability() -> None:
+    descriptor = next(
+        item for item in builtin_format_descriptors() if item.name == "pdb"
+    )
+
+    assert descriptor.suffixes == (".pdb",)
+    assert descriptor.capabilities.multiple
