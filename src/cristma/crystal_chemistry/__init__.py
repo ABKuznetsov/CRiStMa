@@ -32,6 +32,11 @@ from .structural_graph import (
     StructuralGraphBuilder,
     StructuralUnitGraph,
 )
+from .representation import (
+    StructuralRepresentation,
+    StructuralRepresentationBuilder,
+    StructuralSelectionPolicy,
+)
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -58,5 +63,8 @@ __all__ = [
     "StructuralConnectionKind",
     "StructuralGraphBuilder",
     "StructuralUnitGraph",
+    "StructuralRepresentation",
+    "StructuralRepresentationBuilder",
+    "StructuralSelectionPolicy",
     "polyhedron_face_signature",
 ]

@@ -95,6 +95,8 @@ def test_polyhedron_unit_retains_periodic_atom_membership_and_sources() -> None:
     )
     assert unit.source_contact_ids == (contact.geometric_contact.contact_id,)
     assert unit.source_polyhedron_id == polyhedron.polyhedron_id
+    assert unit.interaction_layers == (InteractionLayer.STRUCTURAL,)
+    assert unit.contact_classifications == (ContactClassification.PRIMARY,)
 
 
 def test_unrepresented_contact_endpoints_get_one_atomic_unit_each() -> None:
@@ -110,3 +112,8 @@ def test_unrepresented_contact_endpoints_get_one_atomic_unit_each() -> None:
         (StructuralUnitKind.ATOM, (PeriodicAtomRef("S1", (0, 0, 0)),)),
         (StructuralUnitKind.ATOM, (PeriodicAtomRef("S2", (0, 0, 0)),)),
     }
+    assert {
+        layer
+        for unit in result.units
+        for layer in unit.interaction_layers
+    } == {InteractionLayer.INTRA_SUBSYSTEM}
