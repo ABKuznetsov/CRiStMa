@@ -73,13 +73,17 @@ def build_unit_graph(filename: str):
 
 def build_blocks(filename: str, layers: set[InteractionLayer]):
     graph = build_unit_graph(filename)
+    representation = build_representation(graph, layers)
+    connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+    return StructuralBlockFinder().find(representation, connectivity)
+
+
+def build_representation(graph, layers: set[InteractionLayer]):
     policy = StructuralSelectionPolicy(
         included_layers=frozenset(layers),
         included_classifications=frozenset({ContactClassification.PRIMARY}),
     )
-    representation = StructuralRepresentationBuilder(policy).build(graph)
-    connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
-    return StructuralBlockFinder().find(representation, connectivity)
+    return StructuralRepresentationBuilder(policy).build(graph)
 
 
 @pytest.mark.parametrize(
@@ -196,6 +200,20 @@ def test_pyrite_keeps_disulfide_pairs_as_finite_units() -> None:
     )
     assert len(units) == 4
     assert {len(unit.atom_refs) for unit in units} == {2}
+
+
+def test_pyrite_intra_subsystem_representation_contains_only_disulfide_units() -> None:
+    graph = build_unit_graph("FeS2_9000594.cif")
+    representation = build_representation(graph, {InteractionLayer.INTRA_SUBSYSTEM})
+    connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+    blocks = StructuralBlockFinder().find(representation, connectivity)
+
+    assert representation.units
+    assert {unit.kind for unit in representation.units} == {
+        StructuralUnitKind.FINITE_GROUP
+    }
+    assert len(blocks.blocks) == 4
+    assert {block.periodic_rank for block in blocks.blocks} == {0}
 
 
 def test_alpha_si3n4_rounded_special_position_is_not_duplicated() -> None:

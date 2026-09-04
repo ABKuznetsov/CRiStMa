@@ -245,9 +245,20 @@ class StructuralGraphBuilder:
             tuple[str, str, Translation, str, str, str, str],
             list[ResolvedContact],
         ] = {}
+        finite_group_contact_ids = {
+            contact_id
+            for unit in ordered_units
+            if unit.kind is StructuralUnitKind.FINITE_GROUP
+            for contact_id in unit.source_contact_ids
+        }
         for contact in contacts:
             geometric = contact.geometric_contact
             contact_id = geometric.contact_id
+            # A finite group is the structural interpretation of this contact.
+            # Projecting the same contact through every other unit containing
+            # its atoms would leak those containers into the subsystem view.
+            if contact_id in finite_group_contact_ids:
+                continue
             contact_translation = geometric.cell_translation or _ZERO_TRANSLATION
             for first_unit, first_ref in memberships.get(geometric.first_atom_id, ()):
                 for second_unit, second_ref in memberships.get(geometric.second_atom_id, ()):

@@ -17,13 +17,15 @@ from cristma.chemistry import (
 from cristma.chemistry.evidence import ChemicalEvidence
 from cristma.core.cell import UnitCell
 from cristma.core.values import MeasuredValue
-from cristma.crystallography import geometric_contacts
+from cristma.crystallography import GeometricContact, geometric_contacts
 from cristma.crystal_chemistry import (
+    ComponentPairInterpretation,
+    ContactClassification,
     CoordinationShellResolver,
     ResolutionStatus,
     ShellResolutionPolicy,
 )
-from cristma.crystal_chemistry.resolver import _interpret_contact
+from cristma.crystal_chemistry.resolver import InterpretationOutcome, _interpret_contact
 from cristma.geometry import NeighborFinder
 from cristma.reference_data import ReferenceData
 from cristma.structure import CrystalStructure, IndependentSite, SiteComponent
@@ -299,3 +301,78 @@ def test_partly_missing_primary_mixed_site_radius_blocks_resolution() -> None:
     shells = [item for item in result.coordination_shells if item.source_site_id == "site:Ca"]
     assert all(item.status is ResolutionStatus.INCOMPLETE for item in shells)
     assert "crystal_chemistry.contact.radius_missing" in result.diagnostic_codes
+
+
+def test_network_boundaries_are_resolved_per_crystallographic_site_pair() -> None:
+    structure = CrystalStructure.explicit(
+        "inequivalent sulfur pairs",
+        UnitCell.cubic(number(20.0)),
+        (
+            site("S1", "S", (0.1, 0.1, 0.1)),
+            site("S2", "S", (0.6, 0.6, 0.6)),
+        ),
+        id="structure:inequivalent-sulfur-pairs",
+    )
+    atoms = {atom.id: atom for atom in structure.atomic_view().atoms}
+    atoms_by_site = {atom.source_site_id: atom for atom in atoms.values()}
+    evidence = (ChemicalEvidence("test", "site-pair-scoped network"),)
+    request = CandidateInteraction(
+        ("S",), ("S",), GrammarOperation.INTRA_SUBSYSTEM_BONDS,
+        InteractionLayer.INTRA_SUBSYSTEM, InteractionPriority.PRIMARY,
+        ("S",), ("S",), evidence,
+    )
+    rows = (
+        ("s1-near", "site:S1", 1.00, (1, 0, 0)),
+        ("s1-outer", "site:S1", 1.30, (2, 0, 0)),
+        ("s2-near-a", "site:S2", 1.15, (0, 1, 0)),
+        ("s2-near-b", "site:S2", 1.16, (0, 0, 1)),
+        ("s2-outer", "site:S2", 1.50, (0, 2, 0)),
+    )
+    geometric = []
+    interpreted = {}
+    for contact_id, source_site_id, rho, translation in rows:
+        atom = atoms_by_site[source_site_id]
+        contact = GeometricContact(
+            contact_id,
+            atom.id,
+            atom.id,
+            translation,
+            2.0 * rho,
+            (2.0 * rho, 0.0, 0.0),
+            source_site_id,
+            source_site_id,
+            "test",
+        )
+        record = ComponentPairInterpretation(
+            atom.components[0].species,
+            atom.components[0].species,
+            1.0,
+            1.0,
+            2.0,
+            rho,
+            1.0,
+            request.operation,
+            request.layer,
+            request.priority,
+            request.centre_elements,
+            request.ligand_elements,
+        )
+        geometric.append(contact)
+        interpreted[contact_id] = InterpretationOutcome((record,), ())
+
+    contacts, diagnostics = CoordinationShellResolver(POLICY)._network_contacts(
+        tuple(geometric), interpreted, atoms, request
+    )
+
+    classifications = {
+        item.geometric_contact.contact_id: item.contact_classification
+        for item in contacts
+    }
+    assert diagnostics == ()
+    assert classifications == {
+        "s1-near": ContactClassification.PRIMARY,
+        "s1-outer": ContactClassification.SECONDARY,
+        "s2-near-a": ContactClassification.PRIMARY,
+        "s2-near-b": ContactClassification.PRIMARY,
+        "s2-outer": ContactClassification.SECONDARY,
+    }
