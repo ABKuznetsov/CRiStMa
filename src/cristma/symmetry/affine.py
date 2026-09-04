@@ -11,7 +11,7 @@ import re
 Vector3 = tuple[Fraction, Fraction, Fraction]
 Matrix3 = tuple[Vector3, Vector3, Vector3]
 
-_TERM = re.compile(r"[+-](?:[xyz]|\d+(?:/\d+)?)")
+_TERM = re.compile(r"[+-](?:[xyz]|\d+/\d+|\d+(?:\.\d*)?|\.\d+)")
 
 
 @dataclass(frozen=True, slots=True)

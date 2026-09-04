@@ -194,6 +194,7 @@ def compile_composition_grammar(
             "all_elements",
             "remaining_elements",
             "remaining_electropositive_elements",
+            "remaining_anion_elements",
             "metal_elements",
             "nonmetal_elements",
         }:
@@ -215,6 +216,11 @@ def compile_composition_grammar(
                 symbol
                 for symbol in elements - explicitly_selected
                 if reference.elements.by_symbol(symbol).is_metal or symbol == "H"
+            )
+        if identifier == "remaining_anion_elements":
+            return frozenset(
+                symbol for symbol in elements
+                if not reference.elements.by_symbol(symbol).is_metal
             )
         if identifier == "metal_elements":
             return frozenset(

@@ -176,6 +176,28 @@ def test_lib3o5_primary_boron_oxygen_component_is_periodic() -> None:
     assert {block.periodic_rank for block in blocks.blocks} == {3}
 
 
+def test_lib3o5_keeps_planar_bo3_as_coordination_units() -> None:
+    graph = build_unit_graph("LiB3O5_3000122.cif")
+
+    units = tuple(
+        unit for unit in graph.units
+        if unit.kind is StructuralUnitKind.COORDINATION
+    )
+    assert len(units) == 8
+    assert {len(unit.atom_refs) for unit in units} == {4}
+
+
+def test_pyrite_keeps_disulfide_pairs_as_finite_units() -> None:
+    graph = build_unit_graph("FeS2_9000594.cif")
+
+    units = tuple(
+        unit for unit in graph.units
+        if unit.kind is StructuralUnitKind.FINITE_GROUP
+    )
+    assert len(units) == 4
+    assert {len(unit.atom_refs) for unit in units} == {2}
+
+
 def test_alpha_si3n4_rounded_special_position_is_not_duplicated() -> None:
     calculation = calculate("Si3N4_9013139.cif")
     composition = Composition.from_structure(calculation.structure)
@@ -207,6 +229,25 @@ def test_network_materials_return_contacts_without_forced_polyhedra(
     )
     if filename in {"SiC_9008856.cif", "NiAl_B2_analytic.cif"}:
         assert calculation.result.coordination_shells == ()
+
+
+def test_pyrite_network_gap_keeps_only_disulfide_contacts_primary() -> None:
+    calculation = calculate("FeS2_9000594.cif")
+    sulfur_contacts = tuple(
+        contact
+        for contact in calculation.result.contacts
+        if contact.interaction_type is GrammarOperation.INTRA_SUBSYSTEM_BONDS
+    )
+
+    assert sum(
+        contact.contact_classification is ContactClassification.PRIMARY
+        for contact in sulfur_contacts
+    ) == 4
+    assert {
+        round(contact.geometric_contact.distance, 3)
+        for contact in sulfur_contacts
+        if contact.contact_classification is ContactClassification.PRIMARY
+    } == {2.156}
 
 
 @pytest.mark.parametrize(

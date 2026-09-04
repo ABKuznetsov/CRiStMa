@@ -427,7 +427,11 @@ class CoordinationShellResolver:
         shells: list[CoordinationShell] = []
         for request in grammar.candidate_interactions:
             if request.operation not in _SHELL_OPERATIONS:
-                contacts.extend(self._network_contacts(geometric, interpreted, atoms, request))
+                request_contacts, request_diagnostics = self._network_contacts(
+                    geometric, interpreted, atoms, request
+                )
+                contacts.extend(request_contacts)
+                diagnostics.extend(request_diagnostics)
                 continue
             request_shells, request_contacts, request_diagnostics = self._shells_for_request(
                 view, geometric, interpreted, atoms, request
@@ -472,22 +476,47 @@ class CoordinationShellResolver:
         )
 
     def _network_contacts(self, geometric, interpreted, atoms, request):
-        results: list[ResolvedContact] = []
+        rows = []
         for contact in geometric:
             records = self._matching_records(interpreted[contact.contact_id], request)
-            records = tuple(
-                item for item in records
-                if item.normalized_distance <= self.policy.candidate_rho_max
-            )
             if records:
+                rho = statistics.median(
+                    item.normalized_distance for item in records
+                )
                 occupancy = sum(
                     float(item.occupancy.value)
                     for item in atoms[contact.second_atom_id].components
                 )
-                results.append(_make_resolved_contact(
-                    contact, records, ContactClassification.PRIMARY, occupancy
-                ))
-        return results
+                rows.append((rho, contact, records, occupancy))
+        if not rows:
+            return (), ()
+
+        decision = _resolve_rho_values(
+            tuple(row[0] for row in rows),
+            self.policy,
+        )
+        ordered = sorted(rows, key=lambda row: (row[0], row[1].contact_id))
+        primary_count = (
+            decision.selected.geometric_CN
+            if decision.status is ResolutionStatus.RESOLVED
+            and decision.selected is not None
+            else 0
+        )
+        results = tuple(
+            _make_resolved_contact(
+                contact,
+                records,
+                (
+                    ContactClassification.PRIMARY
+                    if index < primary_count
+                    else ContactClassification.SECONDARY
+                ),
+                occupancy,
+            )
+            for index, (_rho, contact, records, occupancy) in enumerate(ordered)
+            if _rho <= self.policy.candidate_rho_max
+        )
+        return results, decision.diagnostics
 
     def _shells_for_request(self, view, geometric, interpreted, atoms, request):
         orbit_rows: dict[str, list[tuple[object, list[tuple[float, GeometricContact, tuple[ComponentPairInterpretation, ...], float]]]]] = {}

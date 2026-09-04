@@ -70,3 +70,30 @@ def test_selection_requires_both_layer_and_geometric_classification() -> None:
 
     assert tuple(item.unit_id for item in representation.units) == ("unit:primary",)
     assert representation.excluded_unit_ids == ("unit:secondary",)
+
+
+def test_selected_connection_brings_its_endpoint_units_into_representation() -> None:
+    first = unit("unit:FeS6-A", InteractionLayer.COORDINATION)
+    second = unit("unit:FeS6-B", InteractionLayer.COORDINATION)
+    connection = StructuralConnection(
+        connection_id="connection:S-S",
+        first_unit_id=first.unit_id,
+        second_unit_id=second.unit_id,
+        lattice_translation=(0, 0, 0),
+        connection_kind=StructuralConnectionKind.DIRECT_CONTACT,
+        interaction_layers=(InteractionLayer.INTRA_SUBSYSTEM,),
+        contact_classifications=(ContactClassification.PRIMARY,),
+    )
+    graph = StructuralUnitGraph((first, second), (connection,))
+    policy = StructuralSelectionPolicy(
+        included_layers=frozenset({InteractionLayer.INTRA_SUBSYSTEM}),
+        included_classifications=frozenset({ContactClassification.PRIMARY}),
+    )
+
+    representation = StructuralRepresentationBuilder(policy).build(graph)
+
+    assert {item.unit_id for item in representation.units} == {
+        first.unit_id,
+        second.unit_id,
+    }
+    assert representation.connections == (connection,)

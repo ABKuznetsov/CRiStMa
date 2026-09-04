@@ -76,3 +76,13 @@ def test_unknown_inorganic_composition_is_explicitly_unresolved() -> None:
     assert result.primary_family is None
     assert result.domain is ChemicalDomain.UNRESOLVED
     assert result.diagnostics[0].code == "chemistry.family_unresolved"
+
+
+def test_oxide_halide_is_routed_as_mixed_anion_not_plain_oxide() -> None:
+    result = classify_composition(
+        Composition.from_mapping({"La": 1, "O": 1, "F": 1}),
+        ReferenceData.default(),
+    )
+
+    assert result.primary_family == "inorganic.mixed_anion"
+    assert result.alternative_families == ("inorganic.oxide", "inorganic.halide")

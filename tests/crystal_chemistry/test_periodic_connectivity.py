@@ -81,6 +81,21 @@ def test_periodic_self_edge_has_rank_one_without_reducing_its_period() -> None:
     assert component.periodic_generators == ((2, 0, 0),)
 
 
+def test_periodic_generators_form_exact_integer_subgroup_basis() -> None:
+    selected = representation(
+        ("A",),
+        (
+            edge("A", "A", (2, 0, 0), 0),
+            edge("A", "A", (3, 0, 0), 1),
+        ),
+    )
+
+    component = PeriodicConnectivityAnalyzer().analyze(selected).components[0]
+
+    assert component.periodic_rank == 1
+    assert component.periodic_generators == ((1, 0, 0),)
+
+
 @pytest.mark.parametrize(
     ("translations", "expected_rank"),
     (

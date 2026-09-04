@@ -167,6 +167,7 @@ def validate_reference_integrity(
         "all_elements",
         "remaining_elements",
         "remaining_electropositive_elements",
+        "remaining_anion_elements",
         "metal_elements",
         "nonmetal_elements",
         "oxygen",

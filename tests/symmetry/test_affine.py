@@ -31,6 +31,16 @@ def test_operation_normalizes_integer_translation():
     assert operation.normalized().translation == (Fraction(0),) * 3
 
 
+def test_parses_decimal_translation_exactly():
+    operation = parse_xyz_operation("x+0.5,y-0.25,z+0.125")
+
+    assert operation.translation == (
+        Fraction(1, 2),
+        Fraction(-1, 4),
+        Fraction(1, 8),
+    )
+
+
 def test_parser_rejects_non_linear_expression_without_eval():
     with pytest.raises(ValueError, match="Invalid symmetry expression"):
         parse_xyz_operation("x*y,y,z")

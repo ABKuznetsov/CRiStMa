@@ -163,6 +163,29 @@ def classify_composition(
     pnictogens = reference.chemical.element_set("pnictogens") - {"N"}
     family: str | None = None
     code = "chemistry.inorganic_family"
+    secondary_anion_families: list[str] = []
+    if elements & halogens:
+        secondary_anion_families.append("inorganic.halide")
+    if elements & chalcogens:
+        secondary_anion_families.append("inorganic.chalcogenide")
+    if "N" in elements:
+        secondary_anion_families.append("inorganic.nitride")
+    if elements & pnictogens:
+        secondary_anion_families.append("inorganic.pnictide")
+
+    if "O" in elements and secondary_anion_families:
+        return _result(
+            elements=elements,
+            kind=CompositionKind.COMPOUND,
+            domain=ChemicalDomain.INORGANIC,
+            family="inorganic.mixed_anion",
+            alternatives=("inorganic.oxide", *tuple(dict.fromkeys(secondary_anion_families))),
+            reference=reference,
+            code="chemistry.mixed_anion_candidate",
+            message="Oxygen and another anion-forming subsystem select mixed-anion analysis.",
+            confidence=0.75,
+        )
+
     if "O" in elements:
         family = "inorganic.oxide"
     elif elements & halogens:

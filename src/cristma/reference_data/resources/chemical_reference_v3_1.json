@@ -7044,10 +7044,10 @@
       "mode": "structural_anion_subsystem",
       "subsystems": [
         {"selector": "remaining_electropositive_elements", "role": "structural_former", "centre": "preferred", "ligand": "not_applicable"},
-        {"selector": "all_elements", "role": "anion_subsystem", "centre": "not_applicable", "ligand": "preferred"}
+        {"selector": "remaining_anion_elements", "role": "anion_subsystem", "centre": "not_applicable", "ligand": "preferred"}
       ],
       "interactions": [
-        {"first": "remaining_electropositive_elements", "second": "all_elements", "operation": "mixed_anion_coordination", "layer": "structural", "priority": "primary", "centres": "remaining_electropositive_elements", "ligands": "all_elements"}
+        {"first": "remaining_electropositive_elements", "second": "remaining_anion_elements", "operation": "mixed_anion_coordination", "layer": "structural", "priority": "primary", "centres": "remaining_electropositive_elements", "ligands": "remaining_anion_elements"}
       ]
     }
   },

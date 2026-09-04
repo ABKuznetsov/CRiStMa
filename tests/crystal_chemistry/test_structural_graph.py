@@ -133,3 +133,28 @@ def test_periodic_reverse_direct_contacts_collapse_to_one_connection() -> None:
     }
     assert connection.interaction_layers == (InteractionLayer.STRUCTURAL,)
     assert connection.contact_classifications == (ContactClassification.PRIMARY,)
+
+
+def test_contact_internal_to_a_unit_is_not_duplicated_as_direct_connection() -> None:
+    contact = resolved_contact("A", "B", (0, 0, 0))
+    contact_id = contact.geometric_contact.contact_id
+    first = StructuralUnit(
+        "unit:A-B",
+        StructuralUnitKind.POLYHEDRON,
+        (PeriodicAtomRef("A", (0, 0, 0)), PeriodicAtomRef("B", (0, 0, 0))),
+        (contact_id,),
+        "polyhedron:A-B",
+    )
+    second = StructuralUnit(
+        "unit:B-C",
+        StructuralUnitKind.POLYHEDRON,
+        (PeriodicAtomRef("B", (0, 0, 0)), PeriodicAtomRef("C", (0, 0, 0))),
+        (),
+        "polyhedron:B-C",
+    )
+
+    graph = StructuralGraphBuilder().build((first, second), (contact,))
+
+    assert {
+        connection.connection_kind for connection in graph.connections
+    } == {StructuralConnectionKind.SHARED_VERTEX}

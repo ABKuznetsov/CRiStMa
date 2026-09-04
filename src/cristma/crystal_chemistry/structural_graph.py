@@ -11,7 +11,7 @@ from cristma.diagnostics import Diagnostic
 from cristma.structure import PeriodicAtomRef
 
 from .contacts import ContactClassification, ResolvedContact
-from .structural_units import StructuralUnit
+from .structural_units import StructuralUnit, StructuralUnitKind
 
 
 Translation = tuple[int, int, int]
@@ -107,9 +107,11 @@ def _connection_id(
     second_unit_id: str,
     translation: Translation,
     kind: StructuralConnectionKind,
+    channel: str | None = None,
 ) -> str:
     shift = ",".join(str(value) for value in translation)
-    return f"connection:{kind.value}:{first_unit_id}|{second_unit_id}|{shift}"
+    suffix = f":{channel}" if channel else ""
+    return f"connection:{kind.value}{suffix}:{first_unit_id}|{second_unit_id}|{shift}"
 
 
 def _shared_kind(count: int) -> StructuralConnectionKind:
@@ -209,7 +211,22 @@ class StructuralGraphBuilder:
                     contact_by_id[contact_id].geometric_contact.second_atom_id,
                 ))
             )
-            source_ids, layers, classifications = _contact_metadata(source_contacts)
+            source_ids, _, _ = _contact_metadata(source_contacts)
+            # A shared atom describes membership overlap, not a new chemical
+            # contact. Its semantic channel is therefore only what both units
+            # have in common. Taking the union would let an interstitial unit
+            # leak into a structural-only representation (for example CaO8
+            # sharing O with an isolated MoO4 tetrahedron).
+            layers = tuple(sorted(
+                set(unit_by_id[first_id].interaction_layers)
+                & set(unit_by_id[second_id].interaction_layers),
+                key=lambda item: item.value,
+            ))
+            classifications = tuple(sorted(
+                set(unit_by_id[first_id].contact_classifications)
+                & set(unit_by_id[second_id].contact_classifications),
+                key=lambda item: item.value,
+            ))
             kind = _shared_kind(len(ordered_refs))
             connections.append(StructuralConnection(
                 _connection_id(first_id, second_id, translation, kind),
@@ -225,14 +242,30 @@ class StructuralGraphBuilder:
             ))
 
         direct_groups: dict[
-            tuple[str, str, Translation],
+            tuple[str, str, Translation, str, str, str, str],
             list[ResolvedContact],
         ] = {}
         for contact in contacts:
             geometric = contact.geometric_contact
+            contact_id = geometric.contact_id
             contact_translation = geometric.cell_translation or _ZERO_TRANSLATION
             for first_unit, first_ref in memberships.get(geometric.first_atom_id, ()):
                 for second_unit, second_ref in memberships.get(geometric.second_atom_id, ()):
+                    # A contact used to define either endpoint unit is internal to
+                    # that unit. Membership already expresses the inter-unit
+                    # relation, so emitting it again as DIRECT_CONTACT would
+                    # describe the same chemistry twice.
+                    if (
+                        (
+                            first_unit.kind is not StructuralUnitKind.ATOM
+                            and contact_id in first_unit.source_contact_ids
+                        )
+                        or (
+                            second_unit.kind is not StructuralUnitKind.ATOM
+                            and contact_id in second_unit.source_contact_ids
+                        )
+                    ):
+                        continue
                     translation = _subtracted(
                         _added(contact_translation, first_ref.cell_translation),
                         second_ref.cell_translation,
@@ -245,10 +278,28 @@ class StructuralGraphBuilder:
                         translation,
                     )
                     direct_groups.setdefault(
-                        (first_id, second_id, canonical_translation), []
+                        (
+                            first_id,
+                            second_id,
+                            canonical_translation,
+                            contact.interaction_type.value,
+                            contact.interaction_layer.value,
+                            contact.grammar_priority.value,
+                            contact.contact_classification.value,
+                        ),
+                        [],
                     ).append(contact)
 
-        for (first_id, second_id, translation), source_contacts in sorted(direct_groups.items()):
+        for key, source_contacts in sorted(direct_groups.items()):
+            (
+                first_id,
+                second_id,
+                translation,
+                interaction_type,
+                interaction_layer,
+                grammar_priority,
+                contact_classification,
+            ) = key
             unique_contacts = tuple({
                 item.geometric_contact.contact_id: item for item in source_contacts
             }[contact_id] for contact_id in sorted({
@@ -256,8 +307,14 @@ class StructuralGraphBuilder:
             }))
             source_ids, layers, classifications = _contact_metadata(unique_contacts)
             kind = StructuralConnectionKind.DIRECT_CONTACT
+            channel = ":".join((
+                interaction_type,
+                interaction_layer,
+                grammar_priority,
+                contact_classification,
+            ))
             connections.append(StructuralConnection(
-                _connection_id(first_id, second_id, translation, kind),
+                _connection_id(first_id, second_id, translation, kind, channel),
                 first_id,
                 second_id,
                 translation,

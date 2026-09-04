@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from fractions import Fraction
 
 from cristma.diagnostics import Diagnostic
 
@@ -76,45 +75,77 @@ def _canonical_vector(value: Translation) -> Translation:
     return value
 
 
-def _exact_rank(vectors: tuple[Translation, ...]) -> int:
-    matrix = [[Fraction(value) for value in vector] for vector in vectors]
-    rank = 0
-    for column in range(3):
-        pivot = next(
-            (row for row in range(rank, len(matrix)) if matrix[row][column]),
-            None,
-        )
-        if pivot is None:
-            continue
-        matrix[rank], matrix[pivot] = matrix[pivot], matrix[rank]
-        pivot_value = matrix[rank][column]
-        matrix[rank] = [value / pivot_value for value in matrix[rank]]
-        for row in range(len(matrix)):
-            if row == rank or not matrix[row][column]:
-                continue
-            factor = matrix[row][column]
-            matrix[row] = [
-                value - factor * pivot_entry
-                for value, pivot_entry in zip(matrix[row], matrix[rank], strict=True)
-            ]
-        rank += 1
-        if rank == 3:
-            break
-    return rank
+def _extended_gcd(first: int, second: int) -> tuple[int, int, int]:
+    """Return positive gcd and Bezout coefficients for two integers."""
+
+    old_r, remainder = abs(first), abs(second)
+    old_s, coefficient_s = 1, 0
+    old_t, coefficient_t = 0, 1
+    while remainder:
+        quotient = old_r // remainder
+        old_r, remainder = remainder, old_r - quotient * remainder
+        old_s, coefficient_s = coefficient_s, old_s - quotient * coefficient_s
+        old_t, coefficient_t = coefficient_t, old_t - quotient * coefficient_t
+    return (
+        old_r,
+        old_s if first >= 0 else -old_s,
+        old_t if second >= 0 else -old_t,
+    )
 
 
-def _independent_generators(
+def _integer_lattice_basis(
     closures: tuple[Translation, ...],
 ) -> tuple[Translation, ...]:
-    generators: list[Translation] = []
-    current_rank = 0
-    for vector in closures:
-        proposed = tuple((*generators, vector))
-        proposed_rank = _exact_rank(proposed)
-        if proposed_rank > current_rank:
-            generators.append(vector)
-            current_rank = proposed_rank
-    return tuple(generators)
+    """Return a row-Hermite basis of the exact generated Z-subgroup."""
+
+    rows = [list(vector) for vector in closures if vector != _ZERO_TRANSLATION]
+    pivot_row = 0
+    pivots: list[int] = []
+    for column in range(3):
+        nonzero = next(
+            (index for index in range(pivot_row, len(rows)) if rows[index][column]),
+            None,
+        )
+        if nonzero is None:
+            continue
+        rows[pivot_row], rows[nonzero] = rows[nonzero], rows[pivot_row]
+        for index in range(pivot_row + 1, len(rows)):
+            if not rows[index][column]:
+                continue
+            first = rows[pivot_row][:]
+            second = rows[index][:]
+            gcd, first_coefficient, second_coefficient = _extended_gcd(
+                first[column], second[column]
+            )
+            rows[pivot_row] = [
+                first_coefficient * left + second_coefficient * right
+                for left, right in zip(first, second, strict=True)
+            ]
+            rows[index] = [
+                -(second[column] // gcd) * left
+                + (first[column] // gcd) * right
+                for left, right in zip(first, second, strict=True)
+            ]
+        if rows[pivot_row][column] < 0:
+            rows[pivot_row] = [-value for value in rows[pivot_row]]
+        pivots.append(column)
+        pivot_row += 1
+        if pivot_row == len(rows) or pivot_row == 3:
+            break
+
+    basis = rows[:pivot_row]
+    for index in range(len(basis) - 1, -1, -1):
+        column = pivots[index]
+        pivot = basis[index][column]
+        for earlier in range(index):
+            quotient = basis[earlier][column] // pivot
+            basis[earlier] = [
+                value - quotient * pivot_value
+                for value, pivot_value in zip(
+                    basis[earlier], basis[index], strict=True
+                )
+            ]
+    return tuple(tuple(row) for row in basis)  # type: ignore[return-value]
 
 
 def _component_connections(
@@ -212,7 +243,7 @@ class PeriodicConnectivityAnalyzer:
                     offsets[connection.second_unit_id],
                 ) != _ZERO_TRANSLATION
             }))
-            generators = _independent_generators(closures)
+            generators = _integer_lattice_basis(closures)
             components.append(PeriodicComponent(
                 component_id=f"component:{root}",
                 unit_ids=component_unit_ids,

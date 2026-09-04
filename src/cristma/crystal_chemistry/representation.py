@@ -82,24 +82,35 @@ class StructuralRepresentationBuilder:
         return replace(self, **changes)
 
     def build(self, graph: StructuralUnitGraph) -> StructuralRepresentation:
-        selected_units = tuple(
-            unit for unit in graph.units
+        matching_connections = tuple(
+            connection for connection in graph.connections
+            if _matches(
+                connection.interaction_layers,
+                connection.contact_classifications,
+                self.policy,
+            )
+        )
+        selected_unit_ids = {
+            unit.unit_id
+            for unit in graph.units
             if _matches(
                 unit.interaction_layers,
                 unit.contact_classifications,
                 self.policy,
             )
+        }
+        for connection in matching_connections:
+            selected_unit_ids.update(
+                (connection.first_unit_id, connection.second_unit_id)
+            )
+        selected_units = tuple(
+            unit for unit in graph.units if unit.unit_id in selected_unit_ids
         )
-        selected_unit_ids = {item.unit_id for item in selected_units}
         selected_connections = tuple(
-            connection for connection in graph.connections
+            connection
+            for connection in matching_connections
             if connection.first_unit_id in selected_unit_ids
             and connection.second_unit_id in selected_unit_ids
-            and _matches(
-                connection.interaction_layers,
-                connection.contact_classifications,
-                self.policy,
-            )
         )
         selected_connection_ids = {
             item.connection_id for item in selected_connections

@@ -78,6 +78,18 @@ def test_directed_coordination_operations_are_distinct() -> None:
     assert GrammarOperation.MIXED_ANION_COORDINATION.value == "mixed_anion_coordination"
 
 
+def test_mixed_anion_grammar_keeps_both_anions_and_excludes_metal_centres() -> None:
+    grammar = ChemistryAnalyzer().analyze(
+        Composition.from_mapping({"La": 1, "O": 1, "F": 1})
+    ).grammar
+
+    assert len(grammar.candidate_interactions) == 1
+    interaction = grammar.candidate_interactions[0]
+    assert interaction.centre_elements == ("La",)
+    assert interaction.ligand_elements == ("F", "O")
+    assert interaction.operation is GrammarOperation.MIXED_ANION_COORDINATION
+
+
 def test_oxide_template_separates_structural_former_from_interstitial_cation() -> None:
     grammar = ChemistryAnalyzer().analyze(
         Composition.from_mapping({"Ca": 1, "Mo": 1, "O": 4})
