@@ -292,8 +292,19 @@ internal deformation, relative rotation, translation, and hinge changes.
 
 ## 10. Diffraction observation models
 
-Powder and single-crystal calculations share structure-factor physics but use
-different observation models:
+Diffraction has two explicit scientific levels. The lattice level does not
+require an atomic structural model:
+
+```text
+ExperimentalPattern -> PeakList -> Indexing -> UnitCell / Bravais lattice
+
+UnitCell + symmetry + wavelength
+        -> ReflectionGenerator
+        -> hkl + d(hkl) + 2theta + allowed/extinct
+```
+
+Atomic coordinates enter only at the structure level, where intensities are
+calculated from structure factors:
 
 ```text
 CrystalStructure + Radiation + reciprocal vectors
@@ -311,7 +322,8 @@ CrystalStructure + Radiation + reciprocal vectors
  CalculatedProfile       CalculatedReflectionDataset
 ```
 
-The shared layer owns reciprocal-vector generation, systematic absences,
+The lattice layer owns reciprocal-vector and reflection generation, Bragg and
+d-spacing relations, and systematic absences. The structure layer owns
 scattering factors, occupancy, ADP, anomalous terms, and complex `F(hkl)`.
 Powder multiplicity, Lorentz-polarization factors, peak overlap, and profile
 convolution belong to the powder model. Measured-HKL matching, Friedel policy,
@@ -343,6 +355,19 @@ RefinementResult
 Powder and single-crystal objectives share parameters, dependencies,
 constraints, covariance tools, and optimization helpers while retaining their
 own observation models.
+
+The refinement families differ in their required scientific input:
+
+```text
+Pawley   -> lattice/reflection model; no atomic structure required
+Le Bail  -> lattice/reflection model; no atomic structure required
+Rietveld -> CrystalStructure + structure factors required
+```
+
+Accordingly, `Diffraction` supplies reusable forward calculations at lattice
+and structure levels. `Refinement` composes those calculations into Pawley,
+Le Bail, Rietveld, and later single-crystal optimization workflows; it never
+introduces a second implementation of the forward model.
 
 ## 12. I/O and external adapters
 
