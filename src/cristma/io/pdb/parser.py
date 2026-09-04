@@ -29,7 +29,7 @@ def _optional_float(line: str, start: int, end: int, field: str) -> float | None
 
 
 def _element_from_name(raw_name: str) -> str:
-    if raw_name[:1].isspace():
+    if raw_name[:1].isspace() or raw_name[:1].isdigit():
         token = raw_name.strip().lstrip("0123456789")[:1]
     else:
         token = raw_name.strip().lstrip("0123456789")

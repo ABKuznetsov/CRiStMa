@@ -14,7 +14,7 @@ class VaspFormatHandler:
     """Dispatch VASP structural sources behind one application-neutral API."""
 
     name = "vasp"
-    suffixes = (".xml",)
+    suffixes = (".vasp", ".xml")
 
     def probe(self, source: str) -> float:
         return probe_vasp(source)

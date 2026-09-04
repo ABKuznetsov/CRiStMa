@@ -124,3 +124,11 @@ def test_pdb_descriptor_reports_multiple_model_capability() -> None:
 
     assert descriptor.suffixes == (".pdb",)
     assert descriptor.capabilities.multiple
+
+
+def test_vasp_descriptor_accepts_generic_vasp_suffix() -> None:
+    descriptor = next(
+        item for item in builtin_format_descriptors() if item.name == "vasp"
+    )
+
+    assert ".vasp" in descriptor.suffixes

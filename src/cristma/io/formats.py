@@ -116,7 +116,7 @@ def builtin_format_descriptors() -> tuple[FormatDescriptor, ...]:
         FormatDescriptor(
             name="vasp",
             aliases=("poscar", "contcar", "xdatcar", "outcar", "vasprun"),
-            suffixes=(".xml",),
+            suffixes=(".vasp", ".xml"),
             basenames=("POSCAR", "CONTCAR", "XDATCAR", "OUTCAR", "vasprun.xml"),
             probe=probe_vasp,
             factory=_vasp_handler,

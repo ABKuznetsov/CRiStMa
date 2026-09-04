@@ -69,6 +69,22 @@ def test_pdb_atom_name_fallback_respects_fixed_column_alignment() -> None:
     ] == ["C", "Ca"]
 
 
+def test_pdb_digit_prefixed_hydrogen_name_does_not_become_heavy_element() -> None:
+    source = (
+        "ATOM      1 1HG  CYS A   1       0.000   0.000   0.000  1.00 10.00\n"
+        "ATOM      2 2HE  GLN A   1       1.000   0.000   0.000  1.00 10.00\n"
+        "END\n"
+    )
+
+    result = cristma.read_text(source, format="pdb", source_name="hydrogen.pdb")
+
+    assert result.ok
+    assert [
+        atom.components[0].species.require_element()
+        for atom in result.structures[0].atoms
+    ] == ["H", "H"]
+
+
 def test_pdb_models_map_to_separate_canonical_structures() -> None:
     source = (
         "MODEL        1\n"

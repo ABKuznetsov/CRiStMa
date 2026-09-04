@@ -50,6 +50,43 @@ class AffineOperation:
         return tuple(transformed)
 
 
+def _fraction_text(value: Fraction) -> str:
+    return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+
+
+def _format_component(row: Vector3, offset: Fraction) -> str:
+    terms: list[str] = []
+    for coefficient, variable in zip(row, "xyz", strict=True):
+        if coefficient == 0:
+            continue
+        if coefficient not in {Fraction(-1), Fraction(1)}:
+            raise ValueError("symmetry formatting requires unit coordinate coefficients")
+        terms.append(
+            f"-{variable}"
+            if coefficient == -1
+            else ("+" if terms else "") + variable
+        )
+    normalized = offset % 1
+    if normalized:
+        terms.append(("+" if terms else "") + _fraction_text(normalized))
+    return "".join(terms) or "0"
+
+
+def format_xyz_operation(operation: AffineOperation) -> str:
+    """Render an exact affine operation as an ``x,y,z`` triplet."""
+
+    if operation.source:
+        return operation.source
+    return ",".join(
+        _format_component(row, offset)
+        for row, offset in zip(
+            operation.rotation,
+            operation.translation,
+            strict=True,
+        )
+    )
+
+
 def _parse_component(expression: str) -> tuple[Vector3, Fraction]:
     compact = "".join(expression.split()).lower()
     if not compact:
