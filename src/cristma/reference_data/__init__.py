@@ -10,6 +10,7 @@ from .chemical_reference import (
 from .facade import ReferenceData
 from .radii import CovalentRadii, CovalentRadiusRecord
 from .shannon import ShannonRadii, ShannonRadiusRecord, ShannonSpinState
+from .xray_f0 import NeutralAtomFormFactorTable, XRayFormFactorProvenance
 
 __all__ = [
     "ChemicalReference",
@@ -23,6 +24,8 @@ __all__ = [
     "ShannonRadii",
     "ShannonRadiusRecord",
     "ShannonSpinState",
+    "NeutralAtomFormFactorTable",
+    "XRayFormFactorProvenance",
     "load_chemical_reference",
     "validate_reference_integrity",
 ]

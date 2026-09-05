@@ -42,4 +42,7 @@ cristma = [
     "reference_data/resources/crystallography/*.json",
     "reference_data/resources/crystallography/*.md",
     "reference_data/resources/crystallography/*.txt",
+    "reference_data/resources/xray/*.json",
+    "reference_data/resources/xray/*.md",
+    "reference_data/resources/xray/*.txt",
 ]
