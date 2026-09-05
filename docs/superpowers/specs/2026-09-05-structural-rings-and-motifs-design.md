@@ -68,6 +68,27 @@ framework.
 - use compound names or framework codes in production decisions;
 - apply CRAFT-specific visibility or rendering rules.
 
+### 2.1 No structure-specific hardcoding
+
+Production behavior must be derived only from the supplied canonical scientific
+objects, selected representation, graph topology, periodic translations,
+symmetry and explicit tool policy. It must not contain branches keyed by:
+
+- chemical formula or material name;
+- element labels such as `B`, `Si` or `O`;
+- site labels such as `B1` or `O3`;
+- input filename or source format;
+- known framework, mineral or structure-type identifiers;
+- expected ring size, composition or multiplicity of a test structure.
+
+Names such as `B₃O₇ ring` are calculated from the canonical atom union of the
+identified motif. Labels such as `B–O framework` are presentation of calculated
+composition and block dimensionality; they are not inputs to ring recognition.
+
+Lithium triborate, zeolites and other named structures are acceptance fixtures
+only. Passing them must demonstrate the general algorithm, never activate a
+special-case path.
+
 ## 3. Data model
 
 ### 3.1 `PeriodicUnitRef`
@@ -362,6 +383,10 @@ The implementation is complete when the following cases pass:
     the member polyhedra.
 12. An exceeded safety limit returns an explicit incomplete result and
     diagnostic.
+13. Renaming sites and the input file without changing the canonical structure
+    leaves the detected rings and orbits unchanged.
+14. No production branch refers to a fixture formula, material name, element
+    combination, expected ring size or expected multiplicity.
 
 ## 10. Out of scope for this milestone
 
