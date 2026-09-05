@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-05
 **Status:** approved in discussion; written specification awaiting final review
-**Implementation scope:** periodic-unit references, locally minimal structural rings,
+**Implementation scope:** periodic-unit references, locally shortest structural rings,
 symmetry grouping, and the CRAFT presentation contract
 
 ## 1. Purpose
@@ -179,13 +179,22 @@ diagnostic; it may not silently omit candidates.
 
 ## 4. Ring definition
 
-A structural ring is a locally minimal finite cycle of structural units in one
-selected representation and one parent block.
+A `StructuralRing` in this milestone is a finite zero-translation cycle of
+structural units in one selected representation and one parent block. It must
+be obtained as a shortest return cycle for at least one of its connections and
+must additionally satisfy the chordless criterion below.
+
+This definition deliberately describes **locally shortest rings**, not every
+chordless cycle or the complete cycle space.
 
 For every eligible connection:
 
 ```text
-remove the connection
+anchor its first endpoint at translation (0, 0, 0)
+        ↓
+lift its second endpoint using the connection translation
+        ↓
+remove that exact anchored edge instance in both directions
         ↓
 find all equal-length shortest return paths
         ↓
@@ -200,13 +209,42 @@ require a chordless cycle
 canonicalize and deduplicate
 ```
 
-### 4.1 Equal shortest paths
+### 4.1 Translation-aware shortest paths
+
+Shortest-path states are `PeriodicUnitRef` values, never bare `unit_id` values.
+For an oriented connection:
+
+```text
+A --t--> B
+```
+
+the anchored removed edge is:
+
+```text
+A(0, 0, 0) → B(t)
+```
+
+and every return path is searched between those exact lifted states. Traversing
+another connection adds its directed lattice translation to the current state;
+reverse traversal adds the negated translation. Interior states of a candidate
+cycle must be distinct.
+
+Consequently, zero net translation follows naturally when the return path
+reaches the exact target state. `translation_sum == (0, 0, 0)` remains an
+explicit result invariant and defensive validation.
+
+The lifted periodic state graph can be unbounded. Search policy therefore has
+explicit hop/state limits. Reaching a limit before the target is resolved must
+produce an `INCOMPLETE` result; it must not be reported as proof that no ring
+exists.
+
+### 4.2 Equal shortest paths
 
 The algorithm must retain every equal-length shortest return path. Selecting
 one arbitrary predecessor would lose distinct minimal rings in symmetric
 graphs.
 
-### 4.2 Periodic closure
+### 4.3 Periodic closure
 
 Returning to the same quotient node is not sufficient. Directed traversal of a
 connection accumulates its lattice translation; reverse traversal accumulates
@@ -216,14 +254,14 @@ zero.
 For example, a path that returns to unit type `A` in image `(1, 0, 0)` belongs
 to a periodic chain and is not a finite ring.
 
-### 4.3 Chordless cycles
+### 4.4 Chordless cycles
 
 A candidate is chordless relative to the selected representation: no confirmed
 connection joins two nonconsecutive unit images in the candidate and creates a
 shorter closure. A square with a diagonal therefore contributes its minimal
 triangles, not an additional composite square.
 
-### 4.4 Eligible connection kinds
+### 4.5 Eligible connection kinds
 
 All confirmed shared-unit relations are eligible:
 
@@ -259,16 +297,37 @@ second, separate operation over canonical instances. The operation applies the
 parent crystal symmetry to unit and atom provenance, then matches canonical
 ring identities. Equal size and composition alone are insufficient.
 
+The action of a space-group operation `g` on a periodic unit reference must be
+translation-aware:
+
+```text
+g : (unit_id, cell_translation)
+    → (mapped_unit_id,
+       M_g · cell_translation + normalization_shift_g(unit_id))
+```
+
+Here `M_g` is the integer action of the symmetry rotation in the lattice basis,
+and `normalization_shift_g(unit_id)` is the integer shift introduced when the
+mapped representative unit is returned to the reference cell. The same action
+is applied consistently to referenced connections and connector atoms.
+
+After applying `g`, the complete ring is canonicalized again with an arbitrary
+common periodic-image shift removed. Two instances belong to one
+`StructuralRingOrbit` only when this full mapping succeeds.
+
 ## 6. Performance and completeness
 
-Ring search first decomposes the finite quotient graph into biconnected
-components. Bridges and tree branches cannot participate in a ring and are
-discarded before shortest-path work.
+The first implementation prioritizes correct lifted-state traversal over
+quotient-graph pruning. Ordinary biconnected decomposition of the finite
+quotient graph is not an allowed mandatory optimization: it may collapse
+parallel connections with different translations or hide distinct periodic
+images, so a quotient bridge is not automatically safe to discard.
 
-Within each eligible component, shortest-path predecessor DAGs preserve all
-equal shortest paths. Candidates are checked for periodic closure and chords,
-then canonicalized immediately. The implementation must avoid enumerating the
-complete cycle space.
+Translation-aware pruning may be added later only with a correctness argument
+and tests for periodic multigraphs. Until then, shortest-path predecessor DAGs
+over `PeriodicUnitRef` states preserve all equal shortest paths. Candidates are
+checked for closure and chords, then canonicalized immediately. The
+implementation must avoid enumerating the complete cycle space.
 
 Configurable safety limits may protect callers from pathological graphs, but
 crossing a limit produces:
@@ -339,7 +398,13 @@ StructuralBlock
 └─ BuildingUnitFinder → SBU / CBU
 ```
 
-For zeolites, the first `RingFinder` reports locally minimal chordless rings.
+Ring analysis always runs on the lowest selected structural-unit
+representation that still preserves the connections defining the internal
+motif. If a finite group such as `B₅O₁₀` is later collapsed into one higher-level
+unit, its internal rings are inherited from the lower representation rather
+than rediscovered inside the collapsed node.
+
+For zeolites, the first `RingFinder` reports locally shortest chordless rings.
 It does not claim exact equivalence with every IZA essential-ring, natural-
 tiling or composite-building-unit convention. Curated framework databases may
 serve as acceptance oracles without introducing framework-name branches or
@@ -363,7 +428,7 @@ not represent a channel as an atomic or polyhedral motif.
 
 The implementation is complete when the following cases pass:
 
-1. A finite triangle produces one three-unit ring.
+1. A finite triangle produces one three-unit locally shortest ring.
 2. A square with a diagonal produces the minimal triangles and no composite
    square.
 3. Distinct equal-length shortest return paths are all retained.
@@ -387,6 +452,15 @@ The implementation is complete when the following cases pass:
     leaves the detected rings and orbits unchanged.
 14. No production branch refers to a fixture formula, material name, element
     combination, expected ring size or expected multiplicity.
+15. A path search with equal quotient `unit_id` values but different periodic
+    translations closes only when the exact target `PeriodicUnitRef` is reached.
+16. Parallel quotient edges carrying different translations remain distinct
+    during search and are not removed by ordinary quotient-graph bridge
+    pruning.
+17. A space-group operation maps unit translations, normalization shifts,
+    connections and connector atoms consistently before orbit matching.
+18. Rings inside a later collapsed finite group remain attached to the lower
+    representation that preserved their defining connections.
 
 ## 10. Out of scope for this milestone
 
