@@ -16,6 +16,12 @@ from .models import (
 )
 from .reciprocal import ReciprocalMetric
 from .reflections import ReflectionGenerator
+from .structure_factor_models import (
+    StructureFactor,
+    StructureFactorProvenance,
+    StructureFactorSet,
+    XRayScatteringContext,
+)
 
 __all__ = [
     "DiffractionInvariantError",
@@ -32,4 +38,8 @@ __all__ = [
     "ReflectionProvenance",
     "ReflectionSet",
     "ReflectionSetStatus",
+    "StructureFactor",
+    "StructureFactorProvenance",
+    "StructureFactorSet",
+    "XRayScatteringContext",
 ]
