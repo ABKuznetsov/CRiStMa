@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import math
 
 import numpy as np
@@ -14,6 +15,15 @@ from .affine import AffineOperation
 
 class SymmetryConsistencyError(ValueError):
     """Equivalent symmetry images imply incompatible scientific state."""
+
+
+@dataclass(frozen=True, slots=True)
+class DisplacementSymmetrization:
+    """Result of projecting one displacement model onto a site stabilizer."""
+
+    displacement: DisplacementParameters | None
+    changed: bool
+    max_adjustment: float
 
 
 def _derived_value(value: float, uncertainty: float | None, source: MeasuredValue) -> MeasuredValue:
@@ -60,6 +70,104 @@ def _tensor_linear_map(rotation: np.ndarray) -> np.ndarray:
              transformed[0, 1], transformed[0, 2], transformed[1, 2])
         )
     return np.asarray(columns, dtype=float).T
+
+
+def _propagated_uncertainty(
+    coefficients: np.ndarray,
+    uncertainties: tuple[float | None, ...],
+) -> float | None:
+    contributors = tuple(
+        (float(coefficient), uncertainty)
+        for coefficient, uncertainty in zip(coefficients, uncertainties, strict=True)
+        if not math.isclose(float(coefficient), 0.0, abs_tol=1e-15)
+    )
+    if any(uncertainty is None for _coefficient, uncertainty in contributors):
+        return None
+    return math.sqrt(
+        math.fsum(
+            (coefficient * float(uncertainty)) ** 2
+            for coefficient, uncertainty in contributors
+        )
+    )
+
+
+def symmetrize_displacement(
+    displacement: DisplacementParameters | None,
+    operations: tuple[AffineOperation, ...],
+    *,
+    absolute_tolerance: float = 1e-5,
+    sigma_multiplier: float = 3.0,
+) -> DisplacementSymmetrization:
+    """Project an ADP onto a site stabilizer when residuals fit its uncertainty."""
+
+    if not operations:
+        raise ValueError("site stabilizer must contain at least one operation")
+    if absolute_tolerance <= 0 or not math.isfinite(absolute_tolerance):
+        raise ValueError("ADP absolute tolerance must be positive and finite")
+    if sigma_multiplier <= 0 or not math.isfinite(sigma_multiplier):
+        raise ValueError("ADP sigma multiplier must be positive and finite")
+    if displacement is None or displacement.kind in {"U_iso", "B_iso"}:
+        return DisplacementSymmetrization(displacement, False, 0.0)
+    if displacement.kind != "U_aniso":
+        raise ValueError(f"unsupported displacement kind: {displacement.kind!r}")
+
+    _values, uncertainties, packed = _tensor_values(displacement)
+    source_values = np.asarray([float(item.value) for item in packed], dtype=float)
+    linear_maps = tuple(
+        _tensor_linear_map(np.asarray(operation.rotation, dtype=float))
+        for operation in operations
+    )
+    projection = np.mean(np.stack(linear_maps), axis=0)
+    projected_values = projection @ source_values
+
+    for linear_map in linear_maps:
+        residual_map = linear_map - projection
+        residual = residual_map @ source_values
+        for component, difference in enumerate(residual):
+            uncertainty = _propagated_uncertainty(
+                residual_map[component], uncertainties
+            )
+            allowed = absolute_tolerance
+            if uncertainty is not None:
+                allowed = max(allowed, sigma_multiplier * uncertainty)
+            if abs(float(difference)) > allowed:
+                raise SymmetryConsistencyError(
+                    "anisotropic displacement differs from its site-symmetry "
+                    f"projection by {abs(float(difference)):.8g} angstrom^2 "
+                    f"(allowed {allowed:.8g})"
+                )
+
+    projected_uncertainties = tuple(
+        _propagated_uncertainty(row, uncertainties) for row in projection
+    )
+    projected = tuple(
+        _derived_value(value, uncertainty, source)
+        for value, uncertainty, source in zip(
+            projected_values,
+            projected_uncertainties,
+            packed,
+            strict=True,
+        )
+    )
+    u11, u22, u33, u12, u13, u23 = projected
+    tensor = (
+        (u11, u12, u13),
+        (u12, u22, u23),
+        (u13, u23, u33),
+    )
+    max_adjustment = max(
+        abs(float(after) - float(before))
+        for after, before in zip(projected_values, source_values, strict=True)
+    )
+    return DisplacementSymmetrization(
+        DisplacementParameters(
+            kind="U_aniso",
+            tensor=tensor,
+            reported_kind=displacement.reported_kind,
+        ),
+        not math.isclose(max_adjustment, 0.0, abs_tol=1e-15),
+        max_adjustment,
+    )
 
 
 def transform_displacement(
@@ -146,4 +254,10 @@ def displacements_close(
     return False
 
 
-__all__ = ["SymmetryConsistencyError", "displacements_close", "transform_displacement"]
+__all__ = [
+    "DisplacementSymmetrization",
+    "SymmetryConsistencyError",
+    "displacements_close",
+    "symmetrize_displacement",
+    "transform_displacement",
+]

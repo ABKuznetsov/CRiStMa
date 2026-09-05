@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal, InvalidOperation
 import math
 
 import numpy as np
@@ -21,7 +22,10 @@ from cristma.structure import (
 from cristma.core.values import MeasuredValue, parse_measured_value
 from cristma.io.diagnostics import Diagnostic, Severity
 from cristma.symmetry.affine import AffineOperation, parse_xyz_operation
-from cristma.symmetry.displacement import SymmetryConsistencyError
+from cristma.symmetry.displacement import (
+    SymmetryConsistencyError,
+    symmetrize_displacement,
+)
 from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit
 
 from . import names
@@ -452,6 +456,126 @@ def _merge_coincident_sites(
     return tuple(merged)
 
 
+def _reported_coordinate_error(value: MeasuredValue) -> float:
+    if value.uncertainty is not None:
+        return 3.0 * float(value.uncertainty)
+    if value.raw is None:
+        return 0.0
+    numeric = value.raw.partition("(")[0]
+    try:
+        exponent = Decimal(numeric).as_tuple().exponent
+    except InvalidOperation:
+        return 0.0
+    if exponent >= 0:
+        return 0.0
+    return 0.5 * float(Decimal(10) ** exponent)
+
+
+def _periodic_delta(left: float, right: float) -> float:
+    return (left - right + 0.5) % 1.0 - 0.5
+
+
+def _operation_position(
+    operation: AffineOperation,
+    coordinates: np.ndarray,
+) -> np.ndarray:
+    rotation = np.asarray(operation.rotation, dtype=float)
+    translation = np.asarray(operation.translation, dtype=float)
+    return rotation @ coordinates + translation
+
+
+def _normalize_special_position(
+    site: IndependentSite,
+    operations: tuple[AffineOperation, ...],
+) -> tuple[IndependentSite, bool, float]:
+    errors = tuple(_reported_coordinate_error(value) for value in site.fractional)
+    if max(errors) <= 1e-5:
+        return site, False, 0.0
+    observed = np.asarray([float(value.value) for value in site.fractional])
+    stabilizer = []
+    identity = np.eye(3)
+    for operation in operations:
+        rotation = np.asarray(operation.rotation, dtype=float)
+        transformed = _operation_position(operation, observed)
+        if all(
+            abs(_periodic_delta(transformed[row], observed[row]))
+            <= max(
+                1e-5,
+                math.nextafter(
+                    math.fsum(
+                        abs(rotation[row, column] - identity[row, column])
+                        * errors[column]
+                        for column in range(3)
+                    ),
+                    math.inf,
+                ),
+            )
+            for row in range(3)
+        ):
+            stabilizer.append(operation)
+    if len(stabilizer) <= 1:
+        return site, False, 0.0
+
+    rows: list[np.ndarray] = []
+    targets: list[float] = []
+    for operation in stabilizer:
+        rotation = np.asarray(operation.rotation, dtype=float)
+        translation = np.asarray(operation.translation, dtype=float)
+        lattice = np.rint(rotation @ observed + translation - observed)
+        for row, target in zip(
+            rotation - identity,
+            lattice - translation,
+            strict=True,
+        ):
+            if not np.allclose(row, 0.0, rtol=0.0, atol=1e-15):
+                rows.append(row)
+                targets.append(float(target))
+    if not rows:
+        return site, False, 0.0
+    constraints = np.stack(rows)
+    target_vector = np.asarray(targets)
+    residual = constraints @ observed - target_vector
+    correction = constraints.T @ np.linalg.pinv(
+        constraints @ constraints.T
+    ) @ residual
+    normalized = observed - correction
+    if float(np.max(np.abs(constraints @ normalized - target_vector))) > 1e-10:
+        return site, False, 0.0
+    adjustment = float(np.max(np.abs(normalized - observed)))
+    if any(
+        abs(float(after - before)) > max(1e-5, error)
+        for after, before, error in zip(normalized, observed, errors, strict=True)
+    ):
+        return site, False, 0.0
+    fractional = tuple(
+        value
+        if math.isclose(float(value.value), float(coordinate), abs_tol=1e-15)
+        else replace(value, value=float(coordinate), raw=None)
+        for value, coordinate in zip(site.fractional, normalized, strict=True)
+    )
+    return replace(site, fractional=fractional), adjustment > 1e-15, adjustment
+
+
+def _site_stabilizer(
+    site: IndependentSite,
+    operations: tuple[AffineOperation, ...],
+) -> tuple[AffineOperation, ...]:
+    coordinates = np.asarray([float(value.value) for value in site.fractional])
+    return tuple(
+        operation
+        for operation in operations
+        if max(
+            abs(_periodic_delta(value, reference))
+            for value, reference in zip(
+                _operation_position(operation, coordinates),
+                coordinates,
+                strict=True,
+            )
+        )
+        <= 1e-5
+    )
+
+
 def _attach_anisotropic_displacements(
     block: CifBlock,
     sites: tuple[IndependentSite, ...],
@@ -802,6 +926,36 @@ def map_cif_structures(
         block_failed = False
         for site in sites:
             try:
+                site, coordinates_changed, coordinate_adjustment = (
+                    _normalize_special_position(site, symmetry.operations)
+                )
+                if coordinates_changed:
+                    diagnostics.append(
+                        Diagnostic(
+                            Severity.WARNING,
+                            "cif.map.special_position_symmetrized",
+                            f"{site.label}: fractional coordinates were projected "
+                            f"onto the space-group site symmetry "
+                            f"(maximum adjustment {coordinate_adjustment:.8g}).",
+                        )
+                    )
+                stabilizer = _site_stabilizer(site, symmetry.operations)
+                symmetrized = symmetrize_displacement(
+                    site.displacement,
+                    stabilizer,
+                )
+                if symmetrized.changed:
+                    site = replace(site, displacement=symmetrized.displacement)
+                    diagnostics.append(
+                        Diagnostic(
+                            Severity.WARNING,
+                            "cif.map.adp_symmetrized",
+                            f"{site.label}: anisotropic displacement was projected "
+                            f"onto the site symmetry within its reported uncertainty "
+                            f"(maximum adjustment {symmetrized.max_adjustment:.8g} "
+                            "angstrom^2).",
+                        )
+                    )
                 if catalog_setting is None:
                     expanded = expand_orbit(
                         site,
