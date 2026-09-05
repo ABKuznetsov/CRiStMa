@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import math
 from pathlib import Path
 import re
@@ -344,9 +345,18 @@ def map_shelx_structures(
         provenance="reported",
         hm_symbol=hm_symbol,
     )
+    mapped_sites: list[IndependentSite] = []
     for site in sites:
         try:
-            expand_orbit(site, operations, cell=cell, structure_id=structure_id)
+            expanded = expand_orbit(
+                site,
+                operations,
+                cell=cell,
+                structure_id=structure_id,
+            )
+            mapped_sites.append(
+                replace(site, calculated_multiplicity=len(expanded))
+            )
         except (SymmetryConsistencyError, ValueError) as error:
             diagnostics.append(
                 Diagnostic(
@@ -361,7 +371,7 @@ def map_shelx_structures(
     crystal = CrystalStructure(
         name=name,
         cell=cell,
-        sites=tuple(sites),
+        sites=tuple(mapped_sites),
         id=structure_id,
         space_group=space_group,
         provenance=StructureProvenance(

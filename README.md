@@ -43,6 +43,8 @@ desktop applications, and automated data-processing systems.
   environments;
 - analyze composition, oxidation-state evidence, coordination shells, and
   coordination polyhedra;
+- return an explicit crystal-chemistry resolution status and stable
+  symmetry-equivalent contact orbits for downstream applications;
 - assemble structural units and classify periodic blocks as finite units,
   chains, layers, or frameworks;
 - find translation-aware finite rings in periodic structural
@@ -184,7 +186,10 @@ does not calculate intensities or powder profiles.
 ## Beta status
 
 `0.1.0b1` was the first public beta. `0.1.0b2` adds the first diffraction
-milestone. The implemented scientific core is covered by automated tests and
+milestone, explicit crystal-chemistry result statuses, and stable
+symmetry-equivalent contact orbits. It also improves handling of rounded CIF
+special positions and preserves calculated multiplicities when reading SHELX
+structures. The implemented scientific core is covered by automated tests and
 is ready for evaluation and integration. Until the first stable release,
 public APIs may still change when required to correct or clarify scientific
 contracts.

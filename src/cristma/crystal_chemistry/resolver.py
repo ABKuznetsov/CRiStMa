@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import math
 import statistics
 from types import MappingProxyType
@@ -26,6 +26,7 @@ from .contacts import (
     ShellAlternative,
     ResolvedContact,
 )
+from .contact_orbits import aggregate_resolution_status, build_contact_orbits
 from .policy import ShellResolutionPolicy
 
 
@@ -366,6 +367,107 @@ def _make_resolved_contact(
     )
 
 
+def _coalesce_resolved_contacts(
+    contacts: tuple[ResolvedContact, ...],
+) -> tuple[
+    tuple[ResolvedContact, ...],
+    tuple[Diagnostic, ...],
+    tuple[ResolutionStatus, ...],
+]:
+    """Merge component-scoped interpretations of one physical contact."""
+
+    grouped: dict[str, list[ResolvedContact]] = {}
+    order: list[str] = []
+    for contact in contacts:
+        contact_id = contact.geometric_contact.contact_id
+        if contact_id not in grouped:
+            order.append(contact_id)
+        grouped.setdefault(contact_id, []).append(contact)
+
+    output: list[ResolvedContact] = []
+    diagnostics: list[Diagnostic] = []
+    statuses: list[ResolutionStatus] = []
+    for contact_id in order:
+        rows = grouped[contact_id]
+        first = rows[0]
+        for row in rows[1:]:
+            if (
+                row.geometric_contact != first.geometric_contact
+                or row.interaction_type is not first.interaction_type
+                or row.interaction_layer is not first.interaction_layer
+                or row.grammar_priority is not first.grammar_priority
+            ):
+                raise ValueError(
+                    f"physical contact {contact_id} has incompatible scientific interpretations"
+                )
+
+        interpretations: list[ComponentPairInterpretation] = []
+        for row in rows:
+            for interpretation in row.component_interpretations:
+                if interpretation not in interpretations:
+                    interpretations.append(interpretation)
+        interpretations.sort(
+            key=lambda item: (
+                item.first_species.label,
+                item.second_species.label,
+                item.first_occupancy,
+                item.second_occupancy,
+                item.normalized_distance,
+            )
+        )
+        classifications = {row.contact_classification for row in rows}
+        classification = (
+            first.contact_classification
+            if len(classifications) == 1
+            else ContactClassification.SECONDARY
+        )
+        if len(classifications) != 1:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "crystal_chemistry.contact.classification_ambiguous",
+                    f"Component scopes disagree on classification for {contact_id}",
+                )
+            )
+            statuses.append(ResolutionStatus.AMBIGUOUS)
+        occupancies = tuple(row.neighbor_total_occupancy for row in rows)
+        if not all(
+            math.isclose(value, occupancies[0], abs_tol=1e-12)
+            for value in occupancies[1:]
+        ):
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "crystal_chemistry.contact.occupancy_context_ambiguous",
+                    f"Component scopes disagree on neighbor occupancy for {contact_id}",
+                )
+            )
+            statuses.append(ResolutionStatus.AMBIGUOUS)
+        evidence = tuple(dict.fromkeys(
+            item for row in rows for item in row.evidence
+        ))
+        provenance = tuple(dict.fromkeys(
+            item for row in rows for item in row.provenance
+        )) + (("coalescing_method", "cristma.component_contact_coalescing:1"),)
+        output.append(
+            replace(
+                first,
+                contact_classification=classification,
+                component_interpretations=tuple(interpretations),
+                normalized_distance_min=min(
+                    item.normalized_distance for item in interpretations
+                ),
+                normalized_distance_max=max(
+                    item.normalized_distance for item in interpretations
+                ),
+                neighbor_total_occupancy=max(occupancies),
+                evidence=evidence,
+                provenance=provenance,
+            )
+        )
+    return tuple(output), tuple(dict.fromkeys(diagnostics)), tuple(statuses)
+
+
 @dataclass(frozen=True, slots=True)
 class CoordinationShellResolver:
     policy: ShellResolutionPolicy
@@ -377,6 +479,23 @@ class CoordinationShellResolver:
         grammar: CompositionGrammar,
     ) -> CrystalChemistryResolution:
         view = structure.atomic_view()
+        if not grammar.candidate_interactions:
+            provenance = (
+                ("policy", MappingProxyType(self.policy.get_config())),
+                ("search_cutoff_angstrom", None),
+                ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
+                ("reference_version", grammar.reference_version),
+                ("resolver_method", "cristma.coordination_shell_resolver:2"),
+                ("contact_orbit_method", "cristma.contact_orbits:1"),
+                ("structure_id", structure.id),
+            )
+            return CrystalChemistryResolution(
+                (),
+                (),
+                tuple(grammar.diagnostics),
+                provenance,
+                status=ResolutionStatus.NOT_APPLICABLE,
+            )
         try:
             cutoff = derive_search_cutoff(grammar, self.reference, self.policy)
         except ValueError:
@@ -402,10 +521,17 @@ class CoordinationShellResolver:
                 ("search_cutoff_angstrom", None),
                 ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
                 ("reference_version", grammar.reference_version),
-                ("resolver_method", "cristma.coordination_shell_resolver:1"),
+                ("resolver_method", "cristma.coordination_shell_resolver:2"),
+                ("contact_orbit_method", "cristma.contact_orbits:1"),
                 ("structure_id", structure.id),
             )
-            return CrystalChemistryResolution((), shells, (diagnostic,), provenance)
+            return CrystalChemistryResolution(
+                (),
+                shells,
+                (diagnostic,),
+                provenance,
+                status=ResolutionStatus.INCOMPLETE,
+            )
         graph = NeighborFinder(cutoff=cutoff).find(view)
         geometric = geometric_contacts(view, graph)
         atoms = {atom.id: atom for atom in view.atoms}
@@ -425,13 +551,22 @@ class CoordinationShellResolver:
 
         contacts: list[ResolvedContact] = []
         shells: list[CoordinationShell] = []
+        request_statuses: list[ResolutionStatus] = []
         for request in grammar.candidate_interactions:
             if request.operation not in _SHELL_OPERATIONS:
-                request_contacts, request_diagnostics = self._network_contacts(
-                    geometric, interpreted, atoms, request
+                (
+                    request_contacts,
+                    request_diagnostics,
+                    request_status,
+                ) = self._resolve_network_request(
+                    geometric,
+                    interpreted,
+                    atoms,
+                    request,
                 )
                 contacts.extend(request_contacts)
                 diagnostics.extend(request_diagnostics)
+                request_statuses.append(request_status)
                 continue
             request_shells, request_contacts, request_diagnostics = self._shells_for_request(
                 view, geometric, interpreted, atoms, request
@@ -439,6 +574,36 @@ class CoordinationShellResolver:
             shells.extend(request_shells)
             contacts.extend(request_contacts)
             diagnostics.extend(request_diagnostics)
+            request_statuses.extend(item.status for item in request_shells)
+
+        coalesced, coalescing_diagnostics, coalescing_statuses = _coalesce_resolved_contacts(
+            tuple(contacts)
+        )
+        diagnostics.extend(coalescing_diagnostics)
+        request_statuses.extend(coalescing_statuses)
+        orbit_result = build_contact_orbits(
+            view,
+            coalesced,
+            structure.space_group.operations,
+            1e-5,
+        )
+        contacts = list(orbit_result.contacts)
+        diagnostics.extend(orbit_result.diagnostics)
+        if not orbit_result.complete:
+            request_statuses.append(ResolutionStatus.INCOMPLETE)
+        contacts_by_id = {
+            item.geometric_contact.contact_id: item for item in contacts
+        }
+        shells = [
+            replace(
+                shell,
+                contacts=tuple(
+                    contacts_by_id[item.geometric_contact.contact_id]
+                    for item in shell.contacts
+                ),
+            )
+            for shell in shells
+        ]
 
         maximum_rho = max(
             (
@@ -454,11 +619,21 @@ class CoordinationShellResolver:
             ("maximum_observed_rho", maximum_rho),
             ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
             ("reference_version", grammar.reference_version),
-            ("resolver_method", "cristma.coordination_shell_resolver:1"),
+            ("resolver_method", "cristma.coordination_shell_resolver:2"),
+            ("contact_orbit_method", "cristma.contact_orbits:1"),
             ("structure_id", structure.id),
         )
+        status = aggregate_resolution_status(
+            tuple(request_statuses),
+            applicable=bool(grammar.candidate_interactions),
+        )
         return CrystalChemistryResolution(
-            tuple(contacts), tuple(shells), tuple(diagnostics), provenance
+            tuple(contacts),
+            tuple(shells),
+            tuple(dict.fromkeys(diagnostics)),
+            provenance,
+            status=status,
+            contact_orbits=orbit_result.contact_orbits,
         )
 
     def _matching_records(
@@ -475,7 +650,13 @@ class CoordinationShellResolver:
             and item.ligand_elements == request.ligand_elements
         )
 
-    def _network_contacts(self, geometric, interpreted, atoms, request):
+    def _resolve_network_request(self, geometric, interpreted, atoms, request):
+        request_scope = InteractionScope.from_request(request)
+        incomplete_outcomes = tuple(
+            outcome
+            for outcome in interpreted.values()
+            if request_scope in outcome.incomplete_scopes
+        )
         scoped_rows = {}
         for contact in geometric:
             records = self._matching_records(interpreted[contact.contact_id], request)
@@ -494,10 +675,21 @@ class CoordinationShellResolver:
                     (rho, contact, records, occupancy)
                 )
         if not scoped_rows:
-            return (), ()
+            diagnostics = tuple(dict.fromkeys(
+                diagnostic
+                for outcome in incomplete_outcomes
+                for diagnostic in outcome.diagnostics
+            ))
+            status = (
+                ResolutionStatus.INCOMPLETE
+                if incomplete_outcomes
+                else ResolutionStatus.NOT_APPLICABLE
+            )
+            return (), diagnostics, status
 
         results = []
         diagnostics = []
+        statuses = []
         for site_pair in sorted(scoped_rows):
             rows = scoped_rows[site_pair]
             decision = _resolve_rho_values(
@@ -505,6 +697,7 @@ class CoordinationShellResolver:
                 self.policy,
             )
             diagnostics.extend(decision.diagnostics)
+            statuses.append(decision.status)
             ordered = sorted(rows, key=lambda row: (row[0], row[1].contact_id))
             primary_count = (
                 decision.selected.geometric_CN
@@ -526,7 +719,26 @@ class CoordinationShellResolver:
                 for index, (_rho, contact, records, occupancy) in enumerate(ordered)
                 if _rho <= self.policy.candidate_rho_max
             )
-        return tuple(results), tuple(diagnostics)
+        if incomplete_outcomes:
+            statuses.append(ResolutionStatus.INCOMPLETE)
+            diagnostics.extend(
+                diagnostic
+                for outcome in incomplete_outcomes
+                for diagnostic in outcome.diagnostics
+            )
+        return (
+            tuple(results),
+            tuple(dict.fromkeys(diagnostics)),
+            aggregate_resolution_status(tuple(statuses), applicable=True),
+        )
+
+    def _network_contacts(self, geometric, interpreted, atoms, request):
+        """Compatibility wrapper for the earlier private two-value helper."""
+
+        contacts, diagnostics, _ = self._resolve_network_request(
+            geometric, interpreted, atoms, request
+        )
+        return contacts, diagnostics
 
     def _shells_for_request(self, view, geometric, interpreted, atoms, request):
         orbit_rows: dict[str, list[tuple[object, list[tuple[float, GeometricContact, tuple[ComponentPairInterpretation, ...], float]]]]] = {}

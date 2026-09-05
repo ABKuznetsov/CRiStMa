@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 import math
 
@@ -105,6 +105,7 @@ class ResolvedContact:
     neighbor_total_occupancy: float
     evidence: tuple[SecondaryEvidence, ...]
     provenance: tuple[tuple[str, object], ...]
+    contact_orbit_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.component_interpretations:
@@ -124,6 +125,34 @@ class ResolvedContact:
             raise ValueError("component interpretations must share the grammar priority")
         if not math.isfinite(self.neighbor_total_occupancy) or not 0 <= self.neighbor_total_occupancy <= 1:
             raise ValueError("neighbor total occupancy must lie between zero and one")
+        if not self.contact_orbit_id:
+            object.__setattr__(
+                self,
+                "contact_orbit_id",
+                f"contact-orbit:singleton:{self.geometric_contact.contact_id}",
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedContactOrbit:
+    """One symmetry-equivalent family of resolved periodic contacts."""
+
+    contact_orbit_id: str
+    representative_contact_id: str
+    contacts: tuple[ResolvedContact, ...]
+
+    def __post_init__(self) -> None:
+        if not self.contact_orbit_id or not self.representative_contact_id:
+            raise ValueError("contact orbit and representative IDs must not be empty")
+        if not self.contacts:
+            raise ValueError("resolved contact orbit must not be empty")
+        contact_ids = tuple(item.geometric_contact.contact_id for item in self.contacts)
+        if len(set(contact_ids)) != len(contact_ids):
+            raise ValueError("contact orbit members must have unique contact IDs")
+        if self.representative_contact_id != contact_ids[0]:
+            raise ValueError("representative contact must be the first orbit member")
+        if any(item.contact_orbit_id != self.contact_orbit_id for item in self.contacts):
+            raise ValueError("contact orbit member has a different orbit ID")
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +205,46 @@ class CrystalChemistryResolution:
     coordination_shells: tuple[CoordinationShell, ...]
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
+    status: ResolutionStatus = field(
+        default=ResolutionStatus.NOT_APPLICABLE,
+        kw_only=True,
+    )
+    contact_orbits: tuple[ResolvedContactOrbit, ...] = field(
+        default=(),
+        kw_only=True,
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, ResolutionStatus):
+            raise TypeError("crystal-chemistry resolution status must be ResolutionStatus")
+        if self.status is ResolutionStatus.NOT_APPLICABLE and (
+            self.contacts or self.coordination_shells
+        ):
+            shell_statuses = {item.status for item in self.coordination_shells}
+            derived = (
+                ResolutionStatus.INCOMPLETE
+                if ResolutionStatus.INCOMPLETE in shell_statuses
+                else ResolutionStatus.AMBIGUOUS
+                if ResolutionStatus.AMBIGUOUS in shell_statuses
+                else ResolutionStatus.RESOLVED
+            )
+            object.__setattr__(self, "status", derived)
+        if not self.contact_orbits:
+            return
+        orbit_ids = tuple(item.contact_orbit_id for item in self.contact_orbits)
+        if len(set(orbit_ids)) != len(orbit_ids):
+            raise ValueError(
+                "contact orbit IDs must be unique and every contact must belong "
+                "to exactly one orbit"
+            )
+        expected = tuple(item.geometric_contact.contact_id for item in self.contacts)
+        observed = tuple(
+            item.geometric_contact.contact_id
+            for orbit in self.contact_orbits
+            for item in orbit.contacts
+        )
+        if len(observed) != len(set(observed)) or set(observed) != set(expected):
+            raise ValueError("every resolved contact must belong to exactly one orbit")
 
     @property
     def diagnostic_codes(self) -> tuple[str, ...]:
@@ -190,6 +259,7 @@ __all__ = [
     "EvidenceStatus",
     "ResolutionStatus",
     "ResolvedContact",
+    "ResolvedContactOrbit",
     "SecondaryEvidence",
     "ShellAlternative",
 ]

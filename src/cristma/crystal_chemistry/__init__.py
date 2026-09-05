@@ -8,6 +8,7 @@ from .contacts import (
     EvidenceStatus,
     ResolutionStatus,
     ResolvedContact,
+    ResolvedContactOrbit,
     SecondaryEvidence,
     ShellAlternative,
 )
@@ -69,6 +70,7 @@ __all__ = [
     "EvidenceStatus",
     "ResolutionStatus",
     "ResolvedContact",
+    "ResolvedContactOrbit",
     "PolyhedronBuildResult",
     "PolyhedronBuilder",
     "SecondaryEvidence",
