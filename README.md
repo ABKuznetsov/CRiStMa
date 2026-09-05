@@ -5,10 +5,10 @@
 A compact, physics-first Python library for crystallography, crystal chemistry,
 and periodic structure analysis.
 
-> **Status:** public beta `0.1.0b1`<br>
-> **Compatibility:** Python 3.11+<br>
-> **Runtime dependency:** NumPy<br>
-> **License:** BSD-3-Clause
+[![Python](https://img.shields.io/badge/Python-3.11%2B-1479b8)](https://www.python.org/)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-777777)
+[![License](https://img.shields.io/badge/License-BSD--3--Clause-55a630)](https://github.com/ABKuznetsov/CrIStMa/blob/main/LICENSE)
+[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/releases/0.1.0b1.md)
 
 ## Overview
 
