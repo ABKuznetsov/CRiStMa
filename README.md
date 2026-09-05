@@ -8,7 +8,7 @@ and periodic structure analysis.
 [![Python](https://img.shields.io/badge/Python-3.11%2B-1479b8)](https://www.python.org/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-777777)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-55a630)](https://github.com/ABKuznetsov/CrIStMa/blob/main/LICENSE)
-[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/tree/v0.1.0b1)
+[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://pypi.org/project/cristma/)
 
 ## Overview
 
@@ -37,6 +37,8 @@ desktop applications, and automated data-processing systems.
 - expand crystallographic sites using exact symmetry operations;
 - use a bundled catalog of all 530 Hall settings and their Wyckoff positions;
 - build symmetry orbits and assign Wyckoff positions;
+- generate reciprocal reflections down to a physical `d_min`, including exact
+  systematic absences, crystallographic multiplicity, and Friedel relations;
 - calculate finite and periodic neighbour graphs and coordination
   environments;
 - analyze composition, oxidation-state evidence, coordination shells, and
@@ -59,7 +61,7 @@ CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml / PDB / XYZ / extXYZ
              CrystalStructure | MolecularStructure
                                 |
                                 v
-        symmetry / geometry / chemistry / periodic topology
+ symmetry / geometry / chemistry / periodic topology / reciprocal reflections
 ```
 
 The canonical structure is the source of truth for calculations. Parsed
@@ -74,7 +76,7 @@ interaction.
 
 CrIStMa requires Python 3.11 or newer.
 
-After the public beta is published on PyPI:
+Install the public beta from PyPI:
 
 ```bash
 python -m pip install --pre cristma
@@ -140,6 +142,31 @@ model = cristma.read("molecule.pdb").structures[0]
 CrIStMa implements these readers natively. Gemmi, pymatgen, PyXtal, CrysPy,
 GSAS-II, SHELX, and graphical frameworks are not required at runtime.
 
+## Reflection generation
+
+The first diffraction layer generates complete reciprocal-space reflection
+orbits without requiring an atomic structure. It accepts an explicit unit cell,
+one unambiguous catalog `SpaceGroupSetting`, and a resolution limit:
+
+```python
+from cristma.crystallography import SpaceGroupCatalog
+from cristma.diffraction import ReflectionGenerator
+
+setting = SpaceGroupCatalog.default().by_setting(523)
+reflection_set = ReflectionGenerator().generate(
+    cell=crystal.cell,
+    space_group=setting,
+    d_min=0.8,
+)
+
+allowed = reflection_set.allowed
+absent = reflection_set.systematically_absent
+```
+
+Systematic absences are derived from exact symmetry-operation phases, not from
+group-name heuristics or expected-reflection tables. This layer deliberately
+does not calculate intensities or powder profiles.
+
 ## Design principles
 
 - **Physics before interface.** Scientific meaning is not determined by a GUI
@@ -156,26 +183,27 @@ GSAS-II, SHELX, and graphical frameworks are not required at runtime.
 
 ## Beta status
 
-`0.1.0b1` is the first public beta. The implemented scientific core is covered
-by automated tests and is ready for evaluation and integration. Until the
-first stable release, public APIs may still change when required to correct or
-clarify scientific contracts.
+`0.1.0b1` was the first public beta. `0.1.0b2` adds the first diffraction
+milestone. The implemented scientific core is covered by automated tests and
+is ready for evaluation and integration. Until the first stable release,
+public APIs may still change when required to correct or clarify scientific
+contracts.
 
-The current beta covers structural I/O, canonical structure models, symmetry,
-periodic geometry, crystal chemistry, structural representations, periodic
-block classification, and ring analysis. It does not yet calculate diffraction
-patterns or perform structure refinement.
+The current development version adds reciprocal metrics, bounded reflection
+generation, exact systematic absences, reciprocal symmetry orbits,
+crystallographic multiplicity, and Friedel relations to the published beta's
+structural I/O, symmetry, geometry, crystal chemistry, and topology layers. It
+does not yet calculate reflection intensities, diffraction profiles, or
+structure refinement.
 
 ## Roadmap
 
 Planned scientific layers are developed as independent milestones:
 
-1. reciprocal metrics, reflection generation, systematic absences, reciprocal
-   symmetry orbits, multiplicity, and Friedel relations;
-2. scattering contexts and structure-factor calculations;
-3. radiation-aware powder lines and physical corrections;
-4. calculated diffraction profiles on explicit grids;
-5. additional structural transforms, hierarchy and topology tools, and
+1. scattering contexts and structure-factor calculations;
+2. radiation-aware powder lines and physical corrections;
+3. calculated diffraction profiles on explicit grids;
+4. additional structural transforms, hierarchy and topology tools, and
    refinement built over the same forward calculations.
 
 The roadmap describes direction, not a compatibility or release-date promise.
