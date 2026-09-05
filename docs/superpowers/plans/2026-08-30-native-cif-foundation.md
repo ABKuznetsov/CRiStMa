@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build an installable, Qt-free CRiStMa package that parses and writes CIF 1.1 natively, preserves source information, and maps structural blocks to an asymmetric-unit `Crystal` model with exact symmetry provenance.
+**Goal:** Build an installable, Qt-free CrIStMa package that parses and writes CIF 1.1 natively, preserves source information, and maps structural blocks to an asymmetric-unit `Crystal` model with exact symmetry provenance.
 
-**Architecture:** Parsing is split from scientific interpretation: source text becomes a loss-preserving `CifDocument`, then a mapper creates canonical CRiStMa objects. Exact affine symmetry operations use rational coefficients, while numerical cell and coordinate operations use NumPy. Preserve-mode writing edits source spans; canonical writing emits a normalized CIF from `Crystal`.
+**Architecture:** Parsing is split from scientific interpretation: source text becomes a loss-preserving `CifDocument`, then a mapper creates canonical CrIStMa objects. Exact affine symmetry operations use rational coefficients, while numerical cell and coordinate operations use NumPy. Preserve-mode writing edits source spans; canonical writing emits a normalized CIF from `Crystal`.
 
 **Tech Stack:** Python 3.11+, NumPy, pytest, standard-library dataclasses/enums/fractions/pathlib/decimal; no mandatory Gemmi, pymatgen, PyXtal, CrysPy, GSAS-II, or Qt.
 
@@ -935,7 +935,7 @@ Add concise examples showing `read`, diagnostic inspection, asymmetric sites, pr
 
 Run: `pytest -q tests/core tests/symmetry tests/io`
 
-Expected: all CRiStMa slice tests PASS.
+Expected: all CrIStMa slice tests PASS.
 
 - [ ] **Step 7: Verify package installation and imports in a clean environment**
 

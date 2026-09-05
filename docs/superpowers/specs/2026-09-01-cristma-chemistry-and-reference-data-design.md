@@ -1,12 +1,12 @@
-# CRiStMa Chemistry and Reference Data Core Design
+# CrIStMa Chemistry and Reference Data Core Design
 
 **Date:** 2026-09-01  
 **Status:** approved  
-**Scope:** the first reusable Chemistry and Reference Data slice for CRiStMa
+**Scope:** the first reusable Chemistry and Reference Data slice for CrIStMa
 
-## 1. Position in CRiStMa
+## 1. Position in CrIStMa
 
-CRiStMa is organized into seven independent scientific areas:
+CrIStMa is organized into seven independent scientific areas:
 
 ```text
 1. I/O
@@ -129,7 +129,7 @@ family = reference.chemical.families["inorganic.oxide"]
 
 `ReferenceData` is a small immutable bundle of these three catalogs, not a
 general data platform. An analyzer may receive another compatible bundle for
-tests or a later curated release. CRiStMa ships the tested default inside its
+tests or a later curated release. CrIStMa ships the tested default inside its
 wheel and performs no network access at runtime.
 
 ### 4.2 Element records
@@ -165,7 +165,7 @@ must reject missing family IDs, cyclic inheritance, invalid profile routes,
 unknown grammar selectors or operations, malformed boundary cases, and an
 unsupported schema version.
 
-JSON remains inert data. CRiStMa never evaluates arbitrary predicates or code
+JSON remains inert data. CrIStMa never evaluates arbitrary predicates or code
 stored in a reference resource.
 
 ## 5. Chemistry data model
@@ -196,7 +196,7 @@ Composition
 ```
 
 Amounts must be positive and finite. Element symbols are normalized through
-CRiStMa's own element catalog. Composition contains no coordinates or site
+CrIStMa's own element catalog. Composition contains no coordinates or site
 identity.
 
 `Composition.from_structure(structure)` is a one-way convenience adapter over
@@ -393,13 +393,13 @@ supplies migration material:
 chemical_reference.py      -> cristma.reference_data
 chemical_classification.py -> cristma.chemistry.classification/evidence
 composition_grammar.py     -> cristma.chemistry.grammar
-scientific tests           -> CRiStMa tests
+scientific tests           -> CrIStMa tests
 ```
 
 Migration is not a blind copy:
 
-- replace `pymatgen.core.Element` with CRiStMa element/reference contracts;
-- use CRiStMa `Diagnostic` and provenance types;
+- replace `pymatgen.core.Element` with CrIStMa element/reference contracts;
+- use CrIStMa `Diagnostic` and provenance types;
 - separate immutable data loading from algorithms;
 - remove Viewer types and application paths;
 - retain grey-zone, transfer, integrity, and boundary-case tests;
@@ -411,7 +411,7 @@ resolver, hierarchy, cache, and Stage B modules are explicitly not copied into
 this slice. They remain evidence for later Crystallography and Crystal
 Chemistry designs.
 
-After CRiStMa tests the extracted implementation, CRAFT imports it and deletes
+After CrIStMa tests the extracted implementation, CRAFT imports it and deletes
 its duplicate Stage A implementation. CRAFT continues to own display colors,
 UI state, caching, and workflow.
 

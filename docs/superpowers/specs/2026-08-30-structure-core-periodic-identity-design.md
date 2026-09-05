@@ -39,7 +39,7 @@ CoordinationEnvironment
 ```
 
 This is an internal development milestone, not the public `0.1.0` release.
-CRiStMa remains a development package until its API has been exercised by at
+CrIStMa remains a development package until its API has been exercised by at
 least Viewer and Finder on real data. The first public release is prepared only
 after those integrations and a public-API stabilization pass.
 
@@ -365,7 +365,7 @@ document are the stable design requirements.
 
 ## 9. Diagnostics and failure behavior
 
-Invalid CRiStMa object construction and programmer errors raise exceptions.
+Invalid CrIStMa object construction and programmer errors raise exceptions.
 Invalid source data encountered while producing objects is represented by
 structured reader diagnostics; the mapper never constructs an object that
 violates its invariants. Recoverable scientific conditions encountered during

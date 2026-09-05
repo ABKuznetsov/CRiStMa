@@ -6,15 +6,15 @@ Status: proposed for implementation
 
 ## 1. Purpose
 
-CRiStMa will provide a native, Qt-free SHELX RES/INS subsystem that reads,
+CrIStMa will provide a native, Qt-free SHELX RES/INS subsystem that reads,
 preserves, interprets, and writes structural documents without Gemmi,
-pymatgen, SHELX, or application code. CRiStMa is an independent toolbox of
+pymatgen, SHELX, or application code. CrIStMa is an independent toolbox of
 reusable crystallographic data types, readers, writers, transformations, and
 calculators. It does not own application workflows or interpretations.
 
 CRAFT will not own a reader switch for CIF, SHELX, VASP, PDB, XYZ, or future
 structure formats. Every structure source goes through one auto-detecting
-`cristma.read(path)` boundary and becomes a canonical CRiStMa
+`cristma.read(path)` boundary and becomes a canonical CrIStMa
 `CrystalStructure` or `MolecularStructure`. CRAFT then projects that canonical
 object into its temporary presentation model and owns display and
 cross-structure comparison. XPFF remains application-owned because it is a
@@ -42,10 +42,10 @@ This slice includes:
 - the format-neutral CRAFT structure-input boundary;
 - analytic, malformed, round-trip, and real-file verification.
 
-The CRAFT switch is completed only after native CRiStMa readers cover every
+The CRAFT switch is completed only after native CrIStMa readers cover every
 structure format currently advertised by CRAFT: CIF/mmCIF, RES/INS,
 POSCAR/CONTCAR/VASP, PDB, and XYZ. Their reader implementations remain separate
-CRiStMa sub-projects from the structure-reader roadmap. This slice does not yet
+CrIStMa sub-projects from the structure-reader roadmap. This slice does not yet
 implement reusable polyhedron, block, or topology tools. Cross-structure
 comparison and comparison-table logic remain application responsibilities of
 CRAFT.
@@ -65,11 +65,11 @@ CrystalStructure / MolecularStructure
         |
         +----> temporary CRAFT adapter -> viewer presentation model
         |
-        `----> independent CRiStMa geometry/hierarchy tools
+        `----> independent CrIStMa geometry/hierarchy tools
 ```
 
-CRiStMa does not import CRAFT, Sci, Qt, Gemmi, pymatgen, or SHELX. CRAFT
-depends directly on CRiStMa. Sci may install compatible packages but does not
+CrIStMa does not import CRAFT, Sci, Qt, Gemmi, pymatgen, or SHELX. CRAFT
+depends directly on CrIStMa. Sci may install compatible packages but does not
 participate in application logic.
 
 The canonical internal-model invariant is:
@@ -81,15 +81,15 @@ CIF / RES / INS / POSCAR / PDB / XYZ
 ```
 
 Adding another structural format means adding one independent reader,
-descriptor, and mapper to CRiStMa. It must not require a new parser, suffix
+descriptor, and mapper to CrIStMa. It must not require a new parser, suffix
 branch, or scientific model in CRAFT or another consuming application.
 
 The boundary is governed by two mandatory rules:
 
-> **Applications own project formats; CRiStMa owns structural formats.**
+> **Applications own project formats; CrIStMa owns structural formats.**
 
 > **No application-specific structural parser, mapper, writer, or format
-> registry is permitted outside CRiStMa.**
+> registry is permitted outside CrIStMa.**
 
 An application may unpack its own project container, but every embedded
 structural payload crosses the same boundary:
@@ -113,7 +113,7 @@ affect symmetry, geometry, crystal chemistry, diffraction, hierarchy, topology,
 or refinement mathematics. Derived views/results never replace the canonical
 structure as the source of truth.
 
-CRiStMa tools receive canonical objects and explicit derived inputs as
+CrIStMa tools receive canonical objects and explicit derived inputs as
 arguments and return explicit results. They do not retain a current structure,
 last result, application cache, or workflow session. Applications own result
 reuse and invalidation; for example CRAFT may retain one calculated neighbor
@@ -121,7 +121,7 @@ graph and pass it to coordination and polyhedron tools.
 
 The ownership contract is:
 
-| CRiStMa provides | CRAFT owns |
+| CrIStMa provides | CRAFT owns |
 | --- | --- |
 | structure and derived scientific entities | windows, panels, tables, and 3D actors |
 | parsing, normalization, and validation | file-selection and interaction workflow |
@@ -130,14 +130,14 @@ The ownership contract is:
 | scientific diagnostics and provenance | interpretation and presentation of results |
 
 This table separates ownership, not access. CRAFT, Finder, Rietveld Manager,
-and future consumers may use any public CRiStMa geometry, chemistry, hierarchy,
-topology, diffraction, refinement, transform, analysis, or I/O tool. CRiStMa
+and future consumers may use any public CrIStMa geometry, chemistry, hierarchy,
+topology, diffraction, refinement, transform, analysis, or I/O tool. CrIStMa
 does not maintain per-application capability sets.
 
-CRiStMa tools are independent and do not know which application calls them or
+CrIStMa tools are independent and do not know which application calls them or
 why. CRAFT composes the tools needed for its own workflow. It must not develop a
 second implementation of a reusable structural operation already supplied by
-CRiStMa, but it retains application-specific comparison, mechanics narrative,
+CrIStMa, but it retains application-specific comparison, mechanics narrative,
 UI state, and workflow logic.
 
 ## 4. Document model
@@ -251,7 +251,7 @@ interpreted in the reported order:
 U11 U22 U33 U23 U13 U12
 ```
 
-and mapped to the symmetric CRiStMa tensor. Symmetry expansion continues to
+and mapped to the symmetric CrIStMa tensor. Symmetry expansion continues to
 transform anisotropic tensors through the existing Structure Core rules.
 
 `PART` and `RESI` establish explicit context for following atom records. The
@@ -263,7 +263,7 @@ body.
 
 The parser recognizes and preserves `AFIX`, `HFIX`, `EXYZ`, `EADP`, `DFIX`,
 `DANG`, `SADI`, `SAME`, `FLAT`, `RIGU`, `SIMU`, `DELU`, weighting commands,
-`REM`, and unknown commands. They are not converted to canonical CRiStMa
+`REM`, and unknown commands. They are not converted to canonical CrIStMa
 constraints until a separately specified constraint layer can represent their
 semantics without loss.
 
@@ -345,13 +345,13 @@ CRAFT uses one structure reader call:
 CIF / RES / INS / POSCAR / PDB / XYZ / future registered format
    -> cristma.read(path)
    -> canonical CrystalStructure / MolecularStructure
-   -> temporary CRiStMa-to-CRAFT compatibility projection
+   -> temporary CrIStMa-to-CRAFT compatibility projection
    -> viewer presentation and currently unmigrated calculations
 ```
 
-CRAFT does not pass `format="cif"` or `format="shelx"`; the CRiStMa registry
+CRAFT does not pass `format="cif"` or `format="shelx"`; the CrIStMa registry
 selects by content, suffix, or basename. CRAFT obtains supported extensions and
-basenames from CRiStMa rather than maintaining a second format matrix. Its only
+basenames from CrIStMa rather than maintaining a second format matrix. Its only
 separate file route is XPFF project loading. If XPFF contains embedded CIF or
 another structure source, CRAFT locates and extracts that payload but delegates
 its parsing and mapping to `cristma.read_text`.
@@ -362,18 +362,18 @@ equivalent real-file tests pass. No SHELX writer, editor, export command, or new
 UI is added to CRAFT.
 
 Source diagnostics appear through the existing CRAFT document-warning path.
-The canonical CRiStMa structure and `ShelxDocument` provenance remain available
+The canonical CrIStMa structure and `ShelxDocument` provenance remain available
 to future applications even though the current CRAFT compatibility model uses
 only the fields required for display and analysis.
 
 Existing CRAFT readers and reusable single-structure algorithms are migration
-sources for independent CRiStMa tools. CRAFT keeps its application-specific
+sources for independent CrIStMa tools. CRAFT keeps its application-specific
 comparison and mechanics workflows, including the decisions about which
 structures and derived entities to compare and how to explain the result.
 
 ## 9. Verification
 
-Focused CRiStMa tests cover:
+Focused CrIStMa tests cover:
 
 - physical lines, continuations, comments, blank lines, and unknown records;
 - valid and malformed core instructions;
@@ -389,35 +389,35 @@ Focused CRiStMa tests cover:
 
 Focused CRAFT tests prove:
 
-- every advertised structure format uses the same auto-detecting CRiStMa call;
+- every advertised structure format uses the same auto-detecting CrIStMa call;
 - CRAFT contains no format-specific structure parser or format dispatch;
 - the real `zdk288.res` renders and enters progressive analysis;
 - Q peaks are not displayed as atoms;
 - molecular structures receive only an application display projection and are
-  not converted into fake crystals inside CRiStMa;
+  not converted into fake crystals inside CrIStMa;
 - XPFF remains an explicit application-project route.
 
-The full CRiStMa suite and built-wheel audit run at the library completion gate.
+The full CrIStMa suite and built-wheel audit run at the library completion gate.
 The full CRAFT suite runs once after its read-only integration.
 
 ## 10. Acceptance criteria
 
 The slice is complete when:
 
-- CRiStMa reads RES/INS without specialized crystallographic dependencies;
+- CrIStMa reads RES/INS without specialized crystallographic dependencies;
 - the source document survives an unchanged preserve round-trip exactly;
 - a scientifically valid source yields a canonical asymmetric-unit structure;
 - symmetry, occupancy dependencies, disorder, and ADP retain provenance;
-- canonical SHELX output reads back to an equivalent CRiStMa structure;
+- canonical SHELX output reads back to an equivalent CrIStMa structure;
 - the real SHELX fixture reaches coordination analysis;
-- CRAFT opens all advertised structure formats through the same CRiStMa call
+- CRAFT opens all advertised structure formats through the same CrIStMa call
   and displays the resulting canonical structure;
-- no Qt, Sci, or application dependency enters CRiStMa.
+- no Qt, Sci, or application dependency enters CrIStMa.
 
-## 11. Subsequent CRiStMa roadmap
+## 11. Subsequent CrIStMa roadmap
 
 After SHELX and the complete reader branch establish stable canonical inputs,
-reusable single-structure processing is added to CRiStMa in this order:
+reusable single-structure processing is added to CrIStMa in this order:
 
 1. `PolyhedronBuilder` and typed polyhedron results;
 2. structural entities, blocks, connectors, and hierarchy;
@@ -427,6 +427,6 @@ reusable single-structure processing is added to CRiStMa in this order:
 
 CRAFT owns entity matching between different structures, comparison metrics,
 mechanical interpretation across a series, and the comparison table. It uses
-CRiStMa structures and per-structure results as inputs. Another application may
+CrIStMa structures and per-structure results as inputs. Another application may
 compose the same tools differently without importing CRAFT or inheriting its
 comparison semantics.

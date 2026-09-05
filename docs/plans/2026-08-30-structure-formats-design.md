@@ -1,4 +1,4 @@
-# CRiStMa structure formats: design specification
+# CrIStMa structure formats: design specification
 
 Date: 2026-08-30
 
@@ -7,7 +7,7 @@ Status: CIF foundation implemented; remaining reader scope superseded by
 
 ## 1. Purpose
 
-The first CRiStMa vertical slice provides independent reading and writing of
+The first CrIStMa vertical slice provides independent reading and writing of
 standard crystal-structure files without requiring Gemmi, pymatgen, PyXtal,
 CrysPy, GSAS-II, Qt, or application code.
 
@@ -17,11 +17,11 @@ The initial formats are:
 - SHELX instruction and result documents (`.ins`, `.res`).
 
 The slice must preserve the original scientific document, build a canonical
-CRiStMa crystal model, report every ambiguity, and support round-trip writing.
+CrIStMa crystal model, report every ambiguity, and support round-trip writing.
 
 ## 2. Architectural boundaries
 
-CRiStMa is a scientific library. It contains no Qt types, dialogs, application
+CrIStMa is a scientific library. It contains no Qt types, dialogs, application
 state, or GUI-specific behavior.
 
 Common scientific packages such as NumPy and SciPy may be normal dependencies.
@@ -31,9 +31,9 @@ adapters only. Ordinary CIF/RES/INS reading must work when none is installed.
 The dependency direction is:
 
 ```text
-applications -> CRiStMa
-optional adapters -> CRiStMa
-CRiStMa core -X-> applications / Gemmi / pymatgen / PyXtal
+applications -> CrIStMa
+optional adapters -> CrIStMa
+CrIStMa core -X-> applications / Gemmi / pymatgen / PyXtal
 ```
 
 ## 3. Two-level import model
@@ -179,7 +179,7 @@ Two writing modes are required:
 
 - preserve mode: edit known values while retaining unknown source content and
   original ordering as far as possible;
-- canonical mode: emit a normalized CRiStMa CIF from the semantic model.
+- canonical mode: emit a normalized CrIStMa CIF from the semantic model.
 
 CIF 2.0 is a future compatible extension, not part of this first slice.
 
@@ -210,7 +210,7 @@ The document layer also preserves, even before full semantic support:
 - weighting and refinement instructions;
 - `REM` comments and unknown commands.
 
-These retained instructions can later map to CRiStMa constraints for molecular
+These retained instructions can later map to CrIStMa constraints for molecular
 fragments, rigid polyhedra, structural blocks, shared atoms, occupancies, and
 ADPs.
 
@@ -228,7 +228,7 @@ lost.
 
 As with CIF, the writer provides preserve and canonical modes. Preserve mode is
 the default for an imported refinement document; canonical mode is used when a
-new CRiStMa structure is exported to SHELX.
+new CrIStMa structure is exported to SHELX.
 
 ## 8. Reuse from existing applications
 
@@ -248,7 +248,7 @@ Useful Organic behavior includes MOL/SDF and SMILES workflows, but RDKit stays
 optional and those formats are outside the first slice.
 
 No Qt types, app services, pymatgen structures, Gemmi structures, or RDKit
-molecules enter the CRiStMa canonical model.
+molecules enter the CrIStMa canonical model.
 
 ## 9. Error handling and invariants
 

@@ -1,4 +1,4 @@
-# CRiStMa Chemistry Core Implementation Plan
+# CrIStMa Chemistry Core Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,7 +17,7 @@
 - No Qt, pymatgen, CRAFT, or application imports.
 - Ordinary compositions return one actionable primary family; alternatives exist only for explicit curated grey-zone rules.
 - Missing reference values fail explicitly; no guessed radius fallback.
-- Display colors remain outside CRiStMa.
+- Display colors remain outside CrIStMa.
 
 ---
 

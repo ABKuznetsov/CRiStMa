@@ -1,4 +1,4 @@
-# CRiStMa Inorganic Coordination and Polyhedra Design
+# CrIStMa Inorganic Coordination and Polyhedra Design
 
 **Date:** 2026-09-01  
 **Status:** approved design, pre-implementation  
@@ -7,7 +7,7 @@
 ## 1. Purpose
 
 This milestone connects the existing canonical structure, composition grammar,
-periodic neighbour graph, and reference radii without turning CRiStMa into an
+periodic neighbour graph, and reference radii without turning CrIStMa into an
 application workflow.
 
 It answers three reusable scientific questions:
@@ -264,7 +264,7 @@ would create a circular dependency.
 If an oxidation state is known independently, ionic radii may later add
 validation evidence without replacing the primary scale.
 
-CRiStMa packages the Shannon table as versioned `ReferenceData`, retaining
+CrIStMa packages the Shannon table as versioned `ReferenceData`, retaining
 both ionic and crystal radii. Lookup is exact by element, oxidation state,
 coordination label, and spin state; missing values are never inferred. Because
 coordination belongs to the lookup key, Shannon radii are applied only after a
@@ -280,7 +280,7 @@ minimum_distance = minimum_ratio * (r_first + r_second)
 This is secondary evidence only. A short-distance contradiction is reported
 but does not delete the geometric contact or alter the primary shell boundary.
 The threshold is part of the validator configuration and result provenance;
-CRiStMa does not hide a universal hard cutoff in the resolver.
+CrIStMa does not hide a universal hard cutoff in the resolver.
 
 Contacts with mixed ligands are compared in normalized space rather than by raw
 angstrom distances.
@@ -555,7 +555,7 @@ Failure status is preserved: linear and planar resolved shells return
 
 ## 11. Package organization
 
-Only reusable scientific operations enter CRiStMa:
+Only reusable scientific operations enter CrIStMa:
 
 ```text
 src/cristma/
@@ -575,7 +575,7 @@ Internal distance-group and candidate-boundary helpers remain private to the
 resolver until another independent scientific consumer requires them.
 
 CRAFT, Finder, and other applications own result caching, selection, display,
-and workflow. CRiStMa owns the scientific objects and calculations only.
+and workflow. CrIStMa owns the scientific objects and calculations only.
 
 ## 12. Diagnostics and failure semantics
 
@@ -655,7 +655,7 @@ This milestone does not add:
 
 It also adds no runtime dependency beyond the package's existing NumPy
 requirement. Convex-hull construction for the small coordination environments
-is implemented within CRiStMa rather than adding SciPy solely for polyhedra.
+is implemented within CrIStMa rather than adding SciPy solely for polyhedra.
 
 The next milestone may use `CoordinationPolyhedron` and resolved contact graphs
 to build structural units and hierarchy without changing the contracts above.

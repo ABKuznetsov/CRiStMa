@@ -1,231 +1,216 @@
-# CRiStMa
+# CrIStMa
 
-CRiStMa is a physics-first Python library for crystallography, crystal
-chemistry, structure modelling, diffraction, and refinement.
+**Crystallographic Infrastructure for Structures and Materials.**
 
-The library has no GUI dependency. Its native scientific model is independent
-of application frameworks and specialized crystallographic packages.
+A compact, physics-first Python library for crystallography, crystal chemistry,
+and periodic structure analysis.
 
-## Canonical scientific model
+> **Status:** public beta `0.1.0b1`<br>
+> **Compatibility:** Python 3.11+<br>
+> **Runtime dependency:** NumPy<br>
+> **License:** BSD-3-Clause
 
-Every supported external structure format terminates at the CRiStMa I/O boundary:
+## Overview
+
+CrIStMa provides a common scientific foundation for programs that work with
+crystal and molecular structures. It reads widely used structural formats,
+maps them into one canonical model, and offers independent tools for symmetry,
+geometry, crystal chemistry, and periodic topology.
+
+The project exists because scientific logic is often coupled to a particular
+file parser, graphical application, or large external framework. That makes
+calculations difficult to reuse, compare, and audit. CrIStMa keeps these layers
+separate: formats end at the I/O boundary, scientific operations receive
+explicit inputs, and results retain diagnostics and provenance.
+
+CrIStMa is not an end-user application and does not prescribe a workflow. It
+is a reusable scientific library for scripts, notebooks, research software,
+desktop applications, and automated data-processing systems.
+
+## What it can do
+
+- read CIF, SHELX RES/INS, VASP, PDB, XYZ, and extXYZ structures through one
+  content-aware API;
+- preserve source documents where supported or write a normalized structure;
+- represent periodic crystals and non-periodic molecules as distinct physical
+  models;
+- expand crystallographic sites using exact symmetry operations;
+- use a bundled catalog of all 530 Hall settings and their Wyckoff positions;
+- build symmetry orbits and assign Wyckoff positions;
+- calculate finite and periodic neighbour graphs and coordination
+  environments;
+- analyze composition, oxidation-state evidence, coordination shells, and
+  coordination polyhedra;
+- assemble structural units and classify periodic blocks as finite units,
+  chains, layers, or frameworks;
+- find translation-aware finite rings in periodic structural
+  representations;
+- report recoverable problems as structured diagnostics instead of hiding
+  assumptions or silently changing the input.
+
+## Scientific model
+
+All supported formats converge on the same native structures:
 
 ```text
-CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml / XYZ / extXYZ
-        -> native reader and semantic mapper
-        -> CrystalStructure | MolecularStructure
+CIF / RES / INS / POSCAR / XDATCAR / OUTCAR / vasprun.xml / PDB / XYZ / extXYZ
+                                |
+                                v
+             CrystalStructure | MolecularStructure
+                                |
+                                v
+        symmetry / geometry / chemistry / periodic topology
 ```
 
-`CrystalStructure` and `MolecularStructure` are the canonical scientific inputs
-for all structure-based calculations. File-specific documents remain available
-for provenance, diagnostics, and preserve-mode writing, but never determine
-symmetry, geometry, diffraction, topology, or refinement mathematics after
-mapping.
+The canonical structure is the source of truth for calculations. Parsed
+documents remain available for source preservation and provenance, but
+file-specific details do not control downstream scientific semantics.
 
-Derived results such as `AtomicView`, `PeriodicNeighborGraph`, and future
-polyhedron or hierarchy results remain calculations over the canonical
-structure; they do not replace it as the source of truth. Refinement likewise
-applies a parameterization to produce a new canonical structure and evaluates
-that structure with the same calculators used outside refinement.
+Calculated objects are immutable results rather than hidden application state.
+The caller decides calculation order, caching, storage, presentation, and user
+interaction.
 
-Tools are stateless with respect to scientific inputs and results:
+## Installation
 
-```python
-crystal = cristma.read("sample.cif").structures[0]
-view = expand_structure(crystal)
-neighbors = NeighborFinder(cutoff=3.0).find(view)
-coordination = CoordinationAnalyzer().analyze(view, neighbors)
+CrIStMa requires Python 3.11 or newer.
+
+After the public beta is published on PyPI:
+
+```bash
+python -m pip install --pre cristma
 ```
 
-The caller owns `crystal`, derived results, calculation order, and caching.
-CRiStMa has no hidden `current_structure` or `last_result` session state.
+To install the current source checkout:
 
-CRiStMa does not assign modules to applications. Finder, CRAFT, Rietveld, a
-script, or any future consumer may import any public scientific tool it needs.
-Applications choose their workflow; CRiStMa supplies the shared implementation.
-
-## Inorganic crystal chemistry
-
-The current crystal-chemistry slice resolves chemically requested contacts,
-coordination shells, and three-dimensional coordination polyhedra without
-compound-specific branches or expected coordination-number tables:
-
-```python
-from cristma.chemistry import ChemistryAnalyzer, Composition
-from cristma.crystal_chemistry import (
-    CoordinationShellResolver,
-    PolyhedronBuilder,
-    ShellResolutionPolicy,
-)
-
-structure = cristma.read("sample.cif").structures[0]
-chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(structure))
-policy = ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01, 2.00)
-resolution = CoordinationShellResolver(policy).resolve(structure, chemistry.grammar)
-view = structure.atomic_view()
-polyhedra = tuple(
-    PolyhedronBuilder().build(shell, view)
-    for shell in resolution.coordination_shells
-)
+```bash
+git clone https://github.com/ABKuznetsov/CrIStMa.git
+cd CrIStMa
+python -m pip install -e .
 ```
 
-The policy is explicit configuration, not a hidden universal preset. CRAFT can
-retain these immutable results and render them directly; all workflow and UI
-state remain application-owned. Scientific semantics, statuses, provenance,
-radii policy, and current limits are documented in
-[`docs/inorganic-crystal-chemistry.md`](docs/inorganic-crystal-chemistry.md).
+NumPy is the only runtime dependency. Optional development and reference-data
+dependencies are kept outside the scientific runtime.
 
-## Structural crystallography
-
-The packaged crystallographic catalog contains all 530 Hall settings and their
-Wyckoff positions. Calculated symmetry orbits are the source of multiplicity;
-catalog records are used to identify and validate the corresponding Wyckoff
-position.
+## Quick start
 
 ```python
 import cristma
-from cristma.crystallography import (
-    SpaceGroupCatalog,
-    assign_wyckoff,
-    build_orbit,
-)
+from cristma.geometry import CoordinationAnalyzer, NeighborFinder
+from cristma.symmetry import expand_structure
 
-crystal = cristma.read("sample.cif").structures[0]
-setting = SpaceGroupCatalog.default().by_hall("P -4 2ab")
+result = cristma.read("sample.cif")
 
-orbit = build_orbit(crystal.sites[0], setting, cell=crystal.cell)
-assignment = assign_wyckoff(orbit, setting)
-
-print(orbit.multiplicity)
-print(assignment.position.letter if assignment.position else assignment.status)
-```
-
-When a CIF omits symmetry operations but identifies one catalog setting
-unambiguously, the CIF reader derives the operations and records that decision
-as a diagnostic. Explicit source operations remain authoritative and a
-catalog disagreement is reported rather than silently corrected.
-
-The normalized catalog is compiled from pinned spglib 2.7.0 data during
-development. spglib is not a runtime dependency; installed CRiStMa packages
-use their own versioned JSON resources. Source hashes, attribution, and the
-BSD-3-Clause notice are stored beside those resources in
-`cristma/reference_data/resources/crystallography/`.
-
-## Native structure I/O
-
-The current native readers are:
-
-- CIF 1.1 (`.cif`), with preserving and canonical writing;
-- SHELX RES/INS (`.res`, `.ins`), with loss-preserving documents and canonical
-  writing from `CrystalStructure`;
-- VASP POSCAR/CONTCAR, XDATCAR, structural OUTCAR frames, and `vasprun.xml`.
-- plain XYZ and extXYZ, including typed per-atom columns and lazy trajectories.
-
-Other structural formats are added to the same registry as independent native
-readers. Applications should never implement their own suffix switch or parser.
-
-```python
-from pathlib import Path
-
-import cristma
-from cristma.structure import CrystalStructure, StructureCollection, StructureSequence
-
-result = cristma.read("structure.cif")
 for diagnostic in result.diagnostics:
     print(diagnostic.severity.value, diagnostic.code, diagnostic.message)
 
-structures: StructureCollection = result.structures
-if result.ok and structures:
-    # Readers may mark a primary model explicitly; otherwise retain source order.
-    crystal: CrystalStructure = structures.primary or structures[0]
-    # The asymmetric unit is primary; symmetry-expanded sites are derived.
-    print(crystal.cell.volume, [site.label for site in crystal.sites])
+if not result.ok or not result.structures:
+    raise RuntimeError("The structure could not be read")
 
-    # Emit a normalized CIF from the canonical scientific model.
-    cristma.write(crystal, "canonical.cif", mode="canonical")
+crystal = result.structures.primary or result.structures[0]
+view = expand_structure(crystal)
+neighbors = NeighborFinder(cutoff=3.0).find(view)
+coordination = CoordinationAnalyzer().analyze(view, neighbors)
 
-# Parsed documents retain comments, unknown tags, ordering, and numeric text.
-document = cristma.read(Path("structure.cif")).document
-cristma.write(document, "preserved.cif", mode="preserve")
-
-# Text sources use the same content-aware format registry.
-memory_result = cristma.read_text("data_demo\n_cell_length_a 5\n", format="cif")
+print(crystal.cell.volume)
+print(len(view.atoms), len(neighbors.edges))
+print(len(coordination.environments))
 ```
 
-SHELX uses the same auto-detecting read call. Canonical output requires the
-measurement wavelength explicitly because that information does not belong to
-the structure alone:
+The same entry point reads other supported formats:
 
 ```python
-from cristma.io.shelx import ShelxWriteOptions
-
-result = cristma.read("refinement.res")
-crystal = result.structures[0]
-
-# Untouched source, including comments, instructions, order, and line endings.
-cristma.write(result.document, "preserved.res", mode="preserve")
-
-# New normalized instruction file generated from the canonical structure.
-cristma.write(
-    crystal,
-    "canonical.ins",
-    format="shelx",
-    mode="canonical",
-    options=ShelxWriteOptions(wavelength=0.71073),
-)
+structure = cristma.read("POSCAR").structures[0]
+trajectory = cristma.read("XDATCAR").structures
+model = cristma.read("molecule.pdb").structures[0]
 ```
 
-VASP structure sources use the same one-line API. Trajectories are indexed
-without creating every `CrystalStructure`; a frame is parsed, mapped, and
-cached only when requested:
+## Native structure I/O
 
-```python
-import cristma
+| Format | Reading | Writing | Notes |
+| --- | --- | --- | --- |
+| CIF 1.1 | Yes | Preserve and canonical | Source order, comments, unknown tags, and numeric text can be retained |
+| SHELX RES/INS | Yes | Preserve and canonical | Canonical output requires an explicit wavelength |
+| VASP POSCAR/CONTCAR | Yes | — | Selective Dynamics and reported velocities are retained |
+| VASP XDATCAR | Yes | — | Frames are indexed and loaded lazily |
+| VASP OUTCAR | Structural frames | — | Per-atom forces and units are retained |
+| `vasprun.xml` | Structural frames | — | Trajectory-oriented structural parsing |
+| PDB | Yes | — | Crystal and molecular coordinate models |
+| XYZ/extXYZ | Yes | — | Typed properties and lazy trajectories |
 
-result = cristma.read("XDATCAR")
-trajectory = result.structures
-final = trajectory.final
-print(len(trajectory), final.cell.volume)
-```
+CrIStMa implements these readers natively. Gemmi, pymatgen, PyXtal, CrysPy,
+GSAS-II, SHELX, and graphical frameworks are not required at runtime.
 
-POSCAR/CONTCAR preserve Selective Dynamics and explicitly reported velocities.
-OUTCAR and `vasprun.xml` retain complete structural frames and per-atom forces
-with units. A VASP 4 source without species labels produces explicit unknown
-species plus a diagnostic; CRiStMa does not guess elements from coordinates.
+## Design principles
 
-Native VASP reading requires only NumPy and the Python standard library. This
-slice deliberately excludes electronic-result parsing and canonical VASP
-writing.
+- **Physics before interface.** Scientific meaning is not determined by a GUI
+  or storage format.
+- **One canonical model.** Every reader produces the same structure types for
+  downstream calculations.
+- **Explicit assumptions.** Policies, tolerances, limits, and incomplete
+  searches are visible in inputs and results.
+- **Traceable results.** Symmetry images, reference data, transformations, and
+  diagnostics retain provenance.
+- **Composable tools.** Calculators are independent and do not rely on a
+  hidden current structure or global workflow.
+- **Small runtime.** The core depends only on Python and NumPy.
 
-XYZ structure sources use the same registry and lazy sequence contract:
+## Beta status
 
-```python
-result = cristma.read("trajectory.extxyz")
-trajectory = result.structures
-final = trajectory.final
-print(len(trajectory), final.name, tuple(final.atomic_view().properties))
-```
+`0.1.0b1` is the first public beta. The implemented scientific core is covered
+by automated tests and is ready for evaluation and integration. Until the
+first stable release, public APIs may still change when required to correct or
+clarify scientific contracts.
 
-Plain XYZ frames are molecular. An extXYZ frame becomes periodic only when it
-reports both a valid `Lattice` and explicit `pbc`; a lattice without `pbc` is
-retained as source metadata but is not treated as evidence of periodicity. All
-declared `S`, `I`, `R`, and `L` atom columns are typed, and non-structural
-columns retain their reported names and provenance without inferred units.
-Trajectories may change schema, cell, or molecular/periodic type between
-frames. Native XYZ reading uses only NumPy and the Python standard library;
-writing and bond inference are outside this reader slice.
+The current beta covers structural I/O, canonical structure models, symmetry,
+periodic geometry, crystal chemistry, structural representations, periodic
+block classification, and ring analysis. It does not yet calculate diffraction
+patterns or perform structure refinement.
 
-`StructureCollection` represents finite multi-model files without losing the
-role of a primary or final model. Large trajectories use the same sequence
-contract through lazy `StructureSequence`: indexing loads and caches only the
-requested frame.
+## Roadmap
 
-All applications consume the same canonical scientific objects from
-`cristma.structure`.
-Periodic `CrystalStructure` and non-periodic `MolecularStructure` remain
-distinct physical models, while both expose an immutable numerical
-`AtomicView` for diffraction, topology, visualization, and refinement code.
+Planned scientific layers are developed as independent milestones:
 
-CIF, SHELX RES/INS, VASP, and XYZ/extXYZ structural reading are implemented
-natively. Gemmi, pymatgen, PyXtal, CrysPy, GSAS-II, SHELX, and Qt are not
-required dependencies.
+1. reciprocal metrics, reflection generation, systematic absences, reciprocal
+   symmetry orbits, multiplicity, and Friedel relations;
+2. scattering contexts and structure-factor calculations;
+3. radiation-aware powder lines and physical corrections;
+4. calculated diffraction profiles on explicit grids;
+5. additional structural transforms, hierarchy and topology tools, and
+   refinement built over the same forward calculations.
+
+The roadmap describes direction, not a compatibility or release-date promise.
+CrIStMa will remain independent of any particular consuming application.
+
+## Documentation
+
+- [Inorganic crystal chemistry](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/inorganic-crystal-chemistry.md)
+- [Beta release notes](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/releases/0.1.0b1.md)
+- [Third-party notices](https://github.com/ABKuznetsov/CrIStMa/blob/main/THIRD_PARTY_NOTICES.md)
+
+## License and reference data
+
+Original CrIStMa code is distributed under the permissive
+[BSD-3-Clause license](https://github.com/ABKuznetsov/CrIStMa/blob/main/LICENSE).
+It may be used in open-source, commercial, and closed-source software subject
+to the license notice requirements.
+
+Bundled reference resources retain their own attribution and provenance:
+
+- space-group and Wyckoff data normalized from pinned spglib 2.7.0 resources
+  under BSD-3-Clause;
+- Cordero covalent radii compiled from QCElemental resources under
+  BSD-3-Clause;
+- Shannon radii compiled from a pinned pymatgen artifact under MIT;
+- selected Crystallography Open Database fixtures under CC0/public-domain
+  terms;
+- curated chemical-reference rules with their scientific literature recorded
+  in the versioned resources.
+
+Versions, commits, hashes, known provenance limitations, and redistribution
+requirements are listed in
+[THIRD_PARTY_NOTICES.md](https://github.com/ABKuznetsov/CrIStMa/blob/main/THIRD_PARTY_NOTICES.md).
+
+## Author
+
+Artem B. Kuznetsov<br>
+[GitHub](https://github.com/ABKuznetsov)

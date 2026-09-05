@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-CRiStMa will read the complete family of text VASP structure sources without
+CrIStMa will read the complete family of text VASP structure sources without
 ASE, pymatgen, Qt, or application code:
 
 - POSCAR and CONTCAR;
@@ -24,7 +24,7 @@ result = cristma.read(path)
 ```
 
 File grammar, probing, frame discovery, species resolution, coordinate
-conversion, units, diagnostics, and provenance belong only to CRiStMa.
+conversion, units, diagnostics, and provenance belong only to CrIStMa.
 
 In this milestone, laziness applies to parsing and mapping trajectory frames.
 The existing text registry may still decode and retain the complete source in
@@ -49,7 +49,7 @@ cristma/io/vasp/
 ```
 
 The parsers share immutable format records and small numeric utilities, not
-parser state. They communicate with the rest of CRiStMa only through existing
+parser state. They communicate with the rest of CrIStMa only through existing
 I/O, chemistry, structure, and provenance types.
 
 No parser imports another scientific format. No application contains a VASP
@@ -234,7 +234,7 @@ VASP snapshots use explicit identity-only symmetry, so their site-indexed
 properties map one-to-one into `AtomicView`. This milestone does not define a
 generic transformation law for arbitrary `AtomicProperty` values under
 non-identity symmetry. Polar vectors, axial vectors, fractional vectors, and
-tensors require different transformations. CRiStMa must reject such expansion
+tensors require different transformations. CrIStMa must reject such expansion
 until a property declares its transformation semantics; it must never copy a
 force or velocity unchanged through inversion or rotation.
 
@@ -302,7 +302,7 @@ Focused tests cover:
   crystallographic packages.
 
 During implementation, only VASP and directly shared contract tests run. The
-complete CRiStMa suite and wheel audit run once at the final gate.
+complete CrIStMa suite and wheel audit run once at the final gate.
 
 ## 12. Out of scope
 

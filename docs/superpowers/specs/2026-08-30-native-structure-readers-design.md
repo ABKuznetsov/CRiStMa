@@ -1,4 +1,4 @@
-# CRiStMa native structure readers: design specification
+# CrIStMa native structure readers: design specification
 
 Date: 2026-08-30
 
@@ -6,9 +6,9 @@ Status: proposed for user review
 
 ## 1. Purpose
 
-CRiStMa shall read common crystallographic, molecular, and electronic-structure
+CrIStMa shall read common crystallographic, molecular, and electronic-structure
 geometry files into its own physics-first scientific model. Applications work
-with CRiStMa structures rather than Gemmi, ASE, pymatgen, RDKit, Open Babel, or
+with CrIStMa structures rather than Gemmi, ASE, pymatgen, RDKit, Open Babel, or
 code-specific objects.
 
 This reader design is the first input gateway for the shared domain contract
@@ -58,7 +58,7 @@ settings, and electronic results remain uninterpreted source records.
 
 ## 3. Lessons adopted from existing libraries
 
-CRiStMa adopts proven boundaries without adopting another library's internal
+CrIStMa adopts proven boundaries without adopting another library's internal
 model:
 
 - ASE demonstrates a useful central atomic view with cell, per-axis periodic
@@ -71,10 +71,10 @@ model:
 - OVITO demonstrates indexed frame sources, source-frame provenance, and
   explicit mapping of arbitrary file columns to typed particle properties.
 - Open Babel demonstrates extensible format handlers and format-specific read
-  options, but CRiStMa does not perform implicit chemistry transformations as
+  options, but CrIStMa does not perform implicit chemistry transformations as
   part of reading.
 
-The important CRiStMa addition is that every successful import retains both
+The important CrIStMa addition is that every successful import retains both
 the format document and the canonical scientific model.
 
 `CrystalStructure` and `MolecularStructure` are the only canonical scientific
@@ -259,7 +259,7 @@ Selection priority is:
 4. suffix;
 5. an ambiguity diagnostic if equally plausible handlers remain.
 
-External packages may register adapters through a CRiStMa entry-point group,
+External packages may register adapters through a CrIStMa entry-point group,
 but built-in readers do not require those packages. Standard-library gzip,
 bzip2, and xz wrappers may be decoded transparently before content probing.
 
@@ -462,8 +462,8 @@ slices:
 12. MOL/SDF;
 13. real-fixture matrix, clean installation, and dependency audit.
 
-Each slice follows TDD and runs only its focused CRiStMa tests during
-development. The complete CRiStMa suite runs at reader-branch completion.
+Each slice follows TDD and runs only its focused CrIStMa tests during
+development. The complete CrIStMa suite runs at reader-branch completion.
 
 ## 13. Acceptance criteria
 
@@ -483,7 +483,7 @@ The reader branch is complete when:
   temporarily compatible;
 - the built wheel contains no Qt/application code and requires no Gemmi, ASE,
   pymatgen, RDKit, Open Babel, CrysPy, or GSAS-II package;
-- focused and complete CRiStMa tests pass from the built wheel.
+- focused and complete CrIStMa tests pass from the built wheel.
 
 ## 14. Deferred work
 

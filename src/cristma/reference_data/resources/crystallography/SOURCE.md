@@ -1,4 +1,4 @@
-# CRiStMa crystallography reference data
+# CrIStMa crystallography reference data
 
 Dataset ID: `cristma.crystallography.spglib`  
 Schema version: `1.0.0`  
@@ -41,4 +41,4 @@ python tools/compile_spglib_crystallography.py \
 ```
 
 The compiler requires the optional development dependency `spglib==2.7.0`.
-The installed CRiStMa runtime does not require spglib.
+The installed CrIStMa runtime does not require spglib.

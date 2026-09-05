@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "schema_name": "CRiStMa Chemical Reference DB",
+    "schema_name": "CrIStMa Chemical Reference DB",
     "schema_version": "3.0.0-draft",
     "created": "2026-09-01",
     "purpose": "Curated expert reference knowledge for two-stage chemical classification of crystal structures. Version 3 broadens coverage of elemental metals, intermetallics, pnictides/bismuthides, chalcogenides, simple halides including bromides/iodides, organometallic and coordination chemistry, organic molecular crystals, salts, solvates, hydrates, and reticular frameworks.",

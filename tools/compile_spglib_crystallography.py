@@ -1,4 +1,4 @@
-"""Compile pinned spglib tables into CRiStMa's runtime reference schema."""
+"""Compile pinned spglib tables into CrIStMa's runtime reference schema."""
 
 from __future__ import annotations
 

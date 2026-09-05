@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add dependency-free native reading of POSCAR, CONTCAR, XDATCAR, OUTCAR, and `vasprun.xml`, mapping every complete structure into canonical CRiStMa snapshots and exposing trajectories lazily.
+**Goal:** Add dependency-free native reading of POSCAR, CONTCAR, XDATCAR, OUTCAR, and `vasprun.xml`, mapping every complete structure into canonical CrIStMa snapshots and exposing trajectories lazily.
 
 **Architecture:** One lazily registered `vasp` format family owns four independent source parsers. Each parser produces a loss-preserving document and either one normalized `VaspSnapshot` or indexed lazy frame loaders; one mapper converts snapshots into `CrystalStructure`. A small general extension stores typed independent-site properties and exposes them unchanged only for identity-only atomic views, which is the exact VASP case.
 
-**Tech Stack:** Python 3.11+, standard library (`dataclasses`, `xml.parsers.expat`, `xml.etree.ElementTree`), NumPy, existing CRiStMa structure/I/O contracts, pytest.
+**Tech Stack:** Python 3.11+, standard library (`dataclasses`, `xml.parsers.expat`, `xml.etree.ElementTree`), NumPy, existing CrIStMa structure/I/O contracts, pytest.
 
 **Spec:** `docs/superpowers/specs/2026-08-31-native-vasp-reader-design.md`
 
@@ -19,7 +19,7 @@
 - VASP input never implies a reported space group; use identity symmetry with `unreported_identity` provenance.
 - Invalid or incomplete source data produces diagnostics, never plausible partial structures.
 - Unknown source content remains in the document; semantic calculations never consume parser records.
-- During development run only the task's focused tests and established shared contracts; run all CRiStMa tests once at the final gate.
+- During development run only the task's focused tests and established shared contracts; run all CrIStMa tests once at the final gate.
 
 ---
 
@@ -602,7 +602,7 @@ Run: `rg -n "TODO|FIXME|NotImplementedError|pymatgen|ase|PySide|Qt" src/cristma/
 
 Expected: no implementation placeholders and no runtime imports of forbidden dependencies; documentation may mention them only to state they are unnecessary.
 
-- [ ] **Step 3: Run the complete CRiStMa test suite once**
+- [ ] **Step 3: Run the complete CrIStMa test suite once**
 
 Run: `python3 -m pytest -p no:cacheprovider -q`
 

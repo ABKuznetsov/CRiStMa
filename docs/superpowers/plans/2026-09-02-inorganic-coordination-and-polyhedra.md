@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add reproducible inorganic contact resolution, crystallographic-orbit coordination shells, and three-dimensional coordination polyhedra to CRiStMa.
+**Goal:** Add reproducible inorganic contact resolution, crystallographic-orbit coordination shells, and three-dimensional coordination polyhedra to CrIStMa.
 
 **Architecture:** Convert the existing directed finite/periodic neighbour graphs into canonical `GeometricContact` records, then interpret them with `CompositionGrammar`, covalent radii, and an explicit `ShellResolutionPolicy`. Keep contact selection separate from polyhedron construction: the resolver returns immutable contacts and orbit-projected shells, while `PolyhedronBuilder` accepts only resolved rank-three shells.
 

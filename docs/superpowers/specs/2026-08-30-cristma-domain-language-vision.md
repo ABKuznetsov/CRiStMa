@@ -1,4 +1,4 @@
-# CRiStMa as an independent crystallographic toolbox
+# CrIStMa as an independent crystallographic toolbox
 
 Date: 2026-08-30
 
@@ -6,19 +6,19 @@ Status: canonical architectural contract
 
 ## 1. Mission
 
-> **CRiStMa is an independent crystallographic toolbox. It provides reusable
+> **CrIStMa is an independent crystallographic toolbox. It provides reusable
 > scientific data types, functions, and configurable tools. Consumer context
 > and orchestration remain outside its scientific API.**
 
-CRiStMa provides one tested implementation of reusable crystallographic
+CrIStMa provides one tested implementation of reusable crystallographic
 mathematics for independent scientific software.
 
 The governing boundary is:
 
-> **Consumers own workflow and context. CRiStMa owns reusable
+> **Consumers own workflow and context. CrIStMa owns reusable
 > crystallographic concepts and calculations.**
 
-CRiStMa is distributed as a standalone Python package through PyPI and is
+CrIStMa is distributed as a standalone Python package through PyPI and is
 installable with the standard Python packaging toolchain:
 
 ```bash
@@ -27,16 +27,16 @@ pip install cristma
 
 ## 2. Distribution and direction of dependencies
 
-CRiStMa has a public, consumer-neutral Python API. Any script, notebook,
+CrIStMa has a public, consumer-neutral Python API. Any script, notebook,
 scientific package, desktop application, or service may depend on it directly.
 
 ```text
-Python consumer -> CRiStMa
-CRiStMa         -X-> consumer
+Python consumer -> CrIStMa
+CrIStMa         -X-> consumer
 ```
 
 Published releases use semantic versions and declare only dependencies required
-by CRiStMa's own scientific implementation. Large integrations and specialized
+by CrIStMa's own scientific implementation. Large integrations and specialized
 format bridges are provided through optional extras or separate adapter
 packages, so the base installation remains usable on its own.
 
@@ -65,12 +65,12 @@ refinement. Consumers import only the tools they use.
 
 Domains are not assigned to particular applications. Finder is not restricted
 to diffraction, CRAFT is not restricted to geometry, and Rietveld software is
-not restricted to refinement. Any consumer may compose any public CRiStMa
+not restricted to refinement. Any consumer may compose any public CrIStMa
 function or tool whose scientific contract fits its task. Adding a new public
 tool makes it available to every consumer without an application-specific
 registration step or a library change for that consumer.
 
-> **CRiStMa does not distribute capabilities among applications. It provides a
+> **CrIStMa does not distribute capabilities among applications. It provides a
 > common scientific toolbox; each consumer selects and orchestrates the tools
 > it needs.**
 
@@ -198,7 +198,7 @@ graph = NeighborFinder(cutoff=3.0).find(view)
 
 ## 7. Composition without a mandatory pipeline
 
-Tools communicate only through typed scientific data. CRiStMa does not impose
+Tools communicate only through typed scientific data. CrIStMa does not impose
 a global pipeline such as:
 
 ```text
@@ -371,7 +371,7 @@ introduces a second implementation of the forward model.
 
 ## 12. I/O and external adapters
 
-Native readers map CIF, RES/INS, and other structure files into compact CRiStMa
+Native readers map CIF, RES/INS, and other structure files into compact CrIStMa
 objects. They preserve source information required for scientific
 round-tripping but do not discover neighboring files without an explicit
 resolver.
@@ -380,7 +380,7 @@ resolver.
 multi-model documents and indexed trajectory/frame sources.
 
 Optional adapters may map to Gemmi, ASE, pymatgen, RDKit, GSAS-II, or other
-ecosystems. CRiStMa objects remain the canonical inputs and outputs of its
+ecosystems. CrIStMa objects remain the canonical inputs and outputs of its
 scientific API, and every adapter remains an optional dependency.
 
 ### Canonical scientific input invariant
@@ -424,13 +424,13 @@ that structure.
 
 The inclusion test is:
 
-> **Scientific + reusable + workflow-independent = CRiStMa candidate.**
+> **Scientific + reusable + workflow-independent = CrIStMa candidate.**
 
 A capability does not need multiple consumers before inclusion. It must be a
 coherent crystallographic representation, transformation, or calculation with
 an independent scientific API.
 
-CRiStMa grows by adding new functions, compact data types, and independent
+CrIStMa grows by adding new functions, compact data types, and independent
 tools over the same canonical structure model. Adding `BondValenceAnalyzer`,
 `TopologyAnalyzer`, `PowderCalculator`, or `SingleCrystalCalculator` does not
 require redesigning existing tools or adding methods to `CrystalStructure`.
@@ -452,7 +452,7 @@ Each tool is tested independently against the strongest available reference:
 - real structure-file fixtures with recorded provenance;
 - round-trip and installed-wheel tests for public I/O.
 
-The test suite validates CRiStMa through its public scientific API and built
+The test suite validates CrIStMa through its public scientific API and built
 distribution artifacts.
 
 This architecture provides one implementation of crystallographic mathematics

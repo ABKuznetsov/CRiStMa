@@ -1,4 +1,4 @@
-"""Map format-neutral XYZ frames into canonical CRiStMa structures."""
+"""Map format-neutral XYZ frames into canonical CrIStMa structures."""
 
 from __future__ import annotations
 

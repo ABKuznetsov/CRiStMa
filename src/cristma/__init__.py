@@ -1,4 +1,4 @@
-"""Stable public API for the Qt-free CRiStMa scientific library."""
+"""Stable public API for the Qt-free CrIStMa scientific library."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from .io.formats import FormatDescriptor, builtin_format_descriptors
 from .io.registry import FormatRegistry
 from .io.result import ReadResult
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0b1"
 
 _formats = FormatRegistry(builtin_format_descriptors())
 

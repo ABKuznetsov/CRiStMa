@@ -33,6 +33,6 @@ Al on 1b and the commonly reported room-temperature lattice parameter
 SHA-256:
 `e6ee133c7b72bb5c0be0a0cadbc844be5c7df5e8dc888d89e55fc66cf6f47c75`.
 
-The analytic files are released as part of CRiStMa under the repository
+The analytic files are released as part of CrIStMa under the repository
 license. They are acceptance fixtures, not independent structure
 determinations.

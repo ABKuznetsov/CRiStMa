@@ -1,4 +1,4 @@
-# CRiStMa structural hierarchy: design specification
+# CrIStMa structural hierarchy: design specification
 
 Date: 2026-08-30
 
@@ -6,7 +6,7 @@ Status: proposed for user review
 
 ## 1. Purpose
 
-Given an ordinary atomistic or crystallographic structure, CRiStMa shall build
+Given an ordinary atomistic or crystallographic structure, CrIStMa shall build
 physically interpretable structural entities without assuming in advance that
 any entity is rigid.
 
@@ -314,7 +314,7 @@ IndependentSite
 Grouping does not assert rigidity. Mechanical evidence is attached after the
 hierarchy exists.
 
-For the initial CRiStMa model, formal rigidity scores are defined only for
+For the initial CrIStMa model, formal rigidity scores are defined only for
 polyhedra, consistent with the current scientific decision. They may use
 internal distance/angle changes, distortion measures, bond-valence behavior,
 and matched structures in a series.
@@ -344,7 +344,7 @@ refinement parameterization, but it does not rewrite the observed structures.
 ## 15. Relationship to refinement
 
 Refinement consumes selected entity parameterizations through the shared
-CRiStMa domain contract:
+CrIStMa domain contract:
 
 ```text
 structural entities

@@ -1,4 +1,4 @@
-"""Stable public structure models shared by CRiStMa applications."""
+"""Stable public structure models shared by CrIStMa applications."""
 
 from .crystal import Crystal, CrystalStructure, DisplacementParameters, IndependentSite
 from .collection import (

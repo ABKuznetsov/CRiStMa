@@ -1,4 +1,4 @@
-# CRiStMa native XYZ and extXYZ reader design
+# CrIStMa native XYZ and extXYZ reader design
 
 Date: 2026-09-01
 
@@ -8,7 +8,7 @@ Primary format reference: https://github.com/libAtoms/extxyz
 
 ## 1. Purpose
 
-CRiStMa shall read ordinary XYZ and schema-declared extended XYZ sources
+CrIStMa shall read ordinary XYZ and schema-declared extended XYZ sources
 without ASE, `extxyz`, Open Babel, or another chemistry package. All complete
 frames map through the existing canonical structure model and become available
 to every application through the unchanged call:
@@ -40,9 +40,9 @@ application-specific trajectory state are outside this slice.
    outside an indexed frame is never interpreted as structure data.
 2. Plain XYZ is molecular unless the source contains an extXYZ schema and an
    explicit periodicity declaration.
-3. CRiStMa deliberately requires both `Lattice` and explicit `pbc` before it
+3. CrIStMa deliberately requires both `Lattice` and explicit `pbc` before it
    creates a periodic structure. The extXYZ reference implementation commonly
-   defaults `pbc` to true when `Lattice` is present, but CRiStMa does not infer
+   defaults `pbc` to true when `Lattice` is present, but CrIStMa does not infer
    physical periodicity from a box alone.
 4. Every extXYZ column declared by `Properties` is validated and preserved.
 5. Unspecified units remain unspecified. Names such as `forces` or `charge`
@@ -228,7 +228,7 @@ true pbc axis + absent or invalid Lattice
 
 For a periodic frame the mapper derives the six `UnitCell` parameters from the
 reported lattice, then rotates reported Cartesian positions and polar-vector
-properties into CRiStMa's canonical cell frame. A property is rotated only if
+properties into CrIStMa's canonical cell frame. A property is rotated only if
 its scientific transformation semantics are explicitly declared by the
 reader. This slice declares `pos` as a Cartesian position; arbitrary width-3
 properties are not assumed to be vectors and remain numerically reported.
@@ -289,7 +289,7 @@ xyz.map.uninterpreted_plain_columns
 ```
 
 Invalid source data encountered while producing objects yields diagnostics or
-a frame-load error. Invalid canonical CRiStMa objects continue to raise their
+a frame-load error. Invalid canonical CrIStMa objects continue to raise their
 own validation exceptions. Diagnostics contain source spans whenever the
 offending token or row has an indexed location.
 
@@ -325,14 +325,14 @@ extXYZ. Cross-format tests compare equivalent canonical geometry and
 coordination with CIF/POSCAR where periodic, and later with MOL/SDF where
 molecular.
 
-The final gate runs the complete CRiStMa suite once, builds a wheel without
+The final gate runs the complete CrIStMa suite once, builds a wheel without
 network dependencies, installs it into a clean temporary environment, and
 reads all XYZ fixtures from outside the repository.
 
 ## 14. Dependencies and future work
 
 The implementation uses only the Python standard library and NumPy already
-required by CRiStMa. It does not import ASE, libAtoms `extxyz`, pymatgen,
+required by CrIStMa. It does not import ASE, libAtoms `extxyz`, pymatgen,
 Open Babel, RDKit, Qt, or application code.
 
 MOL/SDF is the next independent structure-format project. Crystal-chemical

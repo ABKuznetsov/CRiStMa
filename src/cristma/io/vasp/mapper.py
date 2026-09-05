@@ -1,4 +1,4 @@
-"""Map format-neutral VASP snapshots into canonical CRiStMa structures."""
+"""Map format-neutral VASP snapshots into canonical CrIStMa structures."""
 
 from __future__ import annotations
 

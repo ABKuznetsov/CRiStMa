@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a self-contained, setting-aware space-group and Wyckoff catalog and use it to calculate and validate crystallographic orbits from CRiStMa structures.
+**Goal:** Ship a self-contained, setting-aware space-group and Wyckoff catalog and use it to calculate and validate crystallographic orbits from CrIStMa structures.
 
-**Architecture:** A development-only compiler converts the pinned spglib 2.7.0 database into deterministic CRiStMa JSON resources. Five small immutable scientific types represent a setting, Wyckoff position, site symmetry, orbit and assignment; `SpaceGroupCatalog` is only a read-only facade. Pure functions reuse the existing exact `expand_orbit()` implementation, and CIF mapping compares reported values with calculated results.
+**Architecture:** A development-only compiler converts the pinned spglib 2.7.0 database into deterministic CrIStMa JSON resources. Five small immutable scientific types represent a setting, Wyckoff position, site symmetry, orbit and assignment; `SpaceGroupCatalog` is only a read-only facade. Pure functions reuse the existing exact `expand_orbit()` implementation, and CIF mapping compares reported values with calculated results.
 
 **Tech Stack:** Python 3.11+, standard library, NumPy 1.26+, pytest 8+; development-only `spglib==2.7.0`; no new runtime dependency.
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- CRiStMa remains independent of Qt and all application packages.
+- CrIStMa remains independent of Qt and all application packages.
 - Runtime dependencies remain `numpy>=1.26` only.
 - The upstream source is spglib tag `v2.7.0`, commit `12355c77fb7c505a55f52cae36341d73b781a065`, under BSD-3-Clause.
 - Input SHA-256 values are `4457df1042b14a65ea62af0bad7b5b609a4fc33592df245802cfe005b221f95e` for `database/spg.csv` and `d3d786a1f0187e5c6d69a3ade35648ffab34fd1b977d61ad84d8b0434b8b7ca0` for `database/Wyckoff.csv`.

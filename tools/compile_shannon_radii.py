@@ -1,4 +1,4 @@
-"""Compile the pinned pymatgen Shannon CSV into CRiStMa reference data."""
+"""Compile the pinned pymatgen Shannon CSV into CrIStMa reference data."""
 
 from __future__ import annotations
 

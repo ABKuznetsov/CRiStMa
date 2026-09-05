@@ -1,4 +1,4 @@
-"""Map native SHELX documents to canonical CRiStMa structures."""
+"""Map native SHELX documents to canonical CrIStMa structures."""
 
 from __future__ import annotations
 

@@ -6,13 +6,13 @@
 
 **Architecture:** `StructuralUnitBuilder` maps polyhedra and unrepresented contact endpoints to canonical unit membership. `StructuralGraphBuilder` then derives shared-atom and direct-contact connections exclusively from `ResolvedContact`, preserving lattice translations and interaction layers. Periodic rank, blocks, and motifs are intentionally excluded.
 
-**Tech Stack:** Python 3.11, frozen dataclasses, existing CRiStMa identity/contact/polyhedron types, pytest.
+**Tech Stack:** Python 3.11, frozen dataclasses, existing CrIStMa identity/contact/polyhedron types, pytest.
 
 **Spec:** `docs/superpowers/specs/2026-09-02-structural-blocks-and-periodic-connectivity-design.md`
 
 ## Global Constraints
 
-- CRiStMa remains Qt-free and application-independent.
+- CrIStMa remains Qt-free and application-independent.
 - Do not run Chemistry, `NeighborFinder`, or contact resolution inside this layer.
 - Use only canonical atom IDs, integer lattice translations, `ResolvedContact`, and `CoordinationPolyhedron` as connectivity evidence.
 - Preserve `GrammarOperation`, `InteractionLayer`, and `ContactClassification` through source contacts.

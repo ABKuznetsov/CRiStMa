@@ -1,4 +1,4 @@
-# CRiStMa Structural Crystallography Design
+# CrIStMa Structural Crystallography Design
 
 **Date:** 2026-09-01  
 **Status:** approved  
@@ -74,7 +74,7 @@ catalog Wyckoff multiplicity
 reported CIF multiplicity
 ```
 
-CRiStMa never mutates the immutable `IndependentSite` or
+CrIStMa never mutates the immutable `IndependentSite` or
 `CrystalStructure` while performing this analysis. Applications may construct
 a new snapshot if they wish to persist derived values.
 
@@ -101,7 +101,7 @@ compiled_date
 checksum
 ```
 
-The resources are inert, versioned data shipped inside the CRiStMa wheel.
+The resources are inert, versioned data shipped inside the CrIStMa wheel.
 There is no runtime network access and no runtime dependency on Gemmi,
 pymatgen, spglib or CrysPy.
 
@@ -120,7 +120,7 @@ spglib/database/Wyckoff.csv
 spglib database-generation scripts required to interpret them
 ```
 
-A development-only compiler converts these sources into CRiStMa's normalized,
+A development-only compiler converts these sources into CrIStMa's normalized,
 validated JSON schema. The generated resources retain the spglib copyright and
 BSD-3-Clause notice. `SOURCE.md` records the upstream repository, exact commit,
 input checksums, compiler command, compilation date, output checksums and
@@ -134,7 +134,7 @@ International Tables are not copied or systematically reproduced.
 
 Suitable pymatgen code may be adapted under its MIT license with the required
 copyright and license notice. Gemmi is dual-licensed under MPL-2.0 or LGPLv3;
-it is used as a comparator rather than copied into the CRiStMa implementation.
+it is used as a comparator rather than copied into the CrIStMa implementation.
 
 None of spglib, PyXtal, pymatgen or Gemmi becomes a runtime dependency. A
 catalog is never copied from an undocumented installed package.
@@ -189,7 +189,7 @@ WyckoffPosition
 └── reference provenance
 ```
 
-Coordinate representatives use exact affine expressions and CRiStMa's
+Coordinate representatives use exact affine expressions and CrIStMa's
 existing `AffineOperation` machinery wherever possible. Fractions remain
 exact until numerical comparison with measured coordinates is required.
 
@@ -284,7 +284,7 @@ crystallography.orbit.wyckoff_ambiguous
 crystallography.orbit.site_symmetry_mismatch
 ```
 
-Invalid CRiStMa objects and invalid tool configuration raise exceptions.
+Invalid CrIStMa objects and invalid tool configuration raise exceptions.
 Unexpected or incomplete source-file information encountered during mapping or
 scientific comparison produces diagnostics.
 
@@ -351,7 +351,7 @@ comparators only.
 The milestone is complete when a real CIF can travel through:
 
 ```text
-CRiStMa reader
+CrIStMa reader
     -> CrystalStructure
     -> exact catalog-resolved SpaceGroupDefinition
     -> CrystallographicOrbit for every IndependentSite

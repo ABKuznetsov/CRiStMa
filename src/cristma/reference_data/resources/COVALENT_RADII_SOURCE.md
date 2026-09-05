@@ -16,7 +16,7 @@ DOI: `10.1039/B801115J`.
 The complete pinned artifact is preserved: 101 records for 96 elements from H
 through Cm, including the published carbon hybridization and Mn/Fe/Co spin
 variants. No value is invented for elements absent from the source. For a
-generic element lookup CRiStMa returns the largest published variant, which is
+generic element lookup CrIStMa returns the largest published variant, which is
 a conservative search envelope when bonding or spin is not known yet. Exact
 variants remain available through `find_variants()`.
 

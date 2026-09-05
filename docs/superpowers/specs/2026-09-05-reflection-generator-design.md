@@ -1,4 +1,4 @@
-# CRiStMa Diffraction Reflection Generator Design
+# CrIStMa Diffraction Reflection Generator Design
 
 **Date:** 2026-09-05  
 **Status:** approved in discussion; written specification awaiting final review  
@@ -97,7 +97,7 @@ Responsibilities are intentionally narrow:
 - `diagnostics.py` owns diffraction diagnostic codes and invariant errors;
 - `__init__.py` exports only the intentional public API.
 
-The layer depends only on existing CRiStMa types, NumPy, and the Python standard
+The layer depends only on existing CrIStMa types, NumPy, and the Python standard
 library. It introduces no new runtime dependency.
 
 ## 4. Public API and accepted symmetry input
@@ -146,7 +146,7 @@ metric_compatibility_tolerance
 ```
 
 It stores no current cell, setting, reflection set, or hidden cache. It exposes
-the same `get_config()` and `clone(...)` conventions as other configured CRiStMa
+the same `get_config()` and `clone(...)` conventions as other configured CrIStMa
 tools.
 
 ## 5. Public models
@@ -516,7 +516,7 @@ this milestone.
 
 ## 12. Diagnostics, invariant errors, and provenance
 
-Expected controlled truncation uses ordinary CRiStMa diagnostics:
+Expected controlled truncation uses ordinary CrIStMa diagnostics:
 
 ```text
 diffraction.reflections.search_limit_reached
@@ -645,7 +645,7 @@ exact group-character algorithm.
 
 - public imports work from a built wheel;
 - packaged catalog data remain available in the installed wheel;
-- the full existing CRiStMa suite remains green;
+- the full existing CrIStMa suite remains green;
 - imports introduce no GUI, specialized crystallographic, or new runtime
   dependency.
 

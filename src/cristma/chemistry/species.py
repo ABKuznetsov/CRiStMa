@@ -1,4 +1,4 @@
-"""Typed chemical species used by CRiStMa's canonical structure model."""
+"""Typed chemical species used by CrIStMa's canonical structure model."""
 
 from __future__ import annotations
 

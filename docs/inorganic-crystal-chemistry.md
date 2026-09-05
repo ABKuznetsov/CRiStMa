@@ -1,6 +1,6 @@
 # Inorganic crystal chemistry
 
-CRiStMa separates geometric enumeration, chemical interpretation, shell
+CrIStMa separates geometric enumeration, chemical interpretation, shell
 resolution, and polyhedron construction. Applications own the order and cache
 the immutable results they need.
 
@@ -64,10 +64,10 @@ connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
 blocks = StructuralBlockFinder().find(representation, connectivity)
 ```
 
-This is also the intended CRAFT boundary: CRAFT retains `structure`,
-`resolution`, and `polyhedra`, then decides how to display, select, compare, or
-cache them. CRAFT does not reproduce symmetry expansion, contact resolution,
-or convex-hull mathematics.
+Callers retain `structure`, `resolution`, and `polyhedra`, then decide how to
+display, select, compare, or cache them. CrIStMa keeps the reusable symmetry
+expansion, contact resolution, and convex-hull mathematics independent of that
+workflow.
 
 ## Structural units and their periodic graph
 
@@ -190,7 +190,7 @@ occupation.
 ## Radii and current limits
 
 Cordero covalent radii are used for oxidation- and CN-independent candidate
-enumeration. CRiStMa packages 101 source records for 96 elements and preserves
+enumeration. CrIStMa packages 101 source records for 96 elements and preserves
 the published carbon and spin variants; no missing element receives a guessed
 fallback.
 

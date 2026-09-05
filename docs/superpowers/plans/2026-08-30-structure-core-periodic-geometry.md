@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement CRiStMa's immutable symmetry-expanded atomic identity, generic atomic views, finite and periodic neighbor graphs, and basic coordination analysis.
+**Goal:** Implement CrIStMa's immutable symmetry-expanded atomic identity, generic atomic views, finite and periodic neighbor graphs, and basic coordination analysis.
 
 **Architecture:** Canonical structures retain independent sites only. Symmetry expansion creates a finite `AtomicView[ExpandedAtom]` with complete symmetry-image provenance; periodicity is introduced only through `PeriodicAtomRef` and periodic graph edges. Molecular structures use the same generic `AtomicView` contract while returning a distinct finite `NeighborGraph`.
 
@@ -1017,4 +1017,4 @@ git commit -m "feat: complete structure core geometry slice"
 This implementation plan is complete when Tasks 1–7 pass, the full existing
 suite passes once, and the development wheel imports in a clean environment.
 That completes the CIF-backed Structure Core geometry slice. It does not make
-CRiStMa public and does not close the separate SHELX reader phase.
+CrIStMa public and does not close the separate SHELX reader phase.

@@ -15,7 +15,7 @@ from cristma.reference_data import (
 def test_default_reference_is_validated_v31() -> None:
     reference = ReferenceData.default()
 
-    assert reference.chemical.schema_name == "CRiStMa Chemical Reference DB"
+    assert reference.chemical.schema_name == "CrIStMa Chemical Reference DB"
     assert reference.chemical.schema_version == "3.1.0-draft"
     assert reference.chemical.family("inorganic.oxide")["profile_id"] == "inorganic.oxide"
     assert reference.chemical.boundary_case("CaSi2")["refined"]["preferred_candidates"] == (

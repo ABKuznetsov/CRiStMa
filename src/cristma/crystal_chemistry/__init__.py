@@ -48,6 +48,16 @@ from .structural_blocks import (
     StructuralBlockFinder,
     StructuralBlockResult,
 )
+from .ring_finder import RingFinder
+from .rings import (
+    PeriodicUnitRef,
+    RingAnalysisResult,
+    RingAnalysisStatus,
+    RingSearchPolicy,
+    StructuralRing,
+    StructuralRingOrbit,
+    StructuralRingScope,
+)
 
 __all__ = [
     "ComponentPairInterpretation",
@@ -84,5 +94,13 @@ __all__ = [
     "StructuralBlockClassification",
     "StructuralBlockFinder",
     "StructuralBlockResult",
+    "PeriodicUnitRef",
+    "RingAnalysisResult",
+    "RingAnalysisStatus",
+    "RingFinder",
+    "RingSearchPolicy",
+    "StructuralRing",
+    "StructuralRingOrbit",
+    "StructuralRingScope",
     "polyhedron_face_signature",
 ]

@@ -4,20 +4,20 @@
 
 **Goal:** Select an explicit interaction representation, calculate exact periodic rank for every graph component, and expose finite blocks, one-periodic systems, layers, and frameworks without motif or rigidity inference.
 
-**Architecture:** `StructuralRepresentationBuilder` filters the existing unit graph using semantic interaction roles already present in CRiStMa results. `PeriodicConnectivityAnalyzer` treats the selected graph as an integer gain graph and derives exact cycle-closure rank. `StructuralBlockFinder` converts each analysed component into an immutable crystal-chemical block while preserving canonical unit, atom, connection, and translation mappings.
+**Architecture:** `StructuralRepresentationBuilder` filters the existing unit graph using semantic interaction roles already present in CrIStMa results. `PeriodicConnectivityAnalyzer` treats the selected graph as an integer gain graph and derives exact cycle-closure rank. `StructuralBlockFinder` converts each analysed component into an immutable crystal-chemical block while preserving canonical unit, atom, connection, and translation mappings.
 
-**Tech Stack:** Python 3.11, frozen dataclasses, integer/Fraction linear algebra, existing CRiStMa structural unit graph, pytest.
+**Tech Stack:** Python 3.11, frozen dataclasses, integer/Fraction linear algebra, existing CrIStMa structural unit graph, pytest.
 
 **Spec:** `docs/superpowers/specs/2026-09-02-structural-blocks-and-periodic-connectivity-design.md`
 
 ## Global Constraints
 
-- CRiStMa remains Qt-free, application-independent, and free of runtime Gemmi, pymatgen, or spglib dependencies.
+- CrIStMa remains Qt-free, application-independent, and free of runtime Gemmi, pymatgen, or spglib dependencies.
 - Do not rerun Chemistry, neighbour search, contact resolution, or polyhedron construction.
 - Connectivity authority is limited to `StructuralUnit`, `StructuralConnection`, and their preserved semantic provenance.
 - Periodic rank uses exact integer arithmetic; coordinates and floating tolerances cannot alter it.
 - A cross-cell spanning-tree edge alone is not evidence of periodicity; only a non-zero cycle closure contributes to rank.
-- The caller chooses the interaction representation. CRiStMa does not select one globally preferred structural interpretation.
+- The caller chooses the interaction representation. CrIStMa does not select one globally preferred structural interpretation.
 - Do not implement rings, motifs, morphology refinement, mechanical rigidity, hinges, or refinement parameterization.
 
 ---

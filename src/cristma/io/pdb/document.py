@@ -41,7 +41,7 @@ class PdbAtomRecord:
 
 @dataclass(frozen=True, slots=True)
 class PdbDocument:
-    """Original PDB text plus the records understood by CRiStMa."""
+    """Original PDB text plus the records understood by CrIStMa."""
 
     raw_source: str
     source_name: str | None

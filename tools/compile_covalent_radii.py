@@ -1,4 +1,4 @@
-"""Compile pinned QCElemental/Cordero covalent radii for CRiStMa."""
+"""Compile pinned QCElemental/Cordero covalent radii for CrIStMa."""
 
 from __future__ import annotations
 

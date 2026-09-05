@@ -1,4 +1,4 @@
-"""Versioned scientific reference data used by CRiStMa tools."""
+"""Versioned scientific reference data used by CrIStMa tools."""
 
 from .elements import ElementCatalog, ElementCategory, ElementRecord
 from .chemical_reference import (

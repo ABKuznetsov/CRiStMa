@@ -1,4 +1,4 @@
-"""Map loss-preserving CIF documents to canonical CRiStMa crystals."""
+"""Map loss-preserving CIF documents to canonical CrIStMa crystals."""
 
 from __future__ import annotations
 

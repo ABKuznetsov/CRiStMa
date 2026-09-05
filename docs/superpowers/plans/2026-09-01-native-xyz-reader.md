@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add dependency-free native XYZ/extXYZ reading that maps complete frames into canonical CRiStMa structures and exposes trajectories lazily through `cristma.read(...)`.
+**Goal:** Add dependency-free native XYZ/extXYZ reading that maps complete frames into canonical CrIStMa structures and exposes trajectories lazily through `cristma.read(...)`.
 
 **Architecture:** A lightweight probe and frame index retain the exact source without allocating all trajectory arrays. The selected frame is parsed into immutable XYZ records, mapped independently to `MolecularStructure` or identity-symmetry `CrystalStructure`, and cached by `StructureSequence`. Molecular and periodic structures share the existing immutable atomic-property contract.
 
@@ -325,7 +325,7 @@ def test_true_pbc_without_lattice_is_rejected() -> None:
 ```
 
 Use an analytically rotated lattice to prove that fractional positions are
-computed in the reported frame and then reconstructed in CRiStMa's canonical
+computed in the reported frame and then reconstructed in CrIStMa's canonical
 cell orientation. Prove arbitrary width-three properties are not rotated.
 
 - [ ] **Step 3: Run focused tests and verify RED**
@@ -562,7 +562,7 @@ Run: `rg -n "TODO|FIXME|NotImplementedError|import ase|import extxyz|pymatgen|op
 
 Expected: no implementation placeholders or forbidden runtime imports.
 
-- [ ] **Step 3: Run the complete CRiStMa suite exactly once**
+- [ ] **Step 3: Run the complete CrIStMa suite exactly once**
 
 Run: `python3 -m pytest -p no:cacheprovider -q`
 

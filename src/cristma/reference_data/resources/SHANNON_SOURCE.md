@@ -14,12 +14,11 @@ Acta Crystallographica Section A **32** (1976), 751–767.
 DOI: `10.1107/S0567739476001551`.
 
 The pinned pymatgen generator describes the earlier provenance of its CSV as
-unknown. CRiStMa therefore attributes the packaged numerical artifact exactly
+unknown. CrIStMa therefore attributes the packaged numerical artifact exactly
 to the pinned pymatgen commit and records the Shannon paper as the scientific
 reference; it does not claim a stronger undocumented lineage.
 
-CRiStMa preserves both ionic and crystal radii and the complete lookup key:
+CrIStMa preserves both ionic and crystal radii and the complete lookup key:
 element, oxidation state, coordination label, and spin state. Runtime lookup
 is exact and does not infer missing oxidation states, coordination numbers, or
 spin states.
-

@@ -1,4 +1,4 @@
-"""Small immutable facade over the default CRiStMa reference catalogs."""
+"""Small immutable facade over the default CrIStMa reference catalogs."""
 
 from __future__ import annotations
 

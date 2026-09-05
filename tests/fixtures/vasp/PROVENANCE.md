@@ -5,7 +5,7 @@ Copy/reduction date: 2026-08-31.
 These are deliberately small, hand-reduced structural reference fixtures, not
 outputs claimed to come from a completed physical calculation. Their grammar,
 field names, units, and ordering follow the official VASP Wiki examples. They
-contain only the records needed to verify CRiStMa's structure-I/O boundary.
+contain only the records needed to verify CrIStMa's structure-I/O boundary.
 
 | File | Official format reference | SHA-256 | Expected content |
 |---|---|---|---|

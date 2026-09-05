@@ -1,7 +1,7 @@
 # CIF fixture provenance
 
 These real application fixtures are copied byte-for-byte from Crystal Blocks
-test data. CRiStMa does not import or depend on Crystal Blocks at runtime.
+test data. CrIStMa does not import or depend on Crystal Blocks at runtime.
 
 Copied on: 2026-08-30
 

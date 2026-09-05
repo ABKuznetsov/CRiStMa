@@ -19,6 +19,9 @@ from cristma.crystal_chemistry import (
     PeriodicConnectivityAnalyzer,
     PolyhedronBuilder,
     ResolutionStatus,
+    RingAnalysisStatus,
+    RingFinder,
+    StructuralRingScope,
     ShellResolutionPolicy,
     StructuralBlockFinder,
     StructuralGraphBuilder,
@@ -38,6 +41,14 @@ ACCEPTANCE_POLICY = ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01, 2.0)
 class Calculation:
     structure: CrystalStructure
     result: CrystalChemistryResolution
+
+
+@dataclass(frozen=True)
+class StructuralCalculation:
+    structure: CrystalStructure
+    view: object
+    representation: object
+    blocks: object
 
 
 def calculate(filename: str) -> Calculation:
@@ -76,6 +87,27 @@ def build_blocks(filename: str, layers: set[InteractionLayer]):
     representation = build_representation(graph, layers)
     connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
     return StructuralBlockFinder().find(representation, connectivity)
+
+
+def build_structural_calculation(
+    filename: str,
+    layers: set[InteractionLayer],
+) -> StructuralCalculation:
+    calculation = calculate(filename)
+    view = calculation.structure.atomic_view()
+    polyhedra = tuple(
+        built.polyhedron
+        for shell in calculation.result.coordination_shells
+        if shell.status is ResolutionStatus.RESOLVED
+        for built in (PolyhedronBuilder().build(shell, view),)
+        if built.polyhedron is not None
+    )
+    units = StructuralUnitBuilder().build(calculation.result, polyhedra).units
+    graph = StructuralGraphBuilder().build(units, calculation.result.contacts)
+    representation = build_representation(graph, layers)
+    connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+    blocks = StructuralBlockFinder().find(representation, connectivity)
+    return StructuralCalculation(calculation.structure, view, representation, blocks)
 
 
 def build_representation(graph, layers: set[InteractionLayer]):
@@ -178,6 +210,40 @@ def test_lib3o5_primary_boron_oxygen_component_is_periodic() -> None:
 
     assert blocks.blocks
     assert {block.periodic_rank for block in blocks.blocks} == {3}
+
+
+def test_lithium_triborate_has_b3o7_ring_orbit_inside_bo_framework() -> None:
+    calculation = build_structural_calculation(
+        "LiB3O5_3000122.cif",
+        {InteractionLayer.STRUCTURAL},
+    )
+
+    result = RingFinder().find(
+        calculation.structure,
+        calculation.view,
+        calculation.representation,
+        calculation.blocks,
+    )
+
+    assert result.status is RingAnalysisStatus.COMPLETE
+    matching = tuple(
+        orbit for orbit in result.orbits
+        if orbit.composition.normalized_formula == "B3O7" and orbit.size == 3
+    )
+    assert len(matching) == 1
+    assert matching[0].multiplicity == 4
+    assert matching[0].scope is StructuralRingScope.LOCAL
+    framework = tuple(
+        orbit for orbit in result.orbits
+        if orbit.composition.normalized_formula == "B11O27" and orbit.size == 11
+    )
+    assert len(framework) == 1
+    assert framework[0].scope is StructuralRingScope.FRAMEWORK
+    assert {
+        block.periodic_rank
+        for block in calculation.blocks.blocks
+        if block.block_id == matching[0].parent_block_id
+    } == {3}
 
 
 def test_lib3o5_keeps_planar_bo3_as_coordination_units() -> None:

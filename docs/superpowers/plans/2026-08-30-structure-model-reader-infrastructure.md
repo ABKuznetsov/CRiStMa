@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Establish the stable CRiStMa structure, species, multi-model, provenance, source-resolution, and lazy format-registry contracts required by every native reader.
+**Goal:** Establish the stable CrIStMa structure, species, multi-model, provenance, source-resolution, and lazy format-registry contracts required by every native reader.
 
 **Architecture:** Periodic `CrystalStructure` and non-periodic `MolecularStructure` remain distinct immutable models and expose a shared `AtomicView`. Finite structures use `StructureCollection`; large trajectories use an indexed lazy `StructureSequence`. I/O handlers map preserved format documents into those public types through a declarative, lazily loaded registry.
 
@@ -728,7 +728,7 @@ and loops remain unchanged.
 
 Run: `pytest -q tests/io/test_result.py tests/io/cif tests/core tests/symmetry`
 
-Expected: all selected CRiStMa tests PASS.
+Expected: all selected CrIStMa tests PASS.
 
 - [ ] **Step 5: Commit result integration**
 

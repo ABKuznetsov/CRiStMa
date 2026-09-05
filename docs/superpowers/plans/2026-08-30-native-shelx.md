@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a native, loss-preserving, Qt-free SHELX RES/INS reader and writer that maps structural content to CRiStMa's canonical `CrystalStructure` without external crystallography packages.
+**Goal:** Add a native, loss-preserving, Qt-free SHELX RES/INS reader and writer that maps structural content to CrIStMa's canonical `CrystalStructure` without external crystallography packages.
 
-**Architecture:** A line-preserving format document is parsed independently from scientific mapping. `ShelxDocument` owns source fidelity; mapper functions produce immutable canonical structures; registry handlers expose reading; explicit writer options select preserve or canonical output. No application workflow or CRAFT types enter CRiStMa.
+**Architecture:** A line-preserving format document is parsed independently from scientific mapping. `ShelxDocument` owns source fidelity; mapper functions produce immutable canonical structures; registry handlers expose reading; explicit writer options select preserve or canonical output. No application workflow or CRAFT types enter CrIStMa.
 
-**Tech Stack:** Python 3.11+, standard library, NumPy, pytest, existing CRiStMa core/symmetry/io contracts.
+**Tech Stack:** Python 3.11+, standard library, NumPy, pytest, existing CrIStMa core/symmetry/io contracts.
 
 **Spec:** `docs/superpowers/specs/2026-08-30-native-shelx-and-craft-integration-design.md`
 
 ## Global Constraints
 
-- [ ] Work in an isolated CRiStMa git worktree; inspect `git status` before every commit.
+- [ ] Work in an isolated CrIStMa git worktree; inspect `git status` before every commit.
 - [ ] Follow strict TDD: add one focused failing test, run it to observe the intended failure, implement the smallest scientific behavior, rerun the focused test.
 - [ ] Preserve exact source text in preserve mode, including CRLF, blank lines, continuations, unknown records, and records after `END`.
-- [ ] Keep CRiStMa independent of CRAFT, Sci, Qt, Gemmi, pymatgen, and SHELX executables.
+- [ ] Keep CrIStMa independent of CRAFT, Sci, Qt, Gemmi, pymatgen, and SHELX executables.
 - [ ] Treat `ShelxDocument` as I/O provenance only. Every scientific calculation in this slice must consume the mapped `CrystalStructure` or a typed result derived from it, never SHELX records.
 - [ ] Do not model refinement/restraint instructions as canonical constraints in this slice.
 - [ ] Keep version `0.1.0.dev0` and build only an internal wheel; do not publish to PyPI in this plan. Public release waits for proven use by CRAFT and Finder.
-- [ ] Run only focused tests within tasks. Run the complete CRiStMa suite once at the final gate.
+- [ ] Run only focused tests within tasks. Run the complete CrIStMa suite once at the final gate.
 - [ ] Use the real fixture `tests/fixtures/shelx/zdk288.res`; do not mutate it.
 
 ---
@@ -151,7 +151,7 @@ class ShelxOccupancyExpression:
 ```
 
 - [ ] Encode SHELX occupancy semantics in one module only: values with control part `1` are fixed multipliers; higher control parts address `FVAR[control-1]`; negative controls evaluate the complement form. Keep parsing and evaluation separately testable.
-- [ ] Parse both `SFAC C H O` element lists and one-element coefficient records such as `SFAC O 3.05 ...`; normalize ionic/special labels to CRiStMa `Species` without importing pymatgen.
+- [ ] Parse both `SFAC C H O` element lists and one-element coefficient records such as `SFAC O 3.05 ...`; normalize ionic/special labels to CrIStMa `Species` without importing pymatgen.
 - [ ] Add source-spanned diagnostics for invalid SFAC indices and occupancy expressions.
 - [ ] Run `pytest tests/io/shelx/test_occupancy.py tests/io/shelx/test_sfac.py -q`.
 - [ ] Commit: `git add src/cristma/io/shelx tests/io/shelx && git commit -m "feat(io): preserve SHELX occupancy dependencies"`
@@ -177,7 +177,7 @@ assert isinstance(structures, StructureCollection)
 assert all(isinstance(item, Diagnostic) for item in diagnostics)
 ```
 
-- [ ] Map one-value displacement records to `U_iso`; map six-value records in SHELX order `U11 U22 U33 U23 U13 U12` to a symmetric CRiStMa tensor.
+- [ ] Map one-value displacement records to `U_iso`; map six-value records in SHELX order `U11 U22 U33 U23 U13 U12` to a symmetric CrIStMa tensor.
 - [ ] Retain `ShelxOccupancyExpression` in `SiteComponent.metadata` while storing its evaluated occupancy in the canonical component.
 - [ ] Track active `PART` and `RESI` context in site metadata/disorder fields. Preserve `AFIX`, `HFIX`, `EXYZ`, `EADP`, `DFIX`, `DANG`, `SADI`, `SAME`, `FLAT`, `RIGU`, `SIMU`, `DELU`, weighting commands, and unknown records only in `ShelxDocument`.
 - [ ] Return errors with spans for missing/invalid `CELL`, unresolved elements, invalid SFAC references, invalid FVAR references, and unphysical occupancy; never construct an invalid canonical site.
@@ -283,9 +283,9 @@ assert coordination.environments
 - [ ] Review package exports so the future-facing names are intentional: `ShelxDocument`, `ShelxWriteOptions`, `ShelxOccupancyExpression`, reader/writer helpers; keep parser internals private. This is not authorization to publish the package.
 - [ ] Run a placeholder scan: `rg -n "TODO|FIXME|NotImplemented|pass$" src/cristma/io/shelx tests/io/shelx tests/integration/test_structure_core_shelx.py` and resolve every hit introduced by this plan.
 - [ ] Run focused SHELX and integration tests once: `pytest tests/io/shelx tests/integration/test_structure_core_shelx.py -q`.
-- [ ] Run the complete CRiStMa suite once: `pytest -q`.
+- [ ] Run the complete CrIStMa suite once: `pytest -q`.
 - [ ] Build the wheel: `python -m build`.
-- [ ] Install the wheel into a fresh temporary virtual environment and run a smoke script that imports CRiStMa, reads `zdk288.res`, and preserve-writes its document.
+- [ ] Install the wheel into a fresh temporary virtual environment and run a smoke script that imports CrIStMa, reads `zdk288.res`, and preserve-writes its document.
 - [ ] Confirm `pyproject.toml` still reports `0.1.0.dev0` and perform no upload or release action.
 - [ ] Review the diff against the specification and confirm no CRAFT/Sci/Qt imports, no cross-structure comparison classes, and no accidental canonical constraint mapping.
 - [ ] Commit: `git add README.md docs src tests && git commit -m "docs(io): complete native SHELX structure slice"`

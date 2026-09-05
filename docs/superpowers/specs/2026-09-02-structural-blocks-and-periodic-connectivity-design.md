@@ -1,4 +1,4 @@
-# CRiStMa Structural Blocks and Periodic Connectivity Design
+# CrIStMa Structural Blocks and Periodic Connectivity Design
 
 **Date:** 2026-09-02  
 **Status:** approved in discussion; written specification awaiting final review  
@@ -36,7 +36,7 @@ The central rule is:
 
 ## 2. Layer boundary
 
-The input graph is a scientific result of the preceding CRiStMa layers:
+The input graph is a scientific result of the preceding CrIStMa layers:
 
 ```text
 Crystallography
@@ -136,7 +136,7 @@ StructuralRepresentation
 └── provenance
 ```
 
-It is not a workflow mode and CRiStMa does not choose a globally preferred
+It is not a workflow mode and CrIStMa does not choose a globally preferred
 representation. The caller may construct several representations from the same
 structure, for example:
 
@@ -358,7 +358,7 @@ mechanical blocks.
   completeness when it could change connectivity.
 - Motif-search truncation affects motif completeness only; it does not erase
   an already established block or rank.
-- Alternative representations coexist. CRiStMa does not hide one as the
+- Alternative representations coexist. CrIStMa does not hide one as the
   universally correct interpretation.
 
 ## 9. Pre-release tool contracts
@@ -471,7 +471,7 @@ itself.
 - Reordered sites, renamed files, and equivalent periodic edge orientation do
   not change the scientific result.
 
-## 12. Relationship to earlier CRiStMa design
+## 12. Relationship to earlier CrIStMa design
 
 This document narrows and supersedes the grouping/discovery portions of
 `2026-08-30-structural-hierarchy-design.md` where they conflict. In particular:

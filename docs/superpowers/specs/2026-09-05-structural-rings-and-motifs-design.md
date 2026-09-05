@@ -1,4 +1,4 @@
-# CRiStMa Structural Rings and Motifs Design
+# CrIStMa Structural Rings and Motifs Design
 
 **Date:** 2026-09-05
 **Status:** approved in discussion; written specification awaiting final review
@@ -7,7 +7,7 @@ symmetry grouping, and the CRAFT presentation contract
 
 ## 1. Purpose
 
-CRiStMa already converts a selected crystal-chemical representation into exact
+CrIStMa already converts a selected crystal-chemical representation into exact
 periodic structural blocks:
 
 ```text
@@ -38,7 +38,7 @@ StructuralRing
 StructuralRingOrbit
 ```
 
-CRiStMa owns the scientific identification and symmetry grouping. CRAFT owns
+CrIStMa owns the scientific identification and symmetry grouping. CRAFT owns
 only tree placement, visibility, selection and rendering.
 
 ## 2. Scientific boundary
@@ -341,7 +341,7 @@ The result records the applied policy and tool version in provenance.
 
 ## 7. CRAFT presentation contract
 
-CRAFT receives rings and orbits from CRiStMa. It does not search the graph,
+CRAFT receives rings and orbits from CrIStMa. It does not search the graph,
 reconstruct connector atoms or regroup rings chemically.
 
 The hierarchy is contextual and nested:
@@ -421,7 +421,7 @@ StructuralBlock + geometry
    └─ channel dimensionality
 ```
 
-CRAFT may display pore topology beneath the same parent block, but CRiStMa must
+CRAFT may display pore topology beneath the same parent block, but CrIStMa must
 not represent a channel as an atomic or polyhedral motif.
 
 ## 9. Acceptance tests
