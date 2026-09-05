@@ -8,7 +8,7 @@ and periodic structure analysis.
 [![Python](https://img.shields.io/badge/Python-3.11%2B-1479b8)](https://www.python.org/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-777777)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-55a630)](https://github.com/ABKuznetsov/CrIStMa/blob/main/LICENSE)
-[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/releases/tag/v0.1.0b1)
+[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/tree/v0.1.0b1)
 
 ## Overview
 
