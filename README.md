@@ -8,7 +8,7 @@ and periodic structure analysis.
 [![Python](https://img.shields.io/badge/Python-3.11%2B-1479b8)](https://www.python.org/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-777777)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-55a630)](https://github.com/ABKuznetsov/CrIStMa/blob/main/LICENSE)
-[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/releases/0.1.0b1.md)
+[![Status](https://img.shields.io/badge/Status-Beta-e6a700)](https://github.com/ABKuznetsov/CrIStMa/releases/tag/v0.1.0b1)
 
 ## Overview
 
@@ -180,12 +180,6 @@ Planned scientific layers are developed as independent milestones:
 
 The roadmap describes direction, not a compatibility or release-date promise.
 CrIStMa will remain independent of any particular consuming application.
-
-## Documentation
-
-- [Inorganic crystal chemistry](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/inorganic-crystal-chemistry.md)
-- [Beta release notes](https://github.com/ABKuznetsov/CrIStMa/blob/main/docs/releases/0.1.0b1.md)
-- [Third-party notices](https://github.com/ABKuznetsov/CrIStMa/blob/main/THIRD_PARTY_NOTICES.md)
 
 ## License and reference data
 

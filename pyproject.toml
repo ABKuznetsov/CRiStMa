@@ -27,10 +27,6 @@ Repository = "https://github.com/ABKuznetsov/CrIStMa"
 Issues = "https://github.com/ABKuznetsov/CrIStMa/issues"
 
 [project.optional-dependencies]
-test = [
-    "build>=1.2",
-    "pytest>=8",
-]
 reference-build = [
     "spglib==2.7.0",
 ]
@@ -47,7 +43,3 @@ cristma = [
     "reference_data/resources/crystallography/*.md",
     "reference_data/resources/crystallography/*.txt",
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-addopts = ["--import-mode=importlib"]
