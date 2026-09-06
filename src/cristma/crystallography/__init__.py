@@ -35,6 +35,12 @@ from .asu_mapping import (
     SiteImage,
     SiteOrbitMapping,
 )
+from .symmetry_pairs import (
+    PairCandidateResult,
+    SymmetryPairCandidate,
+    SymmetryPairFinder,
+    SymmetryPairSearchPolicy,
+)
 
 __all__ = [
     "AffineCoordinateMap",
@@ -50,9 +56,13 @@ __all__ = [
     "SymmetryContext",
     "SymmetryContextInvariantError",
     "SymmetrySourceKind",
+    "SymmetryPairCandidate",
+    "SymmetryPairFinder",
+    "SymmetryPairSearchPolicy",
     "CrystallographicOrbit",
     "GeometricContact",
     "LatticeTranslation",
+    "PairCandidateResult",
     "PeriodicSymmetryRelation",
     "SiteSymmetry",
     "SiteImage",
