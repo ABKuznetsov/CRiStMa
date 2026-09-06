@@ -489,6 +489,7 @@ def _representative_polyhedron(
     return CoordinationPolyhedron(
         polyhedron_id=polyhedron_id,
         polyhedron_orbit_id=polyhedron_orbit_id,
+        source_shell_orbit_id=shell.shell_orbit_id,
         source_site_id=shell.center_independent_site_id,
         center_atom_id=center_image.image_id,
         coordination_number=len(vertices),

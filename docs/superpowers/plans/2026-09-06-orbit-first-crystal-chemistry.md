@@ -1030,20 +1030,23 @@ git add src/cristma/crystal_chemistry/polyhedra.py src/cristma/crystal_chemistry
 git commit -m "Build coordination polyhedra from shell orbits"
 ```
 
-### Task 11: Orbit-first structural units, graph, and connectivity
+### Task 11: Orbit-first structural units, graph, connectivity, and blocks
 
 **Files:**
 - Modify: `src/cristma/crystal_chemistry/structural_units.py`
 - Modify: `src/cristma/crystal_chemistry/structural_graph.py`
 - Modify: `src/cristma/crystal_chemistry/representation.py`
 - Modify: `src/cristma/crystal_chemistry/periodic_connectivity.py`
+- Modify: `src/cristma/crystal_chemistry/structural_blocks.py`
 - Test: `tests/orbit_first/test_orbit_structural_graph.py`
 
 **Interfaces:**
 - Consumes: `ContactAnalysisResult`, `CoordinationPolyhedronOrbit`, geometric pair relations, and selected interaction layers.
-- Produces: structural-unit orbits, an orbit-referenced structural graph, selected representations, and periodic components/ranks without materialized contacts.
+- Produces: structural-unit orbits, connection orbits, filtered representations,
+  exact periodic components/ranks, and structural blocks without materialized
+  contacts.
 
-- [ ] **Step 1: Write failing unit and translation-rank tests**
+- [x] **Step 1: Write failing unit and translation-rank tests**
 
 ```python
 def test_structural_graph_edges_reference_contact_orbits_only():
@@ -1061,13 +1064,13 @@ def test_periodic_rank_comes_from_exact_relation_translations(fixture, expected_
     assert analyze(fixture).components[0].rank == expected_rank
 ```
 
-- [ ] **Step 2: Run hierarchy-core tests and verify RED**
+- [x] **Step 2: Run hierarchy-core tests and verify RED**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_orbit_structural_graph.py`
 
 Expected: current builders require expanded resolved contacts and units.
 
-- [ ] **Step 3: Migrate structural units and connections to orbit references**
+- [x] **Step 3: Migrate structural units and connections to orbit references**
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -1081,7 +1084,7 @@ class StructuralConnection:
 
 Build unit identities from shell/polyhedron/contact orbit identities and exact relations. Keep planar BO3 and polyhedral BO4 geometry scientifically determined from local coordinates, but do not create symmetry-expanded unit collections.
 
-- [ ] **Step 4: Derive periodic connectivity from exact cycle translations**
+- [x] **Step 4: Derive periodic connectivity from exact cycle translations**
 
 ```python
 translation_generators = exact_cycle_translation_generators(component)
@@ -1090,23 +1093,25 @@ rank = integer_lattice_rank(translation_generators)
 
 Use integer relation translations and graph cycles; numerical Cartesian coordinates must not determine topological rank. Preserve simultaneous child motifs inside a rank-3 parent for the later motif layer without enumerating arbitrary subgraphs.
 
-- [ ] **Step 5: Verify unit orbits and ranks**
+- [x] **Step 5: Verify unit orbits and ranks**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_orbit_structural_graph.py`
 
-Check BO3/BO4 unit counts and rank classifications on LiB3O5, K7, natrolite, NaCl, and synthetic finite/chain/layer/framework fixtures.
+Check BO3/BO4 unit counts and rank classifications on LiB3O5, K7 and synthetic
+finite/chain/layer/framework fixtures. Natrolite and NaCl remain ring-stage
+acceptance cases. Also verify structural blocks contain quotient identities and
+primitive translation generators only.
 
-- [ ] **Step 6: Commit orbit-first hierarchy core**
+- [x] **Step 6: Commit orbit-first hierarchy core**
 
 ```bash
-git add src/cristma/crystal_chemistry/structural_units.py src/cristma/crystal_chemistry/structural_graph.py src/cristma/crystal_chemistry/representation.py src/cristma/crystal_chemistry/periodic_connectivity.py tests/orbit_first/test_orbit_structural_graph.py
-git commit -m "Build structural graphs from scientific orbits"
+git add src/cristma/crystal_chemistry/structural_units.py src/cristma/crystal_chemistry/structural_graph.py src/cristma/crystal_chemistry/representation.py src/cristma/crystal_chemistry/periodic_connectivity.py src/cristma/crystal_chemistry/structural_blocks.py tests/orbit_first/test_orbit_structural_graph.py
+git commit -m "Build orbit-first structural connectivity"
 ```
 
-### Task 12: Orbit-first blocks and rings
+### Task 12: Orbit-first rings
 
 **Files:**
-- Modify: `src/cristma/crystal_chemistry/structural_blocks.py`
 - Modify: `src/cristma/crystal_chemistry/ring_finder.py`
 - Modify: `src/cristma/crystal_chemistry/_ring_search.py`
 - Modify: `src/cristma/crystal_chemistry/_ring_symmetry.py`

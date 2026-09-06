@@ -1,148 +1,93 @@
-"""Explicit semantic selections over a structural-unit graph."""
-
+"""Filtered views of one scientific structural quotient graph."""
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-
+from dataclasses import dataclass, field, replace
 from cristma.chemistry import InteractionLayer
+from cristma.crystallography import SymmetryContext
 from cristma.diagnostics import Diagnostic
-
-from .contacts import ContactClassification
-from .structural_graph import StructuralConnection, StructuralUnitGraph
-from .structural_units import StructuralUnit
+from .shell_orbits import ShellRole
+from .structural_graph import StructuralConnectionOrbit, StructuralUnitGraph
+from .structural_units import StructuralUnitOrbit
 
 
 @dataclass(frozen=True, slots=True)
 class StructuralSelectionPolicy:
-    """Caller-owned criteria for one reproducible structural representation."""
-
     included_layers: frozenset[InteractionLayer]
-    included_classifications: frozenset[ContactClassification]
+    included_shell_roles: frozenset[ShellRole]
 
     def __post_init__(self) -> None:
         if not self.included_layers:
             raise ValueError("structural selection requires at least one interaction layer")
-        if not self.included_classifications:
-            raise ValueError("structural selection requires at least one contact classification")
+        if not self.included_shell_roles:
+            raise ValueError("structural selection requires at least one shell role")
 
 
 @dataclass(frozen=True, slots=True)
 class StructuralRepresentation:
-    """Immutable selected view of a structural-unit graph."""
-
     representation_id: str
-    units: tuple[StructuralUnit, ...]
-    connections: tuple[StructuralConnection, ...]
+    unit_orbits: tuple[StructuralUnitOrbit, ...]
+    connection_orbits: tuple[StructuralConnectionOrbit, ...]
     selection_policy: StructuralSelectionPolicy
-    excluded_unit_ids: tuple[str, ...] = ()
-    excluded_connection_ids: tuple[str, ...] = ()
+    excluded_unit_orbit_ids: tuple[str, ...] = ()
+    excluded_connection_orbit_ids: tuple[str, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
+    _symmetry_context: SymmetryContext = field(repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
-        if not self.representation_id:
-            raise ValueError("structural representation ID must not be empty")
-        unit_ids = {item.unit_id for item in self.units}
-        if len(unit_ids) != len(self.units):
+        if not self.representation_id or self._symmetry_context is None:
+            raise ValueError("structural representation requires identity and symmetry context")
+        known = {x.unit_orbit_id for x in self.unit_orbits}
+        if len(known) != len(self.unit_orbits):
             raise ValueError("structural representation unit IDs must be unique")
-        if any(
-            connection.first_unit_id not in unit_ids
-            or connection.second_unit_id not in unit_ids
-            for connection in self.connections
-        ):
+        if any(x.first_unit_orbit_id not in known or x.second_unit_orbit_id not in known for x in self.connection_orbits):
             raise ValueError("representation connection references an excluded unit")
 
+    @property
+    def units(self) -> tuple[StructuralUnitOrbit, ...]:
+        return self.unit_orbits
 
-def _matches(
-    layers: tuple[InteractionLayer, ...],
-    classifications: tuple[ContactClassification, ...],
-    policy: StructuralSelectionPolicy,
-) -> bool:
-    return bool(
-        set(layers) & policy.included_layers
-        and set(classifications) & policy.included_classifications
+    @property
+    def connections(self) -> tuple[StructuralConnectionOrbit, ...]:
+        return self.connection_orbits
+
+
+def _matches(layers, roles, policy: StructuralSelectionPolicy) -> bool:
+    return bool(set(layers) & policy.included_layers) and (
+        not roles or bool(set(roles) & policy.included_shell_roles)
     )
 
 
 @dataclass(frozen=True, slots=True)
 class StructuralRepresentationBuilder:
-    """Apply an explicit selection without recalculating scientific evidence."""
-
     policy: StructuralSelectionPolicy
 
     def get_config(self) -> dict[str, tuple[str, ...]]:
         return {
-            "included_layers": tuple(sorted(item.value for item in self.policy.included_layers)),
-            "included_classifications": tuple(sorted(
-                item.value for item in self.policy.included_classifications
-            )),
+            "included_layers": tuple(sorted(x.value for x in self.policy.included_layers)),
+            "included_shell_roles": tuple(sorted(x.value for x in self.policy.included_shell_roles)),
         }
 
     def clone(self, **changes: object) -> "StructuralRepresentationBuilder":
         return replace(self, **changes)
 
     def build(self, graph: StructuralUnitGraph) -> StructuralRepresentation:
-        matching_connections = tuple(
-            connection for connection in graph.connections
-            if _matches(
-                connection.interaction_layers,
-                connection.contact_classifications,
-                self.policy,
-            )
-        )
-        selected_unit_ids = {
-            unit.unit_id
-            for unit in graph.units
-            if _matches(
-                unit.interaction_layers,
-                unit.contact_classifications,
-                self.policy,
-            )
-        }
-        for connection in matching_connections:
-            selected_unit_ids.update(
-                (connection.first_unit_id, connection.second_unit_id)
-            )
-        selected_units = tuple(
-            unit for unit in graph.units if unit.unit_id in selected_unit_ids
-        )
-        selected_connections = tuple(
-            connection
-            for connection in matching_connections
-            if connection.first_unit_id in selected_unit_ids
-            and connection.second_unit_id in selected_unit_ids
-        )
-        selected_connection_ids = {
-            item.connection_id for item in selected_connections
-        }
+        connections = tuple(x for x in graph.connection_orbits if _matches(x.interaction_layers, x.shell_roles, self.policy))
+        selected = {x.unit_orbit_id for x in graph.unit_orbits if _matches(x.interaction_layers, x.shell_roles, self.policy)}
+        for connection in connections:
+            selected.update((connection.first_unit_orbit_id, connection.second_unit_orbit_id))
+        units = tuple(x for x in graph.unit_orbits if x.unit_orbit_id in selected)
+        connection_ids = {x.connection_orbit_id for x in connections}
         config = self.get_config()
-        representation_id = (
-            "representation:"
-            f"layers={','.join(config['included_layers'])};"
-            f"classifications={','.join(config['included_classifications'])}"
-        )
+        identifier = "representation:layers=" + ",".join(config["included_layers"]) + ";roles=" + ",".join(config["included_shell_roles"])
         return StructuralRepresentation(
-            representation_id=representation_id,
-            units=selected_units,
-            connections=selected_connections,
-            selection_policy=self.policy,
-            excluded_unit_ids=tuple(
-                unit.unit_id for unit in graph.units
-                if unit.unit_id not in selected_unit_ids
-            ),
-            excluded_connection_ids=tuple(
-                connection.connection_id for connection in graph.connections
-                if connection.connection_id not in selected_connection_ids
-            ),
-            provenance=(
-                ("method", "cristma.structural_representation_builder:1"),
-                ("selection", config),
-            ),
+            identifier, units, connections, self.policy,
+            tuple(x.unit_orbit_id for x in graph.unit_orbits if x.unit_orbit_id not in selected),
+            tuple(x.connection_orbit_id for x in graph.connection_orbits if x.connection_orbit_id not in connection_ids),
+            graph.diagnostics,
+            (("method", "cristma.structural_representation_builder:2"), ("selection", config)),
+            _symmetry_context=graph._symmetry_context,
         )
 
 
-__all__ = [
-    "StructuralRepresentation",
-    "StructuralRepresentationBuilder",
-    "StructuralSelectionPolicy",
-]
+__all__ = ["StructuralRepresentation", "StructuralRepresentationBuilder", "StructuralSelectionPolicy"]

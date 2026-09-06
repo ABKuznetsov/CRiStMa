@@ -47,6 +47,7 @@ def aggregate_contact_analysis_status(
 class ContactAnalysisResult:
     _structure: CrystalStructure = field(repr=False, compare=False)
     _asymmetric_unit_mapping: AsymmetricUnitMapping = field(repr=False, compare=False)
+    _symmetry_context: SymmetryContext = field(repr=False, compare=False)
     pair_table: SymmetryPairTable
     contact_orbits: tuple[ResolvedContactOrbit, ...]
     contact_incidence_orbits: tuple[ContactIncidenceOrbit, ...]
@@ -59,6 +60,8 @@ class ContactAnalysisResult:
     def __post_init__(self) -> None:
         if self.pair_table.asymmetric_unit_mapping_fingerprint != self._asymmetric_unit_mapping.fingerprint:
             raise ValueError("contact result and asymmetric-unit mapping disagree")
+        if self.pair_table.symmetry_context_fingerprint != self._symmetry_context.fingerprint:
+            raise ValueError("contact result and symmetry context disagree")
         if {site.id for site in self._structure.sites} != set(self._asymmetric_unit_mapping.by_site_id):
             raise ValueError("contact result mapping belongs to another structure")
         contact_by_id = {
@@ -213,6 +216,7 @@ class ContactAnalyzer:
         return ContactAnalysisResult(
             structure,
             mapping,
+            symmetry_context,
             pair_table,
             contact_resolution.contact_orbits,
             incidences,

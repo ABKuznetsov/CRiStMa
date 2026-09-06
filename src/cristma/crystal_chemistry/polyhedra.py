@@ -62,6 +62,7 @@ class CoordinationPolyhedron:
     center_offset: float | None
     diagnostics: tuple[Diagnostic, ...] = ()
     polyhedron_orbit_id: str = field(default="", kw_only=True)
+    source_shell_orbit_id: str | None = field(default=None, kw_only=True)
     center_atom_ref: PeriodicAtomRef = field(init=False)
     coordination_number: int | None = field(default=None, kw_only=True)
     ligand_composition: tuple[tuple[str, float], ...] = field(default=(), kw_only=True)

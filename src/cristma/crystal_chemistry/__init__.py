@@ -60,6 +60,7 @@ from .structural_units import (
 from .structural_graph import (
     StructuralConnection,
     StructuralConnectionKind,
+    StructuralConnectionOrbit,
     StructuralGraphBuilder,
     StructuralUnitGraph,
 )
@@ -72,6 +73,7 @@ from .periodic_connectivity import (
     PeriodicComponent,
     PeriodicConnectivityAnalyzer,
     PeriodicConnectivityResult,
+    integer_translation_lattice_basis,
 )
 from .structural_blocks import (
     StructuralBlock,
@@ -138,6 +140,7 @@ __all__ = [
     "StructuralUnitOrbit",
     "StructuralConnection",
     "StructuralConnectionKind",
+    "StructuralConnectionOrbit",
     "StructuralGraphBuilder",
     "StructuralUnitGraph",
     "StructuralRepresentation",
@@ -146,6 +149,7 @@ __all__ = [
     "PeriodicComponent",
     "PeriodicConnectivityAnalyzer",
     "PeriodicConnectivityResult",
+    "integer_translation_lattice_basis",
     "StructuralBlock",
     "StructuralBlockClassification",
     "StructuralBlockFinder",
