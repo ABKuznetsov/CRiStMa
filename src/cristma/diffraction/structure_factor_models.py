@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 import math
 
+from cristma.diagnostics import Diagnostic
 from cristma.reference_data import (
     NeutralAtomFormFactorTable,
     XRayFormFactorProvenance,
@@ -66,6 +67,8 @@ class StructureFactorProvenance:
     contribution_scale: float
     extinction_tolerance: float
     normalized_to_zero: bool
+    anisotropic_fallback_site_ids: tuple[str, ...] = ()
+    ignored_anisotropic_site_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _nonempty(self.method, "structure-factor method")
@@ -96,6 +99,18 @@ class StructureFactorProvenance:
                 raise ValueError(f"{name} must be finite and non-negative")
         if type(self.normalized_to_zero) is not bool:
             raise TypeError("normalized_to_zero must be bool")
+        for site_ids, name in (
+            (self.anisotropic_fallback_site_ids, "anisotropic fallback site IDs"),
+            (self.ignored_anisotropic_site_ids, "ignored anisotropic site IDs"),
+        ):
+            if len(set(site_ids)) != len(site_ids) or not all(
+                isinstance(site_id, str) and site_id.strip() for site_id in site_ids
+            ):
+                raise ValueError(f"{name} must be unique and non-empty")
+        if set(self.anisotropic_fallback_site_ids) & set(
+            self.ignored_anisotropic_site_ids
+        ):
+            raise ValueError("an anisotropic ADP cannot be both approximated and ignored")
 
     @property
     def raw_amplitude(self) -> float:
@@ -141,12 +156,15 @@ class StructureFactorSet:
     structure_factors: tuple[StructureFactor, ...]
     reflection_set: ReflectionSet
     context: XRayScatteringContext
+    diagnostics: tuple[Diagnostic, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.reflection_set, ReflectionSet):
             raise TypeError("reflection_set must be ReflectionSet")
         if not isinstance(self.context, XRayScatteringContext):
             raise TypeError("context must be XRayScatteringContext")
+        if not all(isinstance(item, Diagnostic) for item in self.diagnostics):
+            raise TypeError("structure-factor diagnostics must contain Diagnostic values")
         expected = tuple(
             (item.reflection_id, item.representative_hkl)
             for item in self.reflection_set.reflections

@@ -7,12 +7,14 @@ import math
 from typing import Any
 
 from cristma.crystallography import SpaceGroupSetting
+from cristma.diagnostics import Diagnostic, Severity
 from cristma.reference_data import ElementCatalog
 from cristma.structure import CrystalStructure, DisplacementParameters
 from cristma.symmetry import expand_orbit
 
 from .diagnostics import (
     DiffractionInvariantError,
+    STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED,
     STRUCTURE_FACTOR_CELL_MISMATCH,
     STRUCTURE_FACTOR_EXTINCT_NONZERO,
     STRUCTURE_FACTOR_SETTING_MISMATCH,
@@ -55,21 +57,19 @@ def _isotropic_factor(
 ) -> float:
     if displacement is None:
         return 1.0
+    effective_kind = displacement.kind
     if displacement.kind == "U_aniso" or displacement.tensor is not None:
-        _raise(
-            STRUCTURE_FACTOR_UNSUPPORTED_ANISOTROPIC_ADP,
-            "anisotropic displacement parameters are not supported in v1",
-            site_id=site_id,
-            displacement_kind=displacement.kind,
-        )
-    if displacement.kind not in {"U_iso", "B_iso"}:
+        if displacement.isotropic is None or displacement.isotropic.value is None:
+            return 1.0
+        effective_kind = "U_iso"
+    if effective_kind not in {"U_iso", "B_iso"}:
         raise ValueError(f"unsupported displacement kind: {displacement.kind!r}")
     if displacement.isotropic is None or displacement.isotropic.value is None:
         raise ValueError("isotropic displacement value is required")
     value = float(displacement.isotropic.value)
     if not math.isfinite(value) or value < 0:
         raise ValueError("isotropic displacement value must be finite and non-negative")
-    exponent = -8.0 * math.pi**2 * value * s**2 if displacement.kind == "U_iso" else -value * s**2
+    exponent = -8.0 * math.pi**2 * value * s**2 if effective_kind == "U_iso" else -value * s**2
     return math.exp(exponent)
 
 
@@ -154,17 +154,49 @@ class StructureFactorCalculator:
                 setting_operation_count=len(space_group.symmetry_operations),
             )
 
+        anisotropic_fallback_site_ids: list[str] = []
+        ignored_anisotropic_site_ids: list[str] = []
         for site in structure.sites:
             if site.displacement is not None and (
                 site.displacement.kind == "U_aniso" or site.displacement.tensor is not None
             ):
-                _raise(
+                if (
+                    site.displacement.isotropic is None
+                    or site.displacement.isotropic.value is None
+                ):
+                    ignored_anisotropic_site_ids.append(site.id)
+                else:
+                    anisotropic_fallback_site_ids.append(site.id)
+
+        fallback_ids = tuple(anisotropic_fallback_site_ids)
+        ignored_ids = tuple(ignored_anisotropic_site_ids)
+        diagnostics: list[Diagnostic] = []
+        if fallback_ids:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED,
+                    "Anisotropic displacement parameters were approximated by reported U_iso_or_equiv values.",
+                    recovery=(
+                        "Use a future anisotropic structure-factor model or replace the ADP "
+                        "with an explicitly accepted isotropic value. Affected sites: "
+                        + ", ".join(fallback_ids)
+                    ),
+                ),
+            )
+        if ignored_ids:
+            diagnostics.append(
+                Diagnostic(
+                    Severity.ERROR,
                     STRUCTURE_FACTOR_UNSUPPORTED_ANISOTROPIC_ADP,
-                    "anisotropic displacement parameters are not supported in v1",
-                    site_id=site.id,
-                    site_label=site.label,
-                    displacement_kind=site.displacement.kind,
+                    "Anisotropic displacement parameters without U_iso_or_equiv were ignored.",
+                    recovery=(
+                        "Provide U_iso_or_equiv or use a future anisotropic model. "
+                        "The affected sites were calculated with T=1: "
+                        + ", ".join(ignored_ids)
+                    ),
                 )
+            )
 
         atoms = tuple(
             atom
@@ -253,6 +285,8 @@ class StructureFactorCalculator:
                 contribution_scale=contribution_scale,
                 extinction_tolerance=extinction_tolerance,
                 normalized_to_zero=normalized_to_zero,
+                anisotropic_fallback_site_ids=fallback_ids,
+                ignored_anisotropic_site_ids=ignored_ids,
             )
             results.append(
                 StructureFactor(
@@ -262,7 +296,7 @@ class StructureFactorCalculator:
                     provenance=provenance,
                 )
             )
-        return StructureFactorSet(tuple(results), reflections, context)
+        return StructureFactorSet(tuple(results), reflections, context, tuple(diagnostics))
 
 
 __all__ = ["StructureFactorCalculator"]

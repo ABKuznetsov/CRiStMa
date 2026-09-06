@@ -26,6 +26,9 @@ STRUCTURE_FACTOR_UNSUPPORTED_SPECIES = (
 STRUCTURE_FACTOR_EXTINCT_NONZERO = (
     "diffraction.structure_factor.extinct_reflection_nonzero"
 )
+STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED = (
+    "diffraction.structure_factor.anisotropic_adp_approximated_by_ueq"
+)
 
 
 def _freeze(value: Any) -> Any:
@@ -59,6 +62,7 @@ __all__ = [
     "ORBIT_METRIC_MISMATCH",
     "SEARCH_LIMIT_REACHED",
     "STRUCTURE_FACTOR_CELL_MISMATCH",
+    "STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED",
     "STRUCTURE_FACTOR_EXTINCT_NONZERO",
     "STRUCTURE_FACTOR_SETTING_MISMATCH",
     "STRUCTURE_FACTOR_SYMMETRY_MISMATCH",

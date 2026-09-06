@@ -191,7 +191,11 @@ deduplicates special positions, applies occupancies and isotropic displacement
 parameters, and returns `F`, `|F|`, and `|F|²` without multiplying by reflection
 multiplicity. The bundled `f0(s)` table covers neutral atoms H through Cf and
 does not require xraylib at runtime. Anisotropic displacement parameters and
-anomalous scattering are intentionally explicit unsupported cases in v1.
+anomalous scattering are not evaluated directly in v1. When a source reports
+`U_aniso` together with `U_iso_or_equiv`, the calculator uses the reported
+equivalent isotropic value and returns an explicit warning. Without that value,
+the position is calculated with `T=1` and the result carries an error diagnostic
+plus the affected site IDs instead of aborting the complete calculation.
 
 This is forward crystallographic physics only. Experimental peak matching,
 similarity measures, R-factors, powder corrections, and phase identification

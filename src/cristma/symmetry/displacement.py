@@ -162,6 +162,7 @@ def symmetrize_displacement(
     return DisplacementSymmetrization(
         DisplacementParameters(
             kind="U_aniso",
+            isotropic=displacement.isotropic,
             tensor=tensor,
             reported_kind=displacement.reported_kind,
         ),
@@ -225,6 +226,7 @@ def transform_displacement(
     )
     return DisplacementParameters(
         kind="U_aniso",
+        isotropic=displacement.isotropic,
         tensor=tensor,
         reported_kind=displacement.reported_kind,
     )

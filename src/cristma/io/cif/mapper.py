@@ -669,6 +669,12 @@ def _attach_anisotropic_displacements(
                 site,
                 displacement=DisplacementParameters(
                     kind="U_aniso",
+                    isotropic=(
+                        site.displacement.isotropic
+                        if site.displacement is not None
+                        and site.displacement.kind == "U_iso"
+                        else None
+                    ),
                     tensor=tensor,
                     reported_kind="U",
                 ),
