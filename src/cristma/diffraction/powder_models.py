@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 import hashlib
 from importlib.resources import files
@@ -46,6 +47,24 @@ def _canonical_bytes(value: object) -> bytes:
         separators=(",", ":"),
         sort_keys=True,
     ).encode("ascii")
+
+
+class RadiationProbe(str, Enum):
+    """Physical probe carried by a wavelength spectrum."""
+
+    XRAY = "xray"
+    NEUTRON = "neutron"
+
+
+class XRayTubeTarget(str, Enum):
+    """Packaged laboratory X-ray tube targets with K-alpha doublets."""
+
+    CR = "Cr"
+    FE = "Fe"
+    CO = "Co"
+    CU = "Cu"
+    MO = "Mo"
+    AG = "Ag"
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +167,7 @@ class RadiationSpectrum:
 
     components: tuple[RadiationComponent, ...]
     provenance: RadiationSpectrumProvenance
+    probe: RadiationProbe = RadiationProbe.XRAY
 
     def __post_init__(self) -> None:
         if not isinstance(self.components, tuple):
@@ -161,6 +181,14 @@ class RadiationSpectrum:
             raise ValueError("radiation component IDs must be unique")
         if not isinstance(self.provenance, RadiationSpectrumProvenance):
             raise TypeError("radiation provenance must be RadiationSpectrumProvenance")
+        if not isinstance(self.probe, RadiationProbe):
+            raise TypeError("radiation probe must be RadiationProbe")
+
+    @property
+    def source_id(self) -> str:
+        """Stable identifier of the selected source or supplied spectrum."""
+
+        return self.provenance.dataset_id
 
     @property
     def normalized_weights(self) -> tuple[float, ...]:
@@ -170,23 +198,53 @@ class RadiationSpectrum:
         return tuple(item.relative_weight / total for item in self.components)
 
     @classmethod
-    @lru_cache(maxsize=1)
-    def copper_k_alpha(cls) -> "RadiationSpectrum":
-        """Load the packaged Cu K-alpha1/K-alpha2 reference spectrum."""
+    def available_k_alpha_targets(cls) -> tuple[XRayTubeTarget, ...]:
+        """Return tube targets in the stable public selection order."""
+
+        return tuple(XRayTubeTarget)
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def lab_k_alpha(
+        cls,
+        target: XRayTubeTarget | str,
+    ) -> "RadiationSpectrum":
+        """Load a packaged laboratory K-alpha1/K-alpha2 spectrum."""
+
+        if isinstance(target, str) and not isinstance(target, XRayTubeTarget):
+            target = target.strip().capitalize()
+        try:
+            normalized_target = XRayTubeTarget(target)
+        except (TypeError, ValueError) as exc:
+            choices = ", ".join(item.value for item in XRayTubeTarget)
+            raise ValueError(f"unknown X-ray tube target; choose one of: {choices}") from exc
 
         resource = files("cristma.reference_data").joinpath(
             "resources", "xray", "xray_radiation.json"
         )
         payload = json.loads(resource.read_text(encoding="ascii"))
         metadata = payload["metadata"]
-        components = payload["components"]
-        checksum = hashlib.sha256(_canonical_bytes(components)).hexdigest()
+        spectra = payload["spectra"]
+        checksum = hashlib.sha256(_canonical_bytes(spectra)).hexdigest()
         if checksum != metadata["resource_checksum"]:
             raise ValueError("X-ray radiation resource checksum mismatch")
+        selected = next(
+            (
+                item
+                for item in spectra
+                if item["target_element"] == normalized_target.value
+            ),
+            None,
+        )
+        if selected is None:
+            raise ValueError(
+                f"X-ray radiation resource lacks {normalized_target.value} K-alpha"
+            )
+        components = selected["components"]
         provenance = RadiationSpectrumProvenance(
-            dataset_id=metadata["dataset_id"],
+            dataset_id=selected["source_id"],
             dataset_version=metadata["version"],
-            source=metadata["source"],
+            source=f"{metadata['source']} ({normalized_target.value})",
             energy_source=metadata["energy_source"],
             radiative_rate_source=metadata["radiative_rate_source"],
             energy_to_wavelength_formula=metadata["energy_to_wavelength_formula"],
@@ -208,7 +266,45 @@ class RadiationSpectrum:
                 for item in components
             ),
             provenance,
+            RadiationProbe.XRAY,
         )
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def synchrotron(
+        cls,
+        *,
+        wavelength_angstrom: float,
+        source_id: str,
+        label: str = "Synchrotron monochromatic X-ray",
+    ) -> "RadiationSpectrum":
+        """Create an explicit monochromatic synchrotron X-ray spectrum."""
+
+        _nonempty(source_id, "synchrotron source ID")
+        _nonempty(label, "synchrotron component label")
+        wavelength = _positive_finite(wavelength_angstrom, "wavelength")
+        return cls(
+            components=(
+                RadiationComponent(
+                    component_id=f"{source_id}:monochromatic",
+                    label=label,
+                    wavelength_angstrom=wavelength,
+                    relative_weight=1.0,
+                ),
+            ),
+            provenance=RadiationSpectrumProvenance(
+                dataset_id=source_id,
+                dataset_version="1",
+                source="user_supplied_synchrotron_wavelength",
+            ),
+            probe=RadiationProbe.XRAY,
+        )
+
+    @classmethod
+    def copper_k_alpha(cls) -> "RadiationSpectrum":
+        """Compatibility shorthand for the packaged Cu K-alpha spectrum."""
+
+        return cls.lab_k_alpha(XRayTubeTarget.CU)
 
 
 @dataclass(frozen=True, slots=True)
@@ -406,6 +502,8 @@ __all__ = [
     "PowderLineSet",
     "PowderReflectionFamily",
     "RadiationComponent",
+    "RadiationProbe",
     "RadiationSpectrum",
     "RadiationSpectrumProvenance",
+    "XRayTubeTarget",
 ]

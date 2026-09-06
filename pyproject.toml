@@ -29,6 +29,7 @@ Issues = "https://github.com/ABKuznetsov/CrIStMa/issues"
 [project.optional-dependencies]
 reference-build = [
     "spglib==2.7.0",
+    "xraylib==4.3.0",
 ]
 
 [tool.setuptools.packages.find]

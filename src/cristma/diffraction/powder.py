@@ -10,12 +10,14 @@ from .diagnostics import (
     POWDER_FRIEDEL_D_SPACING_MISMATCH,
     POWDER_MISSING_FRIEDEL_MATE,
     POWDER_NONRECIPROCAL_FRIEDEL_LINK,
+    POWDER_SCATTERING_PROBE_MISMATCH,
 )
 from .powder_models import (
     PowderLine,
     PowderLineProvenance,
     PowderLineSet,
     PowderReflectionFamily,
+    RadiationProbe,
     RadiationSpectrum,
 )
 from .structure_factor_models import StructureFactorSet
@@ -51,6 +53,14 @@ class PowderLineCalculator:
             raise TypeError("structure_factors must be StructureFactorSet")
         if not isinstance(spectrum, RadiationSpectrum):
             raise TypeError("spectrum must be RadiationSpectrum")
+        if spectrum.probe is not RadiationProbe.XRAY:
+            _raise(
+                POWDER_SCATTERING_PROBE_MISMATCH,
+                "X-ray structure factors require an X-ray wavelength spectrum",
+                structure_factor_context=type(structure_factors.context).__name__,
+                radiation_probe=spectrum.probe.value,
+                radiation_source_id=spectrum.source_id,
+            )
 
         reflections = structure_factors.reflection_set.reflections
         by_reflection_id = {

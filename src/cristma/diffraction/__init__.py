@@ -15,14 +15,23 @@ from .models import (
     ReflectionSetStatus,
 )
 from .powder import PowderLineCalculator
+from .powder_corrections import PowderCorrectionCalculator
+from .powder_correction_models import (
+    BraggBrentanoGeometry,
+    CorrectedPowderLine,
+    CorrectedPowderLineSet,
+    PowderCorrectionProvenance,
+)
 from .powder_models import (
     PowderLine,
     PowderLineProvenance,
     PowderLineSet,
     PowderReflectionFamily,
     RadiationComponent,
+    RadiationProbe,
     RadiationSpectrum,
     RadiationSpectrumProvenance,
+    XRayTubeTarget,
 )
 from .reciprocal import ReciprocalMetric
 from .reflections import ReflectionGenerator
@@ -36,6 +45,9 @@ from .structure_factors import StructureFactorCalculator
 
 __all__ = [
     "DiffractionInvariantError",
+    "BraggBrentanoGeometry",
+    "CorrectedPowderLine",
+    "CorrectedPowderLineSet",
     "ExtinctionAnalyzer",
     "ExtinctionCause",
     "ExtinctionCauseKind",
@@ -47,7 +59,10 @@ __all__ = [
     "PowderLineProvenance",
     "PowderLineSet",
     "PowderReflectionFamily",
+    "PowderCorrectionCalculator",
+    "PowderCorrectionProvenance",
     "RadiationComponent",
+    "RadiationProbe",
     "RadiationSpectrum",
     "RadiationSpectrumProvenance",
     "ReciprocalMetric",
@@ -62,4 +77,5 @@ __all__ = [
     "StructureFactorProvenance",
     "StructureFactorSet",
     "XRayScatteringContext",
+    "XRayTubeTarget",
 ]
