@@ -41,6 +41,8 @@ desktop applications, and automated data-processing systems.
   systematic absences, crystallographic multiplicity, and Friedel relations;
 - calculate neutral-atom X-ray structure factors `F`, `|F|`, and `|F|²` from
   independent crystallographic sites and an explicit Hall setting;
+- calculate intrinsic powder-line angles and multiplicity-weighted strengths
+  for explicit single- or multi-component radiation, including Cu Kα1/Kα2;
 - calculate finite and periodic neighbour graphs and coordination
   environments;
 - analyze composition, oxidation-state evidence, coordination shells, and
@@ -201,6 +203,30 @@ This is forward crystallographic physics only. Experimental peak matching,
 similarity measures, R-factors, powder corrections, and phase identification
 belong to consuming applications or later independent layers.
 
+## Powder diffraction lines
+
+The next layer groups Friedel mates and calculates a separate Bragg angle for
+every component of an explicit radiation spectrum:
+
+```python
+from cristma.diffraction import PowderLineCalculator, RadiationSpectrum
+
+powder_lines = PowderLineCalculator().calculate(
+    structure_factors=factors,
+    spectrum=RadiationSpectrum.copper_k_alpha(),
+)
+
+for line in powder_lines.lines_by_angle:
+    print(line.two_theta_deg, line.intrinsic_line_intensity)
+```
+
+The Cu Kα preset retains Kα1 and Kα2 as separate lines, so their angular
+separation remains visible at high angles. `intrinsic_line_intensity` contains
+only normalized radiation weight, crystallographic multiplicity, Friedel
+grouping, and `|F|²`. Lorentz-polarization, preferred orientation, absorption,
+instrument response, peak profiles, and comparison with experiment are not
+part of this result.
+
 ## Design principles
 
 - **Physics before interface.** Scientific meaning is not determined by a GUI
@@ -234,17 +260,18 @@ still change when required to correct or clarify scientific contracts.
 
 The current development version adds reciprocal metrics, bounded reflection
 generation, exact systematic absences, reciprocal symmetry orbits,
-crystallographic multiplicity, Friedel relations, and neutral-atom structure
-factors to the published beta's structural I/O, symmetry, geometry, crystal
-chemistry, and topology layers. It does not yet calculate powder-line
-intensities, diffraction profiles, or structure refinement.
+crystallographic multiplicity, Friedel relations, neutral-atom structure
+factors, and intrinsic multi-component powder lines to the published beta's
+structural I/O, symmetry, geometry, crystal chemistry, and topology layers. It
+does not yet calculate physical powder corrections, broadened diffraction
+profiles, experimental matching, or structure refinement.
 
 ## Roadmap
 
 Planned scientific layers are developed as independent milestones:
 
 1. energy-dependent and additional scattering contexts;
-2. radiation-aware powder lines and physical corrections;
+2. powder corrections and explicit instrument/profile models;
 3. calculated diffraction profiles on explicit grids;
 4. additional structural transforms, hierarchy and topology tools, and
    refinement built over the same forward calculations.

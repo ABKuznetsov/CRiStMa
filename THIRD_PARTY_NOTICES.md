@@ -70,7 +70,7 @@ does not claim a stronger undocumented lineage. See
 [`SHANNON_SOURCE.md`](src/cristma/reference_data/resources/SHANNON_SOURCE.md)
 and the reproduced [`PYMATGEN_LICENSE.txt`](src/cristma/reference_data/resources/PYMATGEN_LICENSE.txt).
 
-## Neutral-atom X-ray form factors
+## X-ray form factors and radiation lines
 
 `xray_f0.json` is normalized from xraylib 4.3.0 `data/FF.dat`:
 
@@ -88,6 +88,12 @@ Cullen, J. H. Hubbell, and J. H. Kissel, *EPDL97: The Evaluated Photon Data
 Library, '97 Version*, LLNL report UCRL-50400, Vol. 6, Rev. 5. CrIStMa stores
 the native tabulation and second derivatives in its own documented convention
 `s = 1/(2d)` and does not copy or import xraylib code at runtime.
+
+`xray_radiation.json` contains Cu K-alpha1/K-alpha2 line energies and
+radiative rates extracted through xraylib 4.3.0 at the same pinned commit.
+Wavelengths are derived with the recorded `hc` conversion constant. The
+canonical component-data SHA-256 is
+`9f11f4194198dfa835ccf8831e60fe63ff2813904ea7f02c8e9131a4240175cc`.
 
 Complete build provenance is recorded in
 [`SOURCE.md`](src/cristma/reference_data/resources/xray/SOURCE.md), and the

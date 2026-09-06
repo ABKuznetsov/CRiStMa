@@ -14,6 +14,16 @@ from .models import (
     ReflectionSet,
     ReflectionSetStatus,
 )
+from .powder import PowderLineCalculator
+from .powder_models import (
+    PowderLine,
+    PowderLineProvenance,
+    PowderLineSet,
+    PowderReflectionFamily,
+    RadiationComponent,
+    RadiationSpectrum,
+    RadiationSpectrumProvenance,
+)
 from .reciprocal import ReciprocalMetric
 from .reflections import ReflectionGenerator
 from .structure_factor_models import (
@@ -32,6 +42,14 @@ __all__ = [
     "ExtinctionResult",
     "MillerIndex",
     "PhaseBucketEvidence",
+    "PowderLine",
+    "PowderLineCalculator",
+    "PowderLineProvenance",
+    "PowderLineSet",
+    "PowderReflectionFamily",
+    "RadiationComponent",
+    "RadiationSpectrum",
+    "RadiationSpectrumProvenance",
     "ReciprocalMetric",
     "Reflection",
     "ReflectionGenerationProvenance",
