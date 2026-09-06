@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from itertools import product
 import math
 
@@ -90,6 +91,73 @@ class PairCandidateResult:
             raise ValueError("pair search counts must be non-negative")
         if tuple(sorted(self.candidates, key=_candidate_sort_key)) != self.candidates:
             raise ValueError("pair candidates must use deterministic order")
+
+
+class PairTableStatus(StrEnum):
+    COMPLETE = "complete"
+    INCOMPLETE = "incomplete"
+
+
+@dataclass(frozen=True, slots=True)
+class SymmetryContactOrbit:
+    geometry_orbit_id: str
+    first_independent_site_id: str
+    second_independent_site_id: str
+    canonical_relation: PeriodicSymmetryRelation
+    equivalent_relations: tuple[PeriodicSymmetryRelation, ...]
+    endpoint_stabilizers: tuple[
+        tuple[PeriodicSymmetryRelation, ...],
+        tuple[PeriodicSymmetryRelation, ...],
+    ]
+    representative_distance: float
+    representative_vector_cartesian: tuple[float, float, float]
+    multiplicity_in_reference_cell: int
+    status: PairTableStatus
+    diagnostics: tuple[Diagnostic, ...] = ()
+    provenance: tuple[tuple[str, object], ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.geometry_orbit_id:
+            raise ValueError("geometry orbit ID must not be empty")
+        if not self.first_independent_site_id or not self.second_independent_site_id:
+            raise ValueError("geometry orbit endpoints must not be empty")
+        if self.first_independent_site_id > self.second_independent_site_id:
+            raise ValueError("geometry orbit endpoints must use canonical order")
+        if tuple(sorted(set(self.equivalent_relations))) != self.equivalent_relations:
+            raise ValueError("equivalent pair relations must be unique and sorted")
+        if not self.equivalent_relations:
+            raise ValueError("geometry orbit must retain relation evidence")
+        if any(not stabilizer for stabilizer in self.endpoint_stabilizers):
+            raise ValueError("geometry orbit endpoint stabilizers must not be empty")
+        if not math.isfinite(self.representative_distance) or self.representative_distance <= 0:
+            raise ValueError("representative pair distance must be finite and positive")
+        if len(self.representative_vector_cartesian) != 3 or not all(
+            math.isfinite(value) for value in self.representative_vector_cartesian
+        ):
+            raise ValueError("representative pair vector must contain three finite values")
+        if self.multiplicity_in_reference_cell <= 0:
+            raise ValueError("geometry orbit multiplicity must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class SymmetryPairTable:
+    contact_orbits: tuple[SymmetryContactOrbit, ...]
+    symmetry_context_fingerprint: str
+    asymmetric_unit_mapping_fingerprint: str
+    cutoff: float
+    distance_tolerance: float
+    status: PairTableStatus
+    diagnostics: tuple[Diagnostic, ...]
+    provenance: tuple[tuple[str, object], ...]
+
+    def __post_init__(self) -> None:
+        ids = tuple(orbit.geometry_orbit_id for orbit in self.contact_orbits)
+        if len(set(ids)) != len(ids) or tuple(sorted(ids)) != ids:
+            raise ValueError("geometry orbits must have unique sorted IDs")
+        if self.status is PairTableStatus.COMPLETE and any(
+            orbit.status is not PairTableStatus.COMPLETE for orbit in self.contact_orbits
+        ):
+            raise ValueError("complete pair table contains an incomplete orbit")
 
 
 @dataclass(frozen=True, slots=True)
@@ -295,10 +363,32 @@ class SymmetryPairFinder:
             ),
         )
 
+    def find(
+        self,
+        structure: CrystalStructure,
+        context: SymmetryContext,
+        mapping: AsymmetricUnitMapping,
+    ) -> SymmetryPairTable:
+        """Find and canonicalize immutable geometric contact orbits."""
+
+        from .pair_canonical import build_symmetry_pair_table
+
+        candidates = self.find_candidates(structure, context, mapping)
+        return build_symmetry_pair_table(
+            candidates,
+            structure,
+            context,
+            mapping,
+            self.policy,
+        )
+
 
 __all__ = [
     "PairCandidateResult",
+    "PairTableStatus",
+    "SymmetryContactOrbit",
     "SymmetryPairCandidate",
     "SymmetryPairFinder",
     "SymmetryPairSearchPolicy",
+    "SymmetryPairTable",
 ]

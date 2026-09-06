@@ -7,11 +7,7 @@ from fractions import Fraction
 
 from .symmetry_context import (
     SymmetryContext,
-    _compose,
-    _IDENTITY_ROTATION,
     _matrix_vector,
-    _ZERO_TRANSLATION,
-    canonical_operation_key,
 )
 
 
@@ -28,12 +24,6 @@ def _integer_vector(values: tuple[object, ...]) -> LatticeTranslation:
             raise TypeError("lattice translation must contain only integers")
         converted.append(value)
     return tuple(converted)
-
-
-def _exact_integer(value: Fraction, *, name: str) -> int:
-    if value.denominator != 1:
-        raise ArithmeticError(f"{name} is not an exact lattice translation")
-    return value.numerator
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -93,17 +83,7 @@ class PeriodicSymmetryRelation:
 def identity_relation(context: SymmetryContext) -> PeriodicSymmetryRelation:
     """Return the exact identity element for ``context``."""
 
-    identity_key = canonical_operation_key(
-        context.operations[
-            next(
-                index
-                for index, operation in enumerate(context.operations)
-                if operation.rotation == _IDENTITY_ROTATION
-                and operation.translation == _ZERO_TRANSLATION
-            )
-        ]
-    )
-    return PeriodicSymmetryRelation(identity_key, (0, 0, 0))
+    return PeriodicSymmetryRelation(context.identity_operation_key, (0, 0, 0))
 
 
 def compose_periodic_relations(
@@ -114,30 +94,20 @@ def compose_periodic_relations(
     """Compose ``left`` after ``right`` and retain the exact lattice carry."""
 
     left_operation = context.operation_by_key(left.operation_key)
-    right_operation = context.operation_by_key(right.operation_key)
-    product_operation = _compose(left_operation, right_operation)
-    product_key = canonical_operation_key(product_operation)
-    context.operation_by_key(product_key)
-
-    raw_translation = tuple(
-        value + left_operation.translation[index]
-        for index, value in enumerate(
-            _matrix_vector(left_operation.rotation, right_operation.translation)
-        )
+    product_key, carry = context.compose_operation_keys(
+        left.operation_key,
+        right.operation_key,
     )
-    carry = tuple(
-        _exact_integer(
-            raw_translation[index] - product_operation.translation[index],
-            name="composition carry",
+    rotated_right_lattice = tuple(
+        sum(
+            int(left_operation.rotation[row][column])
+            * right.lattice_translation[column]
+            for column in range(3)
         )
-        for index in range(3)
-    )
-    rotated_right_lattice = _matrix_vector(
-        left_operation.rotation,
-        tuple(Fraction(value) for value in right.lattice_translation),
+        for row in range(3)
     )
     lattice_translation = tuple(
-        _exact_integer(rotated_right_lattice[index], name="rotated lattice translation")
+        rotated_right_lattice[index]
         + left.lattice_translation[index]
         + carry[index]
         for index in range(3)
@@ -151,33 +121,25 @@ def invert_periodic_relation(
 ) -> PeriodicSymmetryRelation:
     """Invert a relation while preserving the normalization lattice carry."""
 
-    operation = context.operation_by_key(relation.operation_key)
-    identity = identity_relation(context)
-    inverse_operation = next(
-        candidate
-        for candidate in context.operations
-        if canonical_operation_key(_compose(operation, candidate)) == identity.operation_key
-        and canonical_operation_key(_compose(candidate, operation)) == identity.operation_key
+    inverse_key = context.inverse_operation_key(relation.operation_key)
+    inverse_operation = context.operation_by_key(inverse_key)
+    _, carry = context.compose_operation_keys(
+        inverse_key,
+        relation.operation_key,
     )
-    total_translation = tuple(
-        operation.translation[index] + relation.lattice_translation[index]
-        for index in range(3)
-    )
-    raw_inverse_translation = tuple(
-        -value
-        for value in _matrix_vector(inverse_operation.rotation, total_translation)
+    rotated_lattice = tuple(
+        sum(
+            int(inverse_operation.rotation[row][column])
+            * relation.lattice_translation[column]
+            for column in range(3)
+        )
+        for row in range(3)
     )
     inverse_lattice = tuple(
-        _exact_integer(
-            raw_inverse_translation[index] - inverse_operation.translation[index],
-            name="inverse carry",
-        )
+        -rotated_lattice[index] - carry[index]
         for index in range(3)
     )
-    return PeriodicSymmetryRelation(
-        canonical_operation_key(inverse_operation),
-        inverse_lattice,
-    )
+    return PeriodicSymmetryRelation(inverse_key, inverse_lattice)
 
 
 __all__ = [

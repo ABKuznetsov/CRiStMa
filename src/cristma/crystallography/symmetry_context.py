@@ -135,14 +135,28 @@ def _matrix_vector(matrix: Matrix3, vector: Vector3) -> Vector3:
 
 
 def _compose(left: AffineOperation, right: AffineOperation) -> AffineOperation:
+    return _compose_with_carry(left, right)[0]
+
+
+def _compose_with_carry(
+    left: AffineOperation,
+    right: AffineOperation,
+) -> tuple[AffineOperation, tuple[int, int, int]]:
     rotated_translation = _matrix_vector(left.rotation, right.translation)
-    return AffineOperation(
-        _matrix_product(left.rotation, right.rotation),
-        tuple(
-            (rotated_translation[index] + left.translation[index]) % 1
-            for index in range(3)
-        ),
+    raw_translation = tuple(
+        rotated_translation[index] + left.translation[index]
+        for index in range(3)
     )
+    normalized_translation = tuple(value % 1 for value in raw_translation)
+    operation = AffineOperation(
+        _matrix_product(left.rotation, right.rotation),
+        normalized_translation,
+    )
+    carry = tuple(
+        int(raw_translation[index] - normalized_translation[index])
+        for index in range(3)
+    )
+    return operation, carry
 
 
 def _cell_fingerprint(cell: UnitCell) -> str:
@@ -209,7 +223,12 @@ def _validate_and_canonicalize_operations(
     operations: Iterable[AffineOperation],
     cell: UnitCell,
     metric_tolerance: float,
-) -> tuple[AffineOperation, ...]:
+) -> tuple[
+    tuple[AffineOperation, ...],
+    dict[tuple[str, str], tuple[str, tuple[int, int, int]]],
+    dict[str, str],
+    str,
+]:
     if not isinstance(cell, UnitCell):
         raise TypeError("cell must be UnitCell")
     if isinstance(metric_tolerance, bool) or not isinstance(metric_tolerance, (int, float)):
@@ -242,7 +261,8 @@ def _validate_and_canonicalize_operations(
                 evidence=(("operation_key", canonical_operation_key(operation)),),
             )
 
-    descriptor_set = {_operation_descriptor(operation) for operation in ordered}
+    ordered_descriptors = tuple(_operation_descriptor(operation) for operation in ordered)
+    descriptor_set = set(ordered_descriptors)
     identity = AffineOperation(_IDENTITY_ROTATION, _ZERO_TRANSLATION)
     identity_descriptor = _operation_descriptor(identity)
     if identity_descriptor not in descriptor_set:
@@ -250,9 +270,11 @@ def _validate_and_canonicalize_operations(
             "symmetry.context.group_invalid",
             "symmetry operation set has no identity",
         )
-    for left in ordered:
-        for right in ordered:
-            product_descriptor = _operation_descriptor(_compose(left, right))
+    products: dict[tuple[str, str], tuple[str, tuple[int, int, int]]] = {}
+    for left_descriptor, left in zip(ordered_descriptors, ordered, strict=True):
+        for right_descriptor, right in zip(ordered_descriptors, ordered, strict=True):
+            product, carry = _compose_with_carry(left, right)
+            product_descriptor = _operation_descriptor(product)
             if product_descriptor not in descriptor_set:
                 raise SymmetryContextInvariantError(
                     "symmetry.context.group_invalid",
@@ -262,20 +284,33 @@ def _validate_and_canonicalize_operations(
                         ("right_operation_key", canonical_operation_key(right)),
                     ),
                 )
-    for operation in ordered:
-        if not any(
-            _operation_descriptor(_compose(operation, candidate)) == identity_descriptor
-            and _operation_descriptor(_compose(candidate, operation)) == identity_descriptor
-            for candidate in ordered
-        ):
+            products[(left_descriptor, right_descriptor)] = (
+                product_descriptor,
+                carry,
+            )
+    inverses: dict[str, str] = {}
+    for operation_descriptor in ordered_descriptors:
+        inverse_descriptor = next(
+            (
+                candidate_descriptor
+                for candidate_descriptor in ordered_descriptors
+                if products[(operation_descriptor, candidate_descriptor)][0]
+                == identity_descriptor
+                and products[(candidate_descriptor, operation_descriptor)][0]
+                == identity_descriptor
+            ),
+            None,
+        )
+        if inverse_descriptor is None:
             raise SymmetryContextInvariantError(
                 "symmetry.context.group_invalid",
                 "symmetry operation has no two-sided inverse",
-                evidence=(("operation_key", canonical_operation_key(operation)),),
+                evidence=(("operation_descriptor", operation_descriptor),),
             )
+        inverses[operation_descriptor] = inverse_descriptor
 
     _validate_metric(ordered, cell, metric_tolerance)
-    return ordered
+    return ordered, products, inverses, identity_descriptor
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,7 +328,17 @@ class SymmetryContext:
     metric_tolerance: float
     diagnostics: tuple[Diagnostic, ...]
     provenance: tuple[tuple[str, object], ...]
+    identity_operation_key: str
     _operation_lookup: Mapping[str, AffineOperation] = field(
+        repr=False,
+        compare=False,
+        hash=False,
+    )
+    _operation_product_lookup: Mapping[
+        tuple[str, str],
+        tuple[str, tuple[int, int, int]],
+    ] = field(repr=False, compare=False, hash=False)
+    _inverse_operation_lookup: Mapping[str, str] = field(
         repr=False,
         compare=False,
         hash=False,
@@ -311,17 +356,36 @@ class SymmetryContext:
         provenance: tuple[tuple[str, object], ...],
         metric_tolerance: float,
     ) -> "SymmetryContext":
-        canonical = _validate_and_canonicalize_operations(
-            operations,
-            cell,
-            metric_tolerance,
+        canonical, descriptor_products, descriptor_inverses, identity_descriptor = (
+            _validate_and_canonicalize_operations(
+                operations,
+                cell,
+                metric_tolerance,
+            )
         )
         keys = tuple(canonical_operation_key(operation) for operation in canonical)
+        descriptors = tuple(_operation_descriptor(operation) for operation in canonical)
+        key_by_descriptor = dict(zip(descriptors, keys, strict=True))
+        product_lookup = MappingProxyType(
+            {
+                (key_by_descriptor[left], key_by_descriptor[right]): (
+                    key_by_descriptor[product],
+                    carry,
+                )
+                for (left, right), (product, carry) in descriptor_products.items()
+            }
+        )
+        inverse_lookup = MappingProxyType(
+            {
+                key_by_descriptor[operation]: key_by_descriptor[inverse]
+                for operation, inverse in descriptor_inverses.items()
+            }
+        )
         basis = DirectBasisConvention.FRACTIONAL_DIRECT
         action_fingerprint = _digest(
             {
                 "basis_convention": basis.value,
-                "operations": tuple(_operation_descriptor(operation) for operation in canonical),
+                "operations": descriptors,
             }
         )
         cell_digest = _cell_fingerprint(cell)
@@ -351,7 +415,10 @@ class SymmetryContext:
             metric_tolerance=metric_tolerance,
             diagnostics=diagnostics,
             provenance=provenance,
+            identity_operation_key=key_by_descriptor[identity_descriptor],
             _operation_lookup=MappingProxyType(dict(zip(keys, canonical, strict=True))),
+            _operation_product_lookup=product_lookup,
+            _inverse_operation_lookup=inverse_lookup,
         )
 
     @classmethod
@@ -456,6 +523,28 @@ class SymmetryContext:
 
         try:
             return self._operation_lookup[operation_key]
+        except KeyError as exc:
+            raise KeyError(operation_key) from exc
+
+    def compose_operation_keys(
+        self,
+        left_operation_key: str,
+        right_operation_key: str,
+    ) -> tuple[str, tuple[int, int, int]]:
+        """Return normalized product key and its exact fractional carry."""
+
+        try:
+            return self._operation_product_lookup[
+                (left_operation_key, right_operation_key)
+            ]
+        except KeyError as exc:
+            raise KeyError((left_operation_key, right_operation_key)) from exc
+
+    def inverse_operation_key(self, operation_key: str) -> str:
+        """Return the exact inverse operation key in this context."""
+
+        try:
+            return self._inverse_operation_lookup[operation_key]
         except KeyError as exc:
             raise KeyError(operation_key) from exc
 
