@@ -60,7 +60,7 @@ class ExpandedAtom:
 
 @dataclass(frozen=True, slots=True)
 class PeriodicAtomRef:
-    """Reference to one lattice-translated image of an expanded atom."""
+    """Reference to one lattice-translated canonical atom-image identity."""
 
     atom_id: str
     cell_translation: tuple[int, int, int]

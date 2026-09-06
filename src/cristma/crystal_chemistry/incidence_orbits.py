@@ -33,6 +33,7 @@ class ContactIncidenceOrbit:
     center_independent_site_id: str
     ligand_independent_site_id: str
     oriented_periodic_relation: PeriodicSymmetryRelation
+    equivalent_oriented_relations: tuple[PeriodicSymmetryRelation, ...]
     incidence_multiplicity_per_center: int
     effective_neighbor_occupancy: float
     status: ResolutionStatus
@@ -50,6 +51,16 @@ class ContactIncidenceOrbit:
             raise ValueError("contact incidence identities must not be empty")
         if self.incidence_multiplicity_per_center <= 0:
             raise ValueError("incidence multiplicity must be positive")
+        if (
+            tuple(sorted(set(self.equivalent_oriented_relations)))
+            != self.equivalent_oriented_relations
+            or not self.equivalent_oriented_relations
+        ):
+            raise ValueError("oriented incidence relations must be non-empty, unique, and sorted")
+        if self.oriented_periodic_relation != self.equivalent_oriented_relations[0]:
+            raise ValueError("incidence representative must be its first oriented relation")
+        if self.incidence_multiplicity_per_center != len(self.equivalent_oriented_relations):
+            raise ValueError("incidence multiplicity must equal its exact relation count")
         if not math.isfinite(self.effective_neighbor_occupancy) or not (
             0.0 <= self.effective_neighbor_occupancy <= 1.0 + 1e-12
         ):
@@ -194,6 +205,7 @@ class ContactIncidenceBuilder:
                             center_id,
                             ligand_id,
                             relations[0],
+                            relations,
                             len(relations),
                             _effective_ligand_occupancy(
                                 interpretation,

@@ -584,6 +584,7 @@ class EndpointRole(StrEnum):
 @dataclass(frozen=True, slots=True)
 class ContactInterpretation:
     interpretation_id: str
+    interaction_context_id: str
     interaction_type: GrammarOperation
     interaction_layer: InteractionLayer
     grammar_priority: InteractionPriority
@@ -663,6 +664,7 @@ class ContactIncidenceOrbit:
     center_independent_site_id: str
     ligand_independent_site_id: str
     oriented_periodic_relation: PeriodicSymmetryRelation
+    equivalent_oriented_relations: tuple[PeriodicSymmetryRelation, ...]
     incidence_multiplicity_per_center: int
     effective_neighbor_occupancy: float
     status: ResolutionStatus
@@ -670,6 +672,11 @@ class ContactIncidenceOrbit:
 ```
 
 Orient each admissible interpretation around its scientific centre role, quotient neighbour images by the centre stabilizer, and count distinct local incidences. For undirected interpretations create the mathematically distinct endpoint-centred incidence orbits. Sum only participating ligand component occupancies; do not multiply by centre occupancy.
+
+Retain every exact local relation in `equivalent_oriented_relations`; the
+canonical representative is the first relation and the tuple length must equal
+the local incidence multiplicity. Polyhedron realization consumes this
+evidence and must not reconstruct it from symmetry a second time.
 
 - [ ] **Step 4: Verify incidence identities and multiplicities**
 

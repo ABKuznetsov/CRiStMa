@@ -54,6 +54,7 @@ _ORIENTED_OPERATIONS = frozenset(
 @dataclass(frozen=True, slots=True)
 class ContactInterpretation:
     interpretation_id: str
+    interaction_context_id: str
     interaction_type: GrammarOperation
     interaction_layer: InteractionLayer
     grammar_priority: InteractionPriority
@@ -65,8 +66,8 @@ class ContactInterpretation:
     evidence: tuple[SecondaryEvidence, ...]
 
     def __post_init__(self) -> None:
-        if not self.interpretation_id:
-            raise ValueError("contact interpretation ID must not be empty")
+        if not self.interpretation_id or not self.interaction_context_id:
+            raise ValueError("contact interpretation identities must not be empty")
         if len(self.endpoint_roles) != 2:
             raise ValueError("contact interpretation requires two endpoint roles")
         if self.orientation_mode is OrientationMode.UNDIRECTED and self.endpoint_roles != (
@@ -294,12 +295,21 @@ class ContactOrbitResolver:
                     if component_records
                     else None
                 )
-                interpretation_id = "contact-interpretation:" + _digest(
+                context_id = "contact-interaction-context:" + _digest(
                     {
-                        "geometry_orbit_id": orbit.geometry_orbit_id,
                         "operation": request.operation.value,
                         "layer": request.layer.value,
                         "priority": request.priority.value,
+                        "first_elements": request.first_elements,
+                        "second_elements": request.second_elements,
+                        "centre_elements": request.centre_elements,
+                        "ligand_elements": request.ligand_elements,
+                    }
+                )
+                interpretation_id = "contact-interpretation:" + _digest(
+                    {
+                        "geometry_orbit_id": orbit.geometry_orbit_id,
+                        "interaction_context_id": context_id,
                         "orientation_mode": mode.value,
                         "endpoint_roles": tuple(role.value for role in roles),
                         "centre_elements": request.centre_elements,
@@ -309,6 +319,7 @@ class ContactOrbitResolver:
                 output.append(
                     ContactInterpretation(
                         interpretation_id,
+                        context_id,
                         request.operation,
                         request.layer,
                         request.priority,

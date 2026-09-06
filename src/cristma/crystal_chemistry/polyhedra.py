@@ -30,15 +30,15 @@ class PolyhedronVertex:
     """One oriented periodic ligand vertex in a coordination polyhedron."""
 
     atom_ref: PeriodicAtomRef
-    contact_id: str
-    contact_orbit_id: str
+    incidence_orbit_id: str
+    resolved_contact_orbit_id: str
     local_cartesian: tuple[float, float, float]
     distance: float
     occupancy: float
 
     def __post_init__(self) -> None:
-        if not self.contact_id or not self.contact_orbit_id:
-            raise ValueError("polyhedron vertex contact identities must not be empty")
+        if not self.incidence_orbit_id or not self.resolved_contact_orbit_id:
+            raise ValueError("polyhedron vertex incidence identities must not be empty")
         if len(self.local_cartesian) != 3 or not all(
             math.isfinite(value) for value in self.local_cartesian
         ):
@@ -55,7 +55,6 @@ class CoordinationPolyhedron:
     source_site_id: str
     center_atom_id: str
     shell_provenance: tuple[tuple[str, object], ...]
-    vertex_contacts: tuple[ResolvedContact, ...]
     local_vertices: tuple[tuple[float, float, float], ...]
     faces: tuple[tuple[int, ...], ...]
     volume: float | None
@@ -84,36 +83,13 @@ class CoordinationPolyhedron:
             "center_atom_ref",
             PeriodicAtomRef(self.center_atom_id, (0, 0, 0)),
         )
-        if not self.vertices and self.vertex_contacts:
-            if len(self.vertex_contacts) != len(self.local_vertices):
-                raise ValueError("every source contact requires one local vertex")
-            object.__setattr__(
-                self,
-                "vertices",
-                tuple(
-                    PolyhedronVertex(
-                        atom_ref=_oriented_contact(self.center_atom_id, contact)[0],
-                        contact_id=contact.geometric_contact.contact_id,
-                        contact_orbit_id=contact.contact_orbit_id,
-                        local_cartesian=local,
-                        distance=contact.geometric_contact.distance,
-                        occupancy=contact.neighbor_total_occupancy,
-                    )
-                    for contact, local in zip(
-                        self.vertex_contacts, self.local_vertices, strict=True
-                    )
-                ),
-            )
         if self.coordination_number is None:
             object.__setattr__(self, "coordination_number", len(self.vertices))
         if self.coordination_number != len(self.vertices):
             raise ValueError("coordination number must equal the vertex count")
-        if len(self.vertices) != len(self.vertex_contacts):
-            raise ValueError("every polyhedron vertex must retain one source contact")
         atom_refs = tuple(item.atom_ref for item in self.vertices)
-        contact_ids = tuple(item.contact_id for item in self.vertices)
-        if len(atom_refs) != len(set(atom_refs)) or len(contact_ids) != len(set(contact_ids)):
-            raise ValueError("polyhedron vertices must identify unique periodic contacts")
+        if len(atom_refs) != len(set(atom_refs)):
+            raise ValueError("polyhedron vertices must identify unique periodic atoms")
         if tuple(item.local_cartesian for item in self.vertices) != self.local_vertices:
             raise ValueError("polyhedron local vertices must agree with vertex records")
         labels = tuple(item[0] for item in self.ligand_composition)
@@ -159,6 +135,10 @@ class CoordinationPolyhedronOrbit:
             raise ValueError("representative polyhedron must be the first orbit member")
         if any(item.polyhedron_orbit_id != self.polyhedron_orbit_id for item in self.polyhedra):
             raise ValueError("polyhedron orbit member has a different orbit ID")
+
+    @property
+    def representative(self) -> CoordinationPolyhedron:
+        return self.polyhedra[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,8 +202,10 @@ def _polyhedron_vertices(
         )
         vertices.append(PolyhedronVertex(
             atom_ref=atom_ref,
-            contact_id=contact.geometric_contact.contact_id,
-            contact_orbit_id=contact.contact_orbit_id,
+            incidence_orbit_id=(
+                "legacy-incidence:" + contact.geometric_contact.contact_id
+            ),
+            resolved_contact_orbit_id=contact.contact_orbit_id,
             local_cartesian=tuple(float(value) for value in vector),
             distance=float(contact.geometric_contact.distance),
             occupancy=occupancy,
@@ -437,7 +419,11 @@ def _polyhedron_id(center_atom_id: str, vertices: tuple[PolyhedronVertex, ...]) 
         (
             center_atom_id,
             tuple(sorted(
-                (item.atom_ref.atom_id, item.atom_ref.cell_translation, item.contact_id)
+                (
+                    item.atom_ref.atom_id,
+                    item.atom_ref.cell_translation,
+                    item.incidence_orbit_id,
+                )
                 for item in vertices
             )),
         ),
@@ -577,7 +563,6 @@ class PolyhedronBuilder:
                 ("bond_distortion", "Baur mean absolute relative deviation"),
                 ("edge_angle_dispersion", "population standard deviation in degrees"),
             ),
-            vertex_contacts=shell.contacts,
             local_vertices=tuple(item.local_cartesian for item in vertices),
             shell_provenance=shell.provenance,
             diagnostics=tuple(dict.fromkeys(diagnostics)),

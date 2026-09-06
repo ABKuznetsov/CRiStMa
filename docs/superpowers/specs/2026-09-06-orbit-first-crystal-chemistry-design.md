@@ -293,6 +293,7 @@ ResolvedContactOrbit
 ├─ interpretations
 │  └─ ContactInterpretation
 │     ├─ interpretation_id
+│     ├─ interaction_context_id
 │     ├─ interaction_type
 │     ├─ interaction_layer
 │     ├─ grammar_priority
@@ -325,6 +326,7 @@ ContactIncidenceOrbit
 ├─ center_independent_site_id
 ├─ ligand_independent_site_id
 ├─ oriented_periodic_relation
+├─ equivalent_oriented_relations
 ├─ incidence_multiplicity_per_center
 ├─ effective_neighbor_occupancy
 ├─ status
@@ -334,6 +336,12 @@ ContactIncidenceOrbit
 Its identity exists before shell resolution. It therefore contains no
 `PRIMARY` or `SECONDARY` classification and remains stable when shell policy
 changes.
+
+`equivalent_oriented_relations` is the complete exact finite set of local
+neighbour relations represented by the incidence orbit. Its first item is
+`oriented_periodic_relation`, and its length equals
+`incidence_multiplicity_per_center`. This evidence is required to realize
+local polyhedron vertices without rerunning symmetry analysis.
 
 Incidence multiplicity is calculated through the centre stabilizer. A global
 pair orbit of multiplicity one may contribute two local incidences to each

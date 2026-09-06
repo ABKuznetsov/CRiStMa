@@ -45,6 +45,7 @@ from .polyhedra import (
     polyhedron_face_signature,
     unique_hull_edges,
 )
+from .polyhedron_orbits import PolyhedronOrbitBuildResult, PolyhedronOrbitBuilder
 from .resolver import CoordinationShellResolver
 from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
 from .structural_units import (
@@ -118,6 +119,8 @@ __all__ = [
     "ResolvedContactOrbit",
     "PolyhedronBuildResult",
     "PolyhedronBuilder",
+    "PolyhedronOrbitBuildResult",
+    "PolyhedronOrbitBuilder",
     "PolyhedronVertex",
     "FaceSignature",
     "SecondaryEvidence",

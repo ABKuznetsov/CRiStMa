@@ -22,13 +22,7 @@ class ShellRole(StrEnum):
 
 
 def _interpretation_context_id(interpretation) -> str:
-    return "shell-interpretation-context:" + _digest(
-        (
-            interpretation.interaction_type.value,
-            interpretation.interaction_layer.value,
-            interpretation.grammar_priority.value,
-        )
-    )
+    return interpretation.interaction_context_id
 
 
 @dataclass(frozen=True, slots=True)
