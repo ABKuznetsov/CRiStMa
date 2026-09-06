@@ -22,6 +22,7 @@ from .structure_factor_models import (
     StructureFactorSet,
     XRayScatteringContext,
 )
+from .structure_factors import StructureFactorCalculator
 
 __all__ = [
     "DiffractionInvariantError",
@@ -39,6 +40,7 @@ __all__ = [
     "ReflectionSet",
     "ReflectionSetStatus",
     "StructureFactor",
+    "StructureFactorCalculator",
     "StructureFactorProvenance",
     "StructureFactorSet",
     "XRayScatteringContext",
