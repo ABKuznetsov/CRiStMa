@@ -70,6 +70,30 @@ does not claim a stronger undocumented lineage. See
 [`SHANNON_SOURCE.md`](src/cristma/reference_data/resources/SHANNON_SOURCE.md)
 and the reproduced [`PYMATGEN_LICENSE.txt`](src/cristma/reference_data/resources/PYMATGEN_LICENSE.txt).
 
+## Neutral-atom X-ray form factors
+
+`xray_f0.json` is normalized from xraylib 4.3.0 `data/FF.dat`:
+
+- upstream: [tschoonj/xraylib](https://github.com/tschoonj/xraylib), tag
+  `xraylib-4.3.0`;
+- commit: `f94a3f5008dfd1c882b88ff26cd5052559423c83`;
+- source SHA-256:
+  `9aca1801042adee51aac62ab32c9d9445e37ce5c947a7e685b42311f520c530a`;
+- normalized-data SHA-256:
+  `02a187ebaf5a66d599d9cf1df781c01b42f1144e32870da349f3079c82ee1d32`;
+- source license: xraylib BSD-style license.
+
+The xraylib documentation attributes its elastic-scattering data to D. E.
+Cullen, J. H. Hubbell, and J. H. Kissel, *EPDL97: The Evaluated Photon Data
+Library, '97 Version*, LLNL report UCRL-50400, Vol. 6, Rev. 5. CrIStMa stores
+the native tabulation and second derivatives in its own documented convention
+`s = 1/(2d)` and does not copy or import xraylib code at runtime.
+
+Complete build provenance is recorded in
+[`SOURCE.md`](src/cristma/reference_data/resources/xray/SOURCE.md), and the
+upstream license is reproduced in
+[`XRAYLIB_LICENSE.txt`](src/cristma/reference_data/resources/xray/XRAYLIB_LICENSE.txt).
+
 ## Curated chemical reference knowledge
 
 `chemical_reference_v3.json` and `chemical_reference_v3_1.json` are original

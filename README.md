@@ -39,6 +39,8 @@ desktop applications, and automated data-processing systems.
 - build symmetry orbits and assign Wyckoff positions;
 - generate reciprocal reflections down to a physical `d_min`, including exact
   systematic absences, crystallographic multiplicity, and Friedel relations;
+- calculate neutral-atom X-ray structure factors `F`, `|F|`, and `|F|²` from
+  independent crystallographic sites and an explicit Hall setting;
 - calculate finite and periodic neighbour graphs and coordination
   environments;
 - analyze composition, oxidation-state evidence, coordination shells, and
@@ -166,8 +168,34 @@ absent = reflection_set.systematically_absent
 ```
 
 Systematic absences are derived from exact symmetry-operation phases, not from
-group-name heuristics or expected-reflection tables. This layer deliberately
-does not calculate intensities or powder profiles.
+group-name heuristics or expected-reflection tables.
+
+## X-ray structure factors
+
+The first scattering layer calculates forward neutral-atom X-ray amplitudes
+from a `CrystalStructure` and its generated `ReflectionSet`:
+
+```python
+from cristma.diffraction import StructureFactorCalculator, XRayScatteringContext
+
+factors = StructureFactorCalculator().calculate(
+    structure=crystal,
+    space_group=setting,
+    reflections=reflection_set,
+    context=XRayScatteringContext.default(),
+)
+```
+
+The calculator expands independent sites with the supplied exact symmetry,
+deduplicates special positions, applies occupancies and isotropic displacement
+parameters, and returns `F`, `|F|`, and `|F|²` without multiplying by reflection
+multiplicity. The bundled `f0(s)` table covers neutral atoms H through Cf and
+does not require xraylib at runtime. Anisotropic displacement parameters and
+anomalous scattering are intentionally explicit unsupported cases in v1.
+
+This is forward crystallographic physics only. Experimental peak matching,
+similarity measures, R-factors, powder corrections, and phase identification
+belong to consuming applications or later independent layers.
 
 ## Design principles
 
@@ -190,23 +218,24 @@ milestone, explicit crystal-chemistry result statuses, and stable
 symmetry-equivalent contact orbits. `0.1.0b3` keeps coordinate structures
 available when a reported anisotropic displacement tensor conflicts with site
 symmetry, and extends composition grammar to hydrogen-omitted organic and
-metal-organic structures. The implemented scientific core is covered by
-automated tests and is ready for evaluation and integration. Until the first
-stable release, public APIs may still change when required to correct or
-clarify scientific contracts.
+metal-organic structures. The local beta3 development line also adds
+neutral-atom X-ray structure factors with explicit scattering provenance. The
+implemented scientific core is covered by automated tests and is ready for
+evaluation and integration. Until the first stable release, public APIs may
+still change when required to correct or clarify scientific contracts.
 
 The current development version adds reciprocal metrics, bounded reflection
 generation, exact systematic absences, reciprocal symmetry orbits,
-crystallographic multiplicity, and Friedel relations to the published beta's
-structural I/O, symmetry, geometry, crystal chemistry, and topology layers. It
-does not yet calculate reflection intensities, diffraction profiles, or
-structure refinement.
+crystallographic multiplicity, Friedel relations, and neutral-atom structure
+factors to the published beta's structural I/O, symmetry, geometry, crystal
+chemistry, and topology layers. It does not yet calculate powder-line
+intensities, diffraction profiles, or structure refinement.
 
 ## Roadmap
 
 Planned scientific layers are developed as independent milestones:
 
-1. scattering contexts and structure-factor calculations;
+1. energy-dependent and additional scattering contexts;
 2. radiation-aware powder lines and physical corrections;
 3. calculated diffraction profiles on explicit grids;
 4. additional structural transforms, hierarchy and topology tools, and
@@ -229,6 +258,8 @@ Bundled reference resources retain their own attribution and provenance:
 - Cordero covalent radii compiled from QCElemental resources under
   BSD-3-Clause;
 - Shannon radii compiled from a pinned pymatgen artifact under MIT;
+- neutral-atom X-ray form factors normalized from pinned xraylib 4.3.0 data
+  under its BSD-style license, with EPDL97 recorded as the scientific source;
 - selected Crystallography Open Database fixtures under CC0/public-domain
   terms;
 - curated chemical-reference rules with their scientific literature recorded

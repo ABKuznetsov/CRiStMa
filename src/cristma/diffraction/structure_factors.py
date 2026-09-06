@@ -14,6 +14,7 @@ from cristma.symmetry import expand_orbit
 from .diagnostics import (
     DiffractionInvariantError,
     STRUCTURE_FACTOR_CELL_MISMATCH,
+    STRUCTURE_FACTOR_EXTINCT_NONZERO,
     STRUCTURE_FACTOR_SETTING_MISMATCH,
     STRUCTURE_FACTOR_SYMMETRY_MISMATCH,
     STRUCTURE_FACTOR_UNSUPPORTED_ANISOTROPIC_ADP,
@@ -38,8 +39,8 @@ def _operation_key(operation: Any) -> tuple[object, object]:
     return normalized.rotation, normalized.translation
 
 
-def _operation_set(operations: tuple[Any, ...]) -> frozenset[tuple[object, object]]:
-    return frozenset(_operation_key(operation) for operation in operations)
+def _operation_set(operations: tuple[Any, ...]) -> tuple[tuple[object, object], ...]:
+    return tuple(sorted(_operation_key(operation) for operation in operations))
 
 
 def _raise(code: str, message: str, **evidence: object) -> None:
@@ -74,6 +75,40 @@ def _isotropic_factor(
 
 class StructureFactorCalculator:
     """Calculate neutral-atom X-ray amplitudes without powder corrections."""
+
+    def __init__(
+        self,
+        *,
+        absolute_tolerance: float = 1e-12,
+        relative_tolerance: float = 1e-12,
+    ) -> None:
+        self.absolute_tolerance = self._tolerance(
+            absolute_tolerance, "absolute_tolerance"
+        )
+        self.relative_tolerance = self._tolerance(
+            relative_tolerance, "relative_tolerance"
+        )
+
+    @staticmethod
+    def _tolerance(value: float, name: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(f"{name} must be a real number")
+        normalized = float(value)
+        if not math.isfinite(normalized) or normalized < 0:
+            raise ValueError(f"{name} must be finite and non-negative")
+        return normalized
+
+    def get_config(self) -> dict[str, float]:
+        return {
+            "absolute_tolerance": self.absolute_tolerance,
+            "relative_tolerance": self.relative_tolerance,
+        }
+
+    def clone(self, **overrides: float) -> "StructureFactorCalculator":
+        unknown = set(overrides) - set(self.get_config())
+        if unknown:
+            raise TypeError(f"unknown configuration field: {sorted(unknown)[0]}")
+        return type(self)(**(self.get_config() | overrides))
 
     def calculate(
         self,
@@ -185,6 +220,28 @@ class StructureFactorCalculator:
                 math.fsum(value.real for value in contributions),
                 math.fsum(value.imag for value in contributions),
             )
+            contribution_scale = math.fsum(abs(value) for value in contributions)
+            extinction_tolerance = max(
+                self.absolute_tolerance,
+                self.relative_tolerance * contribution_scale,
+            )
+            normalized_to_zero = reflection.extinction.absent
+            if normalized_to_zero and abs(raw) > extinction_tolerance:
+                _raise(
+                    STRUCTURE_FACTOR_EXTINCT_NONZERO,
+                    "systematically absent reflection has a nonzero structure factor",
+                    reflection_id=reflection.reflection_id,
+                    hkl=reflection.representative_hkl.as_tuple(),
+                    space_group_setting_id=space_group.setting_id,
+                    raw_f_complex=(raw.real, raw.imag),
+                    raw_amplitude=abs(raw),
+                    contribution_scale=contribution_scale,
+                    tolerance_used=extinction_tolerance,
+                    absolute_tolerance=self.absolute_tolerance,
+                    relative_tolerance=self.relative_tolerance,
+                    extinction_evidence=reflection.extinction.evidence,
+                )
+            published = 0j if normalized_to_zero else raw
             provenance = StructureFactorProvenance(
                 method=CALCULATOR_METHOD,
                 version=CALCULATOR_VERSION,
@@ -193,15 +250,15 @@ class StructureFactorCalculator:
                 table_id=context.table_id,
                 table_version=context.table_version,
                 raw_f_complex=raw,
-                contribution_scale=math.fsum(abs(value) for value in contributions),
-                extinction_tolerance=0.0,
-                normalized_to_zero=False,
+                contribution_scale=contribution_scale,
+                extinction_tolerance=extinction_tolerance,
+                normalized_to_zero=normalized_to_zero,
             )
             results.append(
                 StructureFactor(
                     reflection_id=reflection.reflection_id,
                     representative_hkl=reflection.representative_hkl,
-                    f_complex=raw,
+                    f_complex=published,
                     provenance=provenance,
                 )
             )
