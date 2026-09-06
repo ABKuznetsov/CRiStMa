@@ -155,6 +155,7 @@ class PowderProfileProvenance:
     intensity_basis: ProfileIntensityBasis
     zero_shift_deg: float
     local_window_fwhm: float
+    max_points: int | None
     lines_considered: int
     lines_contributed: int
 
@@ -183,6 +184,12 @@ class PowderProfileProvenance:
             "local_window_fwhm",
             _positive_finite(self.local_window_fwhm, "local profile window"),
         )
+        if self.max_points is not None and (
+            isinstance(self.max_points, bool)
+            or not isinstance(self.max_points, int)
+            or self.max_points <= 0
+        ):
+            raise ValueError("max_points must be a positive integer or None")
         for value, name in (
             (self.lines_considered, "lines_considered"),
             (self.lines_contributed, "lines_contributed"),

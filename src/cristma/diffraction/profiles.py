@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
 import math
+from typing import Any
 
 import numpy as np
 
@@ -22,8 +24,39 @@ _LOCAL_WINDOW_FWHM = 25.0
 _GAUSSIAN_NORMALIZATION = math.sqrt(math.pi / (4.0 * math.log(2.0)))
 
 
+class PowderProfileLimitError(RuntimeError):
+    """The requested output grid exceeds an explicit resource limit."""
+
+    def __init__(self, requested_points: int, max_points: int) -> None:
+        super().__init__(
+            f"profile grid has {requested_points} points; limit is {max_points}"
+        )
+        self.requested_points = requested_points
+        self.max_points = max_points
+
+
+@dataclass(frozen=True, slots=True)
 class PowderProfileCalculator:
     """Apply an instrument-only broadening function on an explicit grid."""
+
+    max_points: int | None = 1_000_000
+
+    def __post_init__(self) -> None:
+        if self.max_points is not None and (
+            isinstance(self.max_points, bool)
+            or not isinstance(self.max_points, int)
+            or self.max_points <= 0
+        ):
+            raise ValueError("max_points must be a positive integer or None")
+
+    def get_config(self) -> dict[str, int | None]:
+        return {"max_points": self.max_points}
+
+    def clone(self, **changes: Any) -> "PowderProfileCalculator":
+        unknown = set(changes) - {"max_points"}
+        if unknown:
+            raise TypeError(f"unknown configuration field: {sorted(unknown)[0]}")
+        return replace(self, **changes)
 
     def calculate(
         self,
@@ -46,6 +79,10 @@ class PowderProfileCalculator:
         shift = float(zero_shift_deg)
         if not math.isfinite(shift):
             raise ValueError("zero_shift_deg must be finite")
+
+        requested_points = grid.point_count
+        if self.max_points is not None and requested_points > self.max_points:
+            raise PowderProfileLimitError(requested_points, self.max_points)
 
         angles = np.asarray(grid.values, dtype=float)
         profile = np.zeros(angles.size, dtype=float)
@@ -110,6 +147,7 @@ class PowderProfileCalculator:
             intensity_basis=basis,
             zero_shift_deg=shift,
             local_window_fwhm=_LOCAL_WINDOW_FWHM,
+            max_points=self.max_points,
             lines_considered=len(source_lines),
             lines_contributed=contributed,
         )
@@ -134,4 +172,4 @@ def _pseudo_voigt_density(
     return (1.0 - mixing) * gaussian + mixing * lorentzian
 
 
-__all__ = ["PowderProfileCalculator"]
+__all__ = ["PowderProfileCalculator", "PowderProfileLimitError"]

@@ -332,7 +332,7 @@ from cristma.diffraction import (
     UniformTwoThetaGrid,
 )
 
-profile = PowderProfileCalculator().calculate(
+profile = PowderProfileCalculator(max_points=1_000_000).calculate(
     corrected,
     UniformTwoThetaGrid(5.0, 120.0, 0.01),
     ConstantWidthProfile(fwhm_deg=0.10),
@@ -356,7 +356,10 @@ profile = PowderProfileCalculator().calculate(
 
 CrIStMa has no built-in instrument preset and does not read refinement project
 files. Every peak kernel is area-normalized and evaluated only in a local
-window. Profile v1 represents **instrument broadening only**. Crystallite size,
+window. The configurable `max_points` limit is checked before allocating the
+output array; an oversized request raises `PowderProfileLimitError` rather than
+returning a truncated scientific result. Profile v1 represents **instrument
+broadening only**. Crystallite size,
 microstrain, preferred orientation, absorption, background, asymmetry,
 experimental matching, and refinement remain separate future layers.
 

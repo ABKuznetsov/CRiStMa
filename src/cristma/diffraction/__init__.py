@@ -41,7 +41,7 @@ from .profile_models import (
     TchProfile,
     UniformTwoThetaGrid,
 )
-from .profiles import PowderProfileCalculator
+from .profiles import PowderProfileCalculator, PowderProfileLimitError
 from .reciprocal import ReciprocalMetric
 from .reflections import ReflectionGenerator
 from .structure_factor_models import (
@@ -70,6 +70,7 @@ __all__ = [
     "PowderLineProvenance",
     "PowderLineSet",
     "PowderProfileCalculator",
+    "PowderProfileLimitError",
     "PowderProfileProvenance",
     "PowderReflectionFamily",
     "ProfileIntensityBasis",
