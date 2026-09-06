@@ -311,6 +311,11 @@ _SHELL_OPERATIONS = frozenset({
     GrammarOperation.MIXED_ANION_COORDINATION,
 })
 
+# A lone covalent-distance group has no observed outer group from which to
+# derive a shell boundary.  Keep the result scientifically incomplete, but
+# distinguish plausible graph edges from longer contact candidates.
+_COVALENT_PRIMARY_RHO_MAX = 1.25
+
 
 def _component_symbols(atom: object) -> frozenset[str]:
     return frozenset(
@@ -485,7 +490,7 @@ class CoordinationShellResolver:
                 ("search_cutoff_angstrom", None),
                 ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
                 ("reference_version", grammar.reference_version),
-                ("resolver_method", "cristma.coordination_shell_resolver:2"),
+                ("resolver_method", "cristma.coordination_shell_resolver:3"),
                 ("contact_orbit_method", "cristma.contact_orbits:1"),
                 ("structure_id", structure.id),
             )
@@ -521,7 +526,7 @@ class CoordinationShellResolver:
                 ("search_cutoff_angstrom", None),
                 ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
                 ("reference_version", grammar.reference_version),
-                ("resolver_method", "cristma.coordination_shell_resolver:2"),
+                ("resolver_method", "cristma.coordination_shell_resolver:3"),
                 ("contact_orbit_method", "cristma.contact_orbits:1"),
                 ("structure_id", structure.id),
             )
@@ -619,7 +624,7 @@ class CoordinationShellResolver:
             ("maximum_observed_rho", maximum_rho),
             ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
             ("reference_version", grammar.reference_version),
-            ("resolver_method", "cristma.coordination_shell_resolver:2"),
+            ("resolver_method", "cristma.coordination_shell_resolver:3"),
             ("contact_orbit_method", "cristma.contact_orbits:1"),
             ("structure_id", structure.id),
         )
@@ -705,6 +710,20 @@ class CoordinationShellResolver:
                 and decision.selected is not None
                 else 0
             )
+            if (
+                decision.selected is None
+                and len(_group_distances(
+                    tuple(row[0] for row in rows),
+                    self.policy.distance_group_tolerance,
+                )) == 1
+            ):
+                primary_count = sum(
+                    row[0] <= min(
+                        self.policy.candidate_rho_max,
+                        _COVALENT_PRIMARY_RHO_MAX,
+                    )
+                    for row in ordered
+                )
             results.extend(
                 _make_resolved_contact(
                     contact,

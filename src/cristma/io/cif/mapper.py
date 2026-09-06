@@ -940,11 +940,23 @@ def map_cif_structures(
                         )
                     )
                 stabilizer = _site_stabilizer(site, symmetry.operations)
-                symmetrized = symmetrize_displacement(
-                    site.displacement,
-                    stabilizer,
-                )
-                if symmetrized.changed:
+                try:
+                    symmetrized = symmetrize_displacement(
+                        site.displacement,
+                        stabilizer,
+                    )
+                except SymmetryConsistencyError as error:
+                    site = replace(site, displacement=None)
+                    diagnostics.append(
+                        Diagnostic(
+                            Severity.WARNING,
+                            "cif.map.adp_symmetry_inconsistent",
+                            f"{site.label}: {error}; anisotropic displacement was "
+                            "omitted while retaining the coordinate site.",
+                        )
+                    )
+                    symmetrized = None
+                if symmetrized is not None and symmetrized.changed:
                     site = replace(site, displacement=symmetrized.displacement)
                     diagnostics.append(
                         Diagnostic(
