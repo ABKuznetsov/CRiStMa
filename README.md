@@ -172,6 +172,23 @@ absent = reflection_set.systematically_absent
 Systematic absences are derived from exact symmetry-operation phases, not from
 group-name heuristics or expected-reflection tables.
 
+## Coordination polyhedra
+
+Resolved coordination shells expose calculated polyhedra directly through
+`CrystalChemistryResolution.polyhedra` and symmetry-equivalent families through
+`polyhedron_orbits`. Each result retains oriented periodic atom references,
+coordination number, occupancy-weighted ligand composition, convex-hull faces,
+bond-length statistics, the Baur distortion index, edge-angle population
+dispersion, volume, geometric centroid, centre offset, diagnostics and
+provenance.
+
+The canonical face signature represents the complete vertex-edge-face
+incidence graph. Shape descriptors are not guessed for open or degenerate
+shells: unavailable values remain `None` and the reason is diagnostic. CrIStMa
+does not triangulate display meshes or define colours, visibility, selection,
+tables or motif-comparison policy; those are responsibilities of consuming
+applications.
+
 ## X-ray structure factors
 
 The first scattering layer calculates forward neutral-atom X-ray amplitudes

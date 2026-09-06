@@ -28,6 +28,8 @@ from .contacts import (
 )
 from .contact_orbits import aggregate_resolution_status, build_contact_orbits
 from .policy import ShellResolutionPolicy
+from .polyhedra import PolyhedronBuilder
+from .polyhedron_orbits import build_polyhedron_orbits
 
 
 @dataclass(frozen=True, slots=True)
@@ -610,6 +612,69 @@ class CoordinationShellResolver:
             for shell in shells
         ]
 
+        polyhedron_builder = PolyhedronBuilder()
+        polyhedron_results = tuple(
+            polyhedron_builder.build(shell, view) for shell in shells
+        )
+        polyhedra = tuple(
+            result.polyhedron
+            for result in polyhedron_results
+            if (
+                result.polyhedron is not None
+                and result.status is ResolutionStatus.RESOLVED
+            )
+        )
+        diagnostics.extend(
+            diagnostic
+            for result in polyhedron_results
+            for diagnostic in result.diagnostics
+        )
+        atoms_by_id = {atom.id: atom for atom in view.atoms}
+        sites_by_id = {site.id: site for site in structure.sites}
+        split_diagnostic = Diagnostic(
+            Severity.WARNING,
+            "crystal_chemistry.polyhedron.split_position",
+            "Polyhedron contains a site marked as a split/disorder position",
+        )
+        polyhedra = tuple(
+            replace(
+                polyhedron,
+                diagnostics=tuple(dict.fromkeys((
+                    *polyhedron.diagnostics,
+                    split_diagnostic,
+                ))),
+            )
+            if any(
+                (
+                    sites_by_id[atoms_by_id[atom_id].source_site_id].disorder_assembly
+                    is not None
+                    or sites_by_id[atoms_by_id[atom_id].source_site_id].disorder_group
+                    is not None
+                )
+                for atom_id in (
+                    polyhedron.center_atom_id,
+                    *(item.atom_ref.atom_id for item in polyhedron.vertices),
+                )
+            )
+            else polyhedron
+            for polyhedron in polyhedra
+        )
+        diagnostics.extend(
+            split_diagnostic
+            for polyhedron in polyhedra
+            if split_diagnostic in polyhedron.diagnostics
+        )
+        polyhedron_orbit_result = build_polyhedron_orbits(
+            view,
+            polyhedra,
+            structure.space_group.operations,
+            1e-5,
+        )
+        polyhedra = polyhedron_orbit_result.polyhedra
+        diagnostics.extend(polyhedron_orbit_result.diagnostics)
+        if not polyhedron_orbit_result.complete:
+            request_statuses.append(ResolutionStatus.INCOMPLETE)
+
         maximum_rho = max(
             (
                 item.normalized_distance
@@ -626,6 +691,8 @@ class CoordinationShellResolver:
             ("reference_version", grammar.reference_version),
             ("resolver_method", "cristma.coordination_shell_resolver:3"),
             ("contact_orbit_method", "cristma.contact_orbits:1"),
+            ("polyhedron_method", "cristma.polyhedron_builder:2"),
+            ("polyhedron_orbit_method", "cristma.polyhedron_orbits:1"),
             ("structure_id", structure.id),
         )
         status = aggregate_resolution_status(
@@ -639,6 +706,8 @@ class CoordinationShellResolver:
             provenance,
             status=status,
             contact_orbits=orbit_result.contact_orbits,
+            polyhedra=polyhedra,
+            polyhedron_orbits=polyhedron_orbit_result.polyhedron_orbits,
         )
 
     def _matching_records(

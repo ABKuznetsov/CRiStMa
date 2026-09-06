@@ -15,9 +15,14 @@ from .contacts import (
 from .policy import ShellResolutionPolicy
 from .polyhedra import (
     CoordinationPolyhedron,
+    CoordinationPolyhedronOrbit,
+    FaceSignature,
     PolyhedronBuildResult,
     PolyhedronBuilder,
+    PolyhedronVertex,
+    canonical_face_signature,
     polyhedron_face_signature,
+    unique_hull_edges,
 )
 from .resolver import CoordinationShellResolver
 from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
@@ -66,6 +71,7 @@ __all__ = [
     "CoordinationShell",
     "CoordinationShellResolver",
     "CoordinationPolyhedron",
+    "CoordinationPolyhedronOrbit",
     "CrystalChemistryResolution",
     "EvidenceStatus",
     "ResolutionStatus",
@@ -73,6 +79,8 @@ __all__ = [
     "ResolvedContactOrbit",
     "PolyhedronBuildResult",
     "PolyhedronBuilder",
+    "PolyhedronVertex",
+    "FaceSignature",
     "SecondaryEvidence",
     "ShellAlternative",
     "ShellResolutionPolicy",
@@ -105,4 +113,6 @@ __all__ = [
     "StructuralRingOrbit",
     "StructuralRingScope",
     "polyhedron_face_signature",
+    "canonical_face_signature",
+    "unique_hull_edges",
 ]

@@ -5,11 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 import math
+from typing import TYPE_CHECKING
 
 from cristma.chemistry import GrammarOperation, InteractionLayer, InteractionPriority
 from cristma.chemistry.species import ChemicalSpecies
 from cristma.crystallography import GeometricContact
 from cristma.diagnostics import Diagnostic
+
+if TYPE_CHECKING:
+    from .polyhedra import CoordinationPolyhedron, CoordinationPolyhedronOrbit
 
 
 class ResolutionStatus(StrEnum):
@@ -213,6 +217,14 @@ class CrystalChemistryResolution:
         default=(),
         kw_only=True,
     )
+    polyhedra: tuple[CoordinationPolyhedron, ...] = field(
+        default=(),
+        kw_only=True,
+    )
+    polyhedron_orbits: tuple[CoordinationPolyhedronOrbit, ...] = field(
+        default=(),
+        kw_only=True,
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, ResolutionStatus):
@@ -229,22 +241,39 @@ class CrystalChemistryResolution:
                 else ResolutionStatus.RESOLVED
             )
             object.__setattr__(self, "status", derived)
-        if not self.contact_orbits:
-            return
-        orbit_ids = tuple(item.contact_orbit_id for item in self.contact_orbits)
-        if len(set(orbit_ids)) != len(orbit_ids):
-            raise ValueError(
-                "contact orbit IDs must be unique and every contact must belong "
-                "to exactly one orbit"
+        if self.contact_orbits:
+            orbit_ids = tuple(item.contact_orbit_id for item in self.contact_orbits)
+            if len(set(orbit_ids)) != len(orbit_ids):
+                raise ValueError(
+                    "contact orbit IDs must be unique and every contact must belong "
+                    "to exactly one orbit"
+                )
+            expected = tuple(item.geometric_contact.contact_id for item in self.contacts)
+            observed = tuple(
+                item.geometric_contact.contact_id
+                for orbit in self.contact_orbits
+                for item in orbit.contacts
             )
-        expected = tuple(item.geometric_contact.contact_id for item in self.contacts)
-        observed = tuple(
-            item.geometric_contact.contact_id
-            for orbit in self.contact_orbits
-            for item in orbit.contacts
-        )
-        if len(observed) != len(set(observed)) or set(observed) != set(expected):
-            raise ValueError("every resolved contact must belong to exactly one orbit")
+            if len(observed) != len(set(observed)) or set(observed) != set(expected):
+                raise ValueError("every resolved contact must belong to exactly one orbit")
+        if self.polyhedra and not self.polyhedron_orbits:
+            raise ValueError("coordination polyhedra require polyhedron orbits")
+        if self.polyhedron_orbits:
+            orbit_ids = tuple(
+                item.polyhedron_orbit_id for item in self.polyhedron_orbits
+            )
+            if len(set(orbit_ids)) != len(orbit_ids):
+                raise ValueError("polyhedron orbit IDs must be unique")
+            expected = {item.polyhedron_id for item in self.polyhedra}
+            observed = tuple(
+                item.polyhedron_id
+                for orbit in self.polyhedron_orbits
+                for item in orbit.polyhedra
+            )
+            if len(observed) != len(set(observed)) or set(observed) != expected:
+                raise ValueError(
+                    "every coordination polyhedron must belong to exactly one orbit"
+                )
 
     @property
     def diagnostic_codes(self) -> tuple[str, ...]:
