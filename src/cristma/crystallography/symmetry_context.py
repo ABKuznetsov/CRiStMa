@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from fractions import Fraction
 import hashlib
 import json
 import math
+from types import MappingProxyType
 from typing import Iterable, Mapping
 
 import numpy as np
@@ -292,6 +293,11 @@ class SymmetryContext:
     metric_tolerance: float
     diagnostics: tuple[Diagnostic, ...]
     provenance: tuple[tuple[str, object], ...]
+    _operation_lookup: Mapping[str, AffineOperation] = field(
+        repr=False,
+        compare=False,
+        hash=False,
+    )
 
     @classmethod
     def _build(
@@ -345,6 +351,7 @@ class SymmetryContext:
             metric_tolerance=metric_tolerance,
             diagnostics=diagnostics,
             provenance=provenance,
+            _operation_lookup=MappingProxyType(dict(zip(keys, canonical, strict=True))),
         )
 
     @classmethod
@@ -448,10 +455,9 @@ class SymmetryContext:
         """Resolve a canonical operation key within this context."""
 
         try:
-            index = self.operation_keys.index(operation_key)
-        except ValueError as exc:
+            return self._operation_lookup[operation_key]
+        except KeyError as exc:
             raise KeyError(operation_key) from exc
-        return self.operations[index]
 
 
 __all__ = [

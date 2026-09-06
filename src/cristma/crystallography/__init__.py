@@ -19,11 +19,20 @@ from .symmetry_context import (
     SymmetrySourceKind,
     canonical_operation_key,
 )
+from .periodic_relation import (
+    ExactFractionalPosition,
+    LatticeTranslation,
+    PeriodicSymmetryRelation,
+    compose_periodic_relations,
+    identity_relation,
+    invert_periodic_relation,
+)
 
 __all__ = [
     "AffineCoordinateMap",
     "DEFAULT_METRIC_TOLERANCE",
     "DirectBasisConvention",
+    "ExactFractionalPosition",
     "SpaceGroupSetting",
     "SpaceGroupCatalog",
     "SymmetryContext",
@@ -31,11 +40,16 @@ __all__ = [
     "SymmetrySourceKind",
     "CrystallographicOrbit",
     "GeometricContact",
+    "LatticeTranslation",
+    "PeriodicSymmetryRelation",
     "SiteSymmetry",
     "WyckoffAssignment",
     "WyckoffPosition",
     "assign_wyckoff",
     "build_orbit",
     "canonical_operation_key",
+    "compose_periodic_relations",
     "geometric_contacts",
+    "identity_relation",
+    "invert_periodic_relation",
 ]
