@@ -133,7 +133,11 @@ def lex_cif(
         if character in "'\"":
             quote = character
             end = cursor.offset + 1
-            while end < length and source[end] != quote and source[end] not in "\r\n":
+            while end < length and source[end] not in "\r\n":
+                if source[end] == quote and (
+                    end + 1 == length or source[end + 1].isspace()
+                ):
+                    break
                 end += 1
             if end >= length or source[end] != quote:
                 while end < length and source[end] not in "\r\n":
