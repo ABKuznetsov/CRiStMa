@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from cristma.chemistry import GrammarOperation, InteractionLayer
-from cristma.diagnostics import Diagnostic
-from cristma.structure import PeriodicAtomRef
+from cristma.diagnostics import Diagnostic, Severity
+from cristma.structure import (
+    AtomicView,
+    CrystalStructure,
+    ExpandedAtom,
+    PeriodicAtomRef,
+)
 
 from .contacts import (
     ContactClassification,
@@ -30,6 +35,55 @@ class StructuralUnitKind(str, Enum):
     ATOM = "atom"
 
 
+class StructuralUnitGeometryKind(str, Enum):
+    """Dimensional geometry derived from the unit's periodic atom positions."""
+
+    POINT = "point"
+    LINEAR = "linear"
+    PLANAR_POLYGON = "planar_polygon"
+    POLYHEDRON = "polyhedron"
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralUnitGeometry:
+    """Scientific vertex/face geometry without any rendering representation."""
+
+    kind: StructuralUnitGeometryKind
+    affine_dimension: int
+    vertex_atom_refs: tuple[PeriodicAtomRef, ...]
+    faces: tuple[tuple[int, ...], ...] = ()
+    center_atom_ref: PeriodicAtomRef | None = None
+    diagnostics: tuple[Diagnostic, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.affine_dimension not in range(4):
+            raise ValueError("structural-unit affine dimension must lie from zero to three")
+        expected = {
+            StructuralUnitGeometryKind.POINT: 0,
+            StructuralUnitGeometryKind.LINEAR: 1,
+            StructuralUnitGeometryKind.PLANAR_POLYGON: 2,
+            StructuralUnitGeometryKind.POLYHEDRON: 3,
+        }[self.kind]
+        if self.affine_dimension != expected:
+            raise ValueError("structural-unit geometry kind must match affine dimension")
+        if not self.vertex_atom_refs:
+            raise ValueError("structural-unit geometry requires at least one vertex")
+        if len(set(self.vertex_atom_refs)) != len(self.vertex_atom_refs):
+            raise ValueError("structural-unit geometry vertices must be unique")
+        for face in self.faces:
+            if len(face) < 3 or len(set(face)) != len(face):
+                raise ValueError("structural-unit face requires three unique vertices")
+            if any(index < 0 or index >= len(self.vertex_atom_refs) for index in face):
+                raise ValueError("structural-unit face references an unknown vertex")
+        if self.kind is StructuralUnitGeometryKind.PLANAR_POLYGON and len(self.faces) != 1:
+            raise ValueError("planar structural-unit geometry requires one polygon face")
+        if self.kind in {
+            StructuralUnitGeometryKind.POINT,
+            StructuralUnitGeometryKind.LINEAR,
+        } and self.faces:
+            raise ValueError("zero- and one-dimensional unit geometry has no faces")
+
+
 @dataclass(frozen=True, slots=True)
 class StructuralUnit:
     """Finite unit with atom membership expressed in a local periodic frame."""
@@ -43,6 +97,8 @@ class StructuralUnit:
     provenance: tuple[tuple[str, object], ...] = ()
     interaction_layers: tuple[InteractionLayer, ...] = ()
     contact_classifications: tuple[ContactClassification, ...] = ()
+    unit_orbit_id: str = field(default="", kw_only=True)
+    geometry: StructuralUnitGeometry | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if not self.unit_id:
@@ -64,6 +120,33 @@ class StructuralUnit:
             raise ValueError("structural unit interaction layers must be unique")
         if len(set(self.contact_classifications)) != len(self.contact_classifications):
             raise ValueError("structural unit contact classifications must be unique")
+        if self.geometry is not None and not isinstance(
+            self.geometry, StructuralUnitGeometry
+        ):
+            raise TypeError("structural unit geometry must be StructuralUnitGeometry")
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralUnitOrbit:
+    """One exact space-group orbit of structural-unit instances."""
+
+    unit_orbit_id: str
+    representative_unit_id: str
+    units: tuple[StructuralUnit, ...]
+    diagnostics: tuple[Diagnostic, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.unit_orbit_id or not self.representative_unit_id or not self.units:
+            raise ValueError("structural-unit orbit requires identities and members")
+        ids = tuple(item.unit_id for item in self.units)
+        if ids != tuple(sorted(set(ids))):
+            raise ValueError("structural-unit orbit members must be unique and sorted")
+        if ids[0] != self.representative_unit_id:
+            raise ValueError("representative structural unit must be the first member")
+        if any(item.unit_orbit_id != self.unit_orbit_id for item in self.units):
+            raise ValueError("structural-unit orbit member has another orbit ID")
+        if len({item.kind for item in self.units}) != 1:
+            raise ValueError("structural-unit orbit members must have one kind")
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +156,23 @@ class StructuralUnitBuildResult:
     units: tuple[StructuralUnit, ...]
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
+    unit_orbits: tuple[StructuralUnitOrbit, ...] = field(default=(), kw_only=True)
+
+    def __post_init__(self) -> None:
+        ids = tuple(item.unit_id for item in self.units)
+        if len(set(ids)) != len(ids):
+            raise ValueError("structural unit IDs must be unique")
+        if self.unit_orbits:
+            orbit_ids = tuple(item.unit_orbit_id for item in self.unit_orbits)
+            if len(set(orbit_ids)) != len(orbit_ids):
+                raise ValueError("structural-unit orbit IDs must be unique")
+            observed = tuple(
+                item.unit_id for orbit in self.unit_orbits for item in orbit.units
+            )
+            if len(set(observed)) != len(observed) or set(observed) != set(ids):
+                raise ValueError("every structural unit must belong to exactly one orbit")
+        elif any(item.unit_orbit_id for item in self.units):
+            raise ValueError("unit orbit IDs require structural-unit orbit records")
 
 
 def _negated(translation: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -121,7 +221,12 @@ class StructuralUnitBuilder:
         self,
         resolution: CrystalChemistryResolution,
         polyhedra: tuple[CoordinationPolyhedron, ...],
+        *,
+        structure: CrystalStructure | None = None,
+        atomic_view: AtomicView[ExpandedAtom] | None = None,
     ) -> StructuralUnitBuildResult:
+        if structure is not None and atomic_view is None:
+            raise ValueError("structural-unit symmetry grouping requires an atomic view")
         known_contacts = {
             contact.geometric_contact.contact_id: contact
             for contact in resolution.contacts
@@ -262,9 +367,47 @@ class StructuralUnitBuilder:
                 contact_classifications=classifications,
             ))
 
+        diagnostics: list[Diagnostic] = []
+        completed_units = tuple(units)
+        if atomic_view is not None:
+            from .hierarchy_orbits import (
+                UNIT_GEOMETRY_INCOMPLETE,
+                build_unit_geometry,
+            )
+
+            polyhedron_by_id = {item.polyhedron_id: item for item in polyhedra}
+            rows: list[StructuralUnit] = []
+            for unit in completed_units:
+                geometry = build_unit_geometry(unit, atomic_view, polyhedron_by_id)
+                if geometry is None:
+                    diagnostics.append(Diagnostic(
+                        severity=Severity.WARNING,
+                        code=UNIT_GEOMETRY_INCOMPLETE,
+                        message=f"Geometry is not uniquely available for {unit.unit_id}",
+                    ))
+                rows.append(replace(unit, geometry=geometry))
+            completed_units = tuple(rows)
+
+        unit_orbits: tuple[StructuralUnitOrbit, ...] = ()
+        if structure is not None:
+            from .hierarchy_orbits import build_unit_orbits
+
+            completed_units, unit_orbits, orbit_diagnostics = build_unit_orbits(
+                structure,
+                atomic_view,
+                completed_units,
+            )
+            diagnostics.extend(orbit_diagnostics)
         return StructuralUnitBuildResult(
-            units=tuple(units),
-            provenance=(("method", "cristma.structural_unit_builder:2"),),
+            units=completed_units,
+            diagnostics=tuple(dict.fromkeys(diagnostics)),
+            provenance=((
+                "method",
+                "cristma.structural_unit_builder:3"
+                if structure is not None
+                else "cristma.structural_unit_builder:2",
+            ),),
+            unit_orbits=unit_orbits,
         )
 
 
@@ -272,5 +415,8 @@ __all__ = [
     "StructuralUnit",
     "StructuralUnitBuildResult",
     "StructuralUnitBuilder",
+    "StructuralUnitGeometry",
+    "StructuralUnitGeometryKind",
     "StructuralUnitKind",
+    "StructuralUnitOrbit",
 ]

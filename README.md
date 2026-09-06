@@ -203,6 +203,36 @@ does not triangulate display meshes or define colours, visibility, selection,
 tables or motif-comparison policy; those are responsibilities of consuming
 applications.
 
+## Structural hierarchy
+
+The hierarchy layer groups calculated structural units and blocks by the exact
+space-group action when the structure and its atomic view are supplied:
+
+```python
+view = crystal.atomic_view()
+units = StructuralUnitBuilder().build(
+    resolution,
+    resolution.polyhedra,
+    structure=crystal,
+    atomic_view=view,
+)
+blocks = StructuralBlockFinder().find(
+    representation,
+    connectivity,
+    structure=crystal,
+    atomic_view=view,
+)
+rings = RingFinder().find(crystal, view, representation, blocks)
+```
+
+The results expose stable `unit_orbit_id` and `block_orbit_id` values,
+`unit_orbits` and `block_orbits`, and each ring orbit identifies its parent
+block orbit. `StructuralUnitGeometry` records only geometry determined from the
+calculated periodic atom positions: points, linear groups, planar polygons, or
+closed polyhedra with canonical vertex and face references. Rendering meshes,
+colours, visibility, tree grouping, and interactive comparison remain outside
+CrIStMa.
+
 ## X-ray structure factors
 
 The first scattering layer calculates forward neutral-atom X-ray amplitudes

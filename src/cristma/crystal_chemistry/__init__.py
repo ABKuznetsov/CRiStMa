@@ -30,7 +30,10 @@ from .structural_units import (
     StructuralUnit,
     StructuralUnitBuildResult,
     StructuralUnitBuilder,
+    StructuralUnitGeometry,
+    StructuralUnitGeometryKind,
     StructuralUnitKind,
+    StructuralUnitOrbit,
 )
 from .structural_graph import (
     StructuralConnection,
@@ -52,6 +55,7 @@ from .structural_blocks import (
     StructuralBlock,
     StructuralBlockClassification,
     StructuralBlockFinder,
+    StructuralBlockOrbit,
     StructuralBlockResult,
 )
 from .ring_finder import RingFinder
@@ -89,7 +93,10 @@ __all__ = [
     "StructuralUnit",
     "StructuralUnitBuildResult",
     "StructuralUnitBuilder",
+    "StructuralUnitGeometry",
+    "StructuralUnitGeometryKind",
     "StructuralUnitKind",
+    "StructuralUnitOrbit",
     "StructuralConnection",
     "StructuralConnectionKind",
     "StructuralGraphBuilder",
@@ -103,6 +110,7 @@ __all__ = [
     "StructuralBlock",
     "StructuralBlockClassification",
     "StructuralBlockFinder",
+    "StructuralBlockOrbit",
     "StructuralBlockResult",
     "PeriodicUnitRef",
     "RingAnalysisResult",

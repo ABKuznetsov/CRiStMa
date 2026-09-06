@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from cristma.diagnostics import Diagnostic
-from cristma.structure import PeriodicAtomRef
+from cristma.structure import (
+    AtomicView,
+    CrystalStructure,
+    ExpandedAtom,
+    PeriodicAtomRef,
+)
 
 from .periodic_connectivity import PeriodicConnectivityResult
 from .representation import StructuralRepresentation
@@ -46,6 +51,7 @@ class StructuralBlock:
     classification: StructuralBlockClassification
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
+    block_orbit_id: str = field(default="", kw_only=True)
 
     def __post_init__(self) -> None:
         if not self.block_id or not self.representation_id or not self.unit_ids:
@@ -61,6 +67,33 @@ class StructuralBlock:
 
 
 @dataclass(frozen=True, slots=True)
+class StructuralBlockOrbit:
+    """One exact space-group orbit of structural blocks."""
+
+    block_orbit_id: str
+    representative_block_id: str
+    blocks: tuple[StructuralBlock, ...]
+    diagnostics: tuple[Diagnostic, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.block_orbit_id or not self.representative_block_id or not self.blocks:
+            raise ValueError("structural-block orbit requires identities and members")
+        ids = tuple(item.block_id for item in self.blocks)
+        if ids != tuple(sorted(set(ids))):
+            raise ValueError("structural-block orbit members must be unique and sorted")
+        if ids[0] != self.representative_block_id:
+            raise ValueError("representative structural block must be the first member")
+        if any(item.block_orbit_id != self.block_orbit_id for item in self.blocks):
+            raise ValueError("structural-block orbit member has another orbit ID")
+        signatures = {
+            (item.representation_id, item.periodic_rank, item.classification)
+            for item in self.blocks
+        }
+        if len(signatures) != 1:
+            raise ValueError("structural-block orbit members must share context and rank")
+
+
+@dataclass(frozen=True, slots=True)
 class StructuralBlockResult:
     """Explicit collection of blocks for one structural representation."""
 
@@ -68,6 +101,25 @@ class StructuralBlockResult:
     blocks: tuple[StructuralBlock, ...]
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
+    block_orbits: tuple[StructuralBlockOrbit, ...] = field(default=(), kw_only=True)
+
+    def __post_init__(self) -> None:
+        ids = tuple(item.block_id for item in self.blocks)
+        if len(set(ids)) != len(ids):
+            raise ValueError("structural block IDs must be unique")
+        if any(item.representation_id != self.representation_id for item in self.blocks):
+            raise ValueError("structural block belongs to another representation")
+        if self.block_orbits:
+            orbit_ids = tuple(item.block_orbit_id for item in self.block_orbits)
+            if len(set(orbit_ids)) != len(orbit_ids):
+                raise ValueError("structural-block orbit IDs must be unique")
+            observed = tuple(
+                item.block_id for orbit in self.block_orbits for item in orbit.blocks
+            )
+            if len(set(observed)) != len(observed) or set(observed) != set(ids):
+                raise ValueError("every structural block must belong to exactly one orbit")
+        elif any(item.block_orbit_id for item in self.blocks):
+            raise ValueError("block orbit IDs require structural-block orbit records")
 
 
 def _add_translation(first: Translation, second: Translation) -> Translation:
@@ -95,7 +147,12 @@ class StructuralBlockFinder:
         self,
         representation: StructuralRepresentation,
         connectivity: PeriodicConnectivityResult,
+        *,
+        structure: CrystalStructure | None = None,
+        atomic_view: AtomicView[ExpandedAtom] | None = None,
     ) -> StructuralBlockResult:
+        if structure is not None and atomic_view is None:
+            raise ValueError("structural-block symmetry grouping requires an atomic view")
         if connectivity.representation_id != representation.representation_id:
             raise ValueError("connectivity belongs to another structural representation")
 
@@ -146,10 +203,30 @@ class StructuralBlockFinder:
 
         if seen_unit_ids != set(unit_by_id):
             raise ValueError("periodic connectivity does not cover every selected unit")
+        completed_blocks = tuple(sorted(blocks, key=lambda item: item.block_id))
+        block_orbits: tuple[StructuralBlockOrbit, ...] = ()
+        diagnostics: tuple[Diagnostic, ...] = ()
+        if structure is not None:
+            from .hierarchy_orbits import build_block_orbits
+
+            completed_blocks, block_orbits, diagnostics = build_block_orbits(
+                structure,
+                atomic_view,
+                representation,
+                connectivity,
+                completed_blocks,
+            )
         return StructuralBlockResult(
             representation_id=representation.representation_id,
-            blocks=tuple(sorted(blocks, key=lambda item: item.block_id)),
-            provenance=(("method", "cristma.structural_block_finder:1"),),
+            blocks=completed_blocks,
+            diagnostics=diagnostics,
+            provenance=((
+                "method",
+                "cristma.structural_block_finder:2"
+                if structure is not None
+                else "cristma.structural_block_finder:1",
+            ),),
+            block_orbits=block_orbits,
         )
 
 
@@ -157,5 +234,6 @@ __all__ = [
     "StructuralBlock",
     "StructuralBlockClassification",
     "StructuralBlockFinder",
+    "StructuralBlockOrbit",
     "StructuralBlockResult",
 ]

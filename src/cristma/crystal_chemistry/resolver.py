@@ -397,16 +397,53 @@ def _coalesce_resolved_contacts(
     for contact_id in order:
         rows = grouped[contact_id]
         first = rows[0]
-        for row in rows[1:]:
-            if (
-                row.geometric_contact != first.geometric_contact
-                or row.interaction_type is not first.interaction_type
-                or row.interaction_layer is not first.interaction_layer
-                or row.grammar_priority is not first.grammar_priority
-            ):
+        if any(row.geometric_contact != first.geometric_contact for row in rows[1:]):
+            raise ValueError(
+                f"physical contact {contact_id} has incompatible geometry records"
+            )
+        contexts = {
+            (row.interaction_type, row.interaction_layer, row.grammar_priority)
+            for row in rows
+        }
+        discarded_contexts: tuple[tuple[str, str, str], ...] = ()
+        if len(contexts) != 1:
+            preferred_priority = (
+                InteractionPriority.PRIMARY
+                if any(
+                    row.grammar_priority is InteractionPriority.PRIMARY
+                    for row in rows
+                )
+                else InteractionPriority.ALLOWED
+            )
+            preferred_rows = [
+                row for row in rows if row.grammar_priority is preferred_priority
+            ]
+            preferred_contexts = {
+                (row.interaction_type, row.interaction_layer)
+                for row in preferred_rows
+            }
+            if len(preferred_contexts) != 1:
                 raise ValueError(
                     f"physical contact {contact_id} has incompatible scientific interpretations"
                 )
+            discarded_contexts = tuple(sorted({
+                (
+                    row.interaction_type.value,
+                    row.interaction_layer.value,
+                    row.grammar_priority.value,
+                )
+                for row in rows
+                if row not in preferred_rows
+            }))
+            rows = preferred_rows
+            first = rows[0]
+            diagnostics.append(Diagnostic(
+                Severity.WARNING,
+                "crystal_chemistry.contact.role_ambiguous",
+                f"Mixed-site components give multiple roles for {contact_id}; "
+                f"the {preferred_priority.value} grammar role is retained",
+            ))
+            statuses.append(ResolutionStatus.AMBIGUOUS)
 
         interpretations: list[ComponentPairInterpretation] = []
         for row in rows:
@@ -455,7 +492,10 @@ def _coalesce_resolved_contacts(
         ))
         provenance = tuple(dict.fromkeys(
             item for row in rows for item in row.provenance
-        )) + (("coalescing_method", "cristma.component_contact_coalescing:1"),)
+        )) + (
+            ("coalescing_method", "cristma.component_contact_coalescing:2"),
+            ("discarded_interaction_contexts", discarded_contexts),
+        )
         output.append(
             replace(
                 first,
@@ -475,6 +515,55 @@ def _coalesce_resolved_contacts(
     return tuple(output), tuple(dict.fromkeys(diagnostics)), tuple(statuses)
 
 
+def _coalesce_identical_shells(
+    shells: tuple[CoordinationShell, ...],
+) -> tuple[CoordinationShell, ...]:
+    """Collapse duplicate physical shells produced by mixed-site grammar roles."""
+
+    grouped: dict[tuple[str, str, tuple[str, ...]], list[CoordinationShell]] = {}
+    order: list[tuple[str, str, tuple[str, ...]]] = []
+    for index, shell in enumerate(shells):
+        contact_ids = tuple(sorted(
+            contact.geometric_contact.contact_id for contact in shell.contacts
+        ))
+        # Distinct incomplete requests have no physical shell to coalesce.
+        key = (
+            shell.source_site_id,
+            shell.center_atom_id,
+            contact_ids if contact_ids else (f"request:{index}",),
+        )
+        if key not in grouped:
+            order.append(key)
+        grouped.setdefault(key, []).append(shell)
+
+    output: list[CoordinationShell] = []
+    for key in order:
+        rows = grouped[key]
+        first = rows[0]
+        if len(rows) == 1:
+            output.append(first)
+            continue
+        output.append(replace(
+            first,
+            status=aggregate_resolution_status(
+                tuple(row.status for row in rows), applicable=True
+            ),
+            alternatives=tuple(dict.fromkeys(
+                item for row in rows for item in row.alternatives
+            )),
+            evidence=tuple(dict.fromkeys(
+                item for row in rows for item in row.evidence
+            )),
+            diagnostics=tuple(dict.fromkeys(
+                item for row in rows for item in row.diagnostics
+            )),
+            provenance=tuple(dict.fromkeys(
+                item for row in rows for item in row.provenance
+            )) + (("coalescing_method", "cristma.identical_shell_coalescing:1"),),
+        ))
+    return tuple(output)
+
+
 @dataclass(frozen=True, slots=True)
 class CoordinationShellResolver:
     policy: ShellResolutionPolicy
@@ -492,7 +581,7 @@ class CoordinationShellResolver:
                 ("search_cutoff_angstrom", None),
                 ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
                 ("reference_version", grammar.reference_version),
-                ("resolver_method", "cristma.coordination_shell_resolver:3"),
+                ("resolver_method", "cristma.coordination_shell_resolver:4"),
                 ("contact_orbit_method", "cristma.contact_orbits:1"),
                 ("structure_id", structure.id),
             )
@@ -528,7 +617,7 @@ class CoordinationShellResolver:
                 ("search_cutoff_angstrom", None),
                 ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
                 ("reference_version", grammar.reference_version),
-                ("resolver_method", "cristma.coordination_shell_resolver:3"),
+                ("resolver_method", "cristma.coordination_shell_resolver:4"),
                 ("contact_orbit_method", "cristma.contact_orbits:1"),
                 ("structure_id", structure.id),
             )
@@ -611,6 +700,7 @@ class CoordinationShellResolver:
             )
             for shell in shells
         ]
+        shells = list(_coalesce_identical_shells(tuple(shells)))
 
         polyhedron_builder = PolyhedronBuilder()
         polyhedron_results = tuple(
@@ -689,7 +779,7 @@ class CoordinationShellResolver:
             ("maximum_observed_rho", maximum_rho),
             ("grammar_method", f"{grammar.method_id}:{grammar.method_version}"),
             ("reference_version", grammar.reference_version),
-            ("resolver_method", "cristma.coordination_shell_resolver:3"),
+            ("resolver_method", "cristma.coordination_shell_resolver:4"),
             ("contact_orbit_method", "cristma.contact_orbits:1"),
             ("polyhedron_method", "cristma.polyhedron_builder:2"),
             ("polyhedron_orbit_method", "cristma.polyhedron_orbits:1"),

@@ -17,6 +17,7 @@ from .representation import StructuralRepresentation
 from .ring_finder import _canonical_cycle_key, _connection_joins, _first_unit_image
 from .rings import PeriodicUnitRef, StructuralRing, StructuralRingOrbit
 from .structural_graph import StructuralConnection
+from .structural_blocks import StructuralBlockResult
 
 
 Translation = tuple[int, int, int]
@@ -229,6 +230,7 @@ def build_ring_orbits(
     view: AtomicView[ExpandedAtom],
     representation: StructuralRepresentation,
     rings: tuple[StructuralRing, ...],
+    blocks: StructuralBlockResult | None = None,
 ) -> tuple[tuple[StructuralRingOrbit, ...], tuple[Diagnostic, ...]]:
     """Group instances only when an actual space-group operation maps them."""
 
@@ -239,6 +241,11 @@ def build_ring_orbits(
         for ring in rings
     }
     disjoint = _DisjointSet({ring.ring_id: ring.ring_id for ring in rings})
+    block_orbit_by_id = {
+        block.block_id: orbit.block_orbit_id
+        for orbit in (() if blocks is None else blocks.block_orbits)
+        for block in orbit.blocks
+    }
     diagnostics: list[Diagnostic] = []
     for ring in rings:
         for operation in structure.space_group.operations:
@@ -254,10 +261,20 @@ def build_ring_orbits(
                 ))
                 continue
             target = key_to_ring.get(mapped_key)
+            source_block_orbit_id = block_orbit_by_id.get(ring.parent_block_id, "")
+            target_block_orbit_id = (
+                block_orbit_by_id.get(target.parent_block_id, "")
+                if target is not None
+                else ""
+            )
             if (
                 target is not None
-                and target.parent_block_id == ring.parent_block_id
                 and target.representation_id == ring.representation_id
+                and (
+                    source_block_orbit_id == target_block_orbit_id
+                    if source_block_orbit_id
+                    else target.parent_block_id == ring.parent_block_id
+                )
             ):
                 disjoint.union(ring.ring_id, target.ring_id)
 
@@ -269,7 +286,13 @@ def build_ring_orbits(
     for member_ids in groups.values():
         ordered_ids = tuple(sorted(member_ids))
         representative = ring_by_id[ordered_ids[0]]
-        digest = hashlib.sha256("|".join(ordered_ids).encode("utf-8")).hexdigest()[:24]
+        parent_block_orbit_id = block_orbit_by_id.get(
+            representative.parent_block_id,
+            representative.parent_block_orbit_id,
+        )
+        digest = hashlib.sha256(
+            (parent_block_orbit_id + "|" + "|".join(ordered_ids)).encode("utf-8")
+        ).hexdigest()[:24]
         orbits.append(StructuralRingOrbit(
             f"ring-orbit:{digest}",
             representative.parent_block_id,
@@ -280,6 +303,7 @@ def build_ring_orbits(
             representative.composition,
             representative.size,
             representative.scope,
+            parent_block_orbit_id,
         ))
     return tuple(sorted(orbits, key=lambda item: item.orbit_id)), tuple(diagnostics)
 

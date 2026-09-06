@@ -94,6 +94,7 @@ class StructuralRing:
     translation_sum: Translation
     scope: StructuralRingScope = StructuralRingScope.LOCAL
     provenance: tuple[tuple[str, object], ...] = ()
+    parent_block_orbit_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.ring_id or not self.parent_block_id or not self.representation_id:
@@ -107,6 +108,8 @@ class StructuralRing:
         _validate_translation(self.translation_sum, name="ring translation sum")
         if self.translation_sum != _ZERO_TRANSLATION:
             raise ValueError("structural ring must have zero translation sum")
+        if self.parent_block_orbit_id and not self.parent_block_orbit_id.strip():
+            raise ValueError("parent block orbit ID must not be blank")
 
     @property
     def size(self) -> int:
@@ -126,6 +129,7 @@ class StructuralRingOrbit:
     composition: Composition
     size: int
     scope: StructuralRingScope = StructuralRingScope.LOCAL
+    parent_block_orbit_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.orbit_id or not self.parent_block_id or not self.representation_id:
@@ -140,6 +144,8 @@ class StructuralRingOrbit:
             raise ValueError("ring-orbit multiplicity must equal member count")
         if self.size < 3:
             raise ValueError("ring-orbit size must be at least three")
+        if self.parent_block_orbit_id and not self.parent_block_orbit_id.strip():
+            raise ValueError("parent block orbit ID must not be blank")
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,18 +169,30 @@ class RingAnalysisResult:
             if any(ring_id not in ring_by_id for ring_id in orbit.ring_ids):
                 raise ValueError("ring orbit references an unknown ring")
             members = tuple(ring_by_id[ring_id] for ring_id in orbit.ring_ids)
+            representative = ring_by_id[orbit.representative_ring_id]
+            if (
+                representative.parent_block_id != orbit.parent_block_id
+                or representative.parent_block_orbit_id
+                != orbit.parent_block_orbit_id
+            ):
+                raise ValueError("ring-orbit parent identity must follow its representative")
             if any(
-                ring.parent_block_id != orbit.parent_block_id
-                or ring.representation_id != orbit.representation_id
+                ring.representation_id != orbit.representation_id
                 or ring.size != orbit.size
                 or ring.composition != orbit.composition
                 or ring.scope is not orbit.scope
+                or (
+                    orbit.parent_block_orbit_id
+                    and ring.parent_block_orbit_id != orbit.parent_block_orbit_id
+                )
                 for ring in members
             ):
                 raise ValueError("ring-orbit members must share context and identity")
             if assigned.intersection(orbit.ring_ids):
                 raise ValueError("ring instance occurs in more than one orbit")
             assigned.update(orbit.ring_ids)
+        if self.orbits and assigned != set(ring_by_id):
+            raise ValueError("every structural ring must belong to exactly one orbit")
 
 
 __all__ = [

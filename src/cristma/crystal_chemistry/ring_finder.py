@@ -368,11 +368,28 @@ class RingFinder:
         instances = self.find_instances(
             structure, atomic_view, representation, blocks
         )
+        block_orbit_by_id = {
+            block.block_id: orbit.block_orbit_id
+            for orbit in blocks.block_orbits
+            for block in orbit.blocks
+        }
+        if block_orbit_by_id:
+            instances = replace(
+                instances,
+                rings=tuple(
+                    replace(
+                        ring,
+                        parent_block_orbit_id=block_orbit_by_id[ring.parent_block_id],
+                    )
+                    for ring in instances.rings
+                ),
+            )
         orbits, symmetry_diagnostics = build_ring_orbits(
             structure,
             atomic_view,
             representation,
             instances.rings,
+            blocks,
         )
         diagnostics = instances.diagnostics + symmetry_diagnostics
         status = (
