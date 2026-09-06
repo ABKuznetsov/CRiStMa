@@ -185,14 +185,15 @@ does not calculate intensities or powder profiles.
 
 ## Beta status
 
-`0.1.0b1` was the first public beta. `0.1.0b2` adds the first diffraction
+`0.1.0b1` was the first public beta. `0.1.0b2` added the first diffraction
 milestone, explicit crystal-chemistry result statuses, and stable
-symmetry-equivalent contact orbits. It also improves handling of rounded CIF
-special positions and preserves calculated multiplicities when reading SHELX
-structures. The implemented scientific core is covered by automated tests and
-is ready for evaluation and integration. Until the first stable release,
-public APIs may still change when required to correct or clarify scientific
-contracts.
+symmetry-equivalent contact orbits. `0.1.0b3` keeps coordinate structures
+available when a reported anisotropic displacement tensor conflicts with site
+symmetry, and extends composition grammar to hydrogen-omitted organic and
+metal-organic structures. The implemented scientific core is covered by
+automated tests and is ready for evaluation and integration. Until the first
+stable release, public APIs may still change when required to correct or
+clarify scientific contracts.
 
 The current development version adds reciprocal metrics, bounded reflection
 generation, exact systematic absences, reciprocal symmetry orbits,

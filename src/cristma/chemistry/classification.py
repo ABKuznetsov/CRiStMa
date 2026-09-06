@@ -38,7 +38,7 @@ class ChemicalClassification:
     modifiers: tuple[str, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     method_id: str = "cristma.composition_classification"
-    method_version: str = "1"
+    method_version: str = "2"
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1:
@@ -119,7 +119,16 @@ def classify_composition(
             message=f"Elemental {symbol} is assigned to {family}.",
         )
 
-    if {"C", "H"} <= elements:
+    hydrogen_supported_organic = {"C", "H"} <= elements
+    organic_heteroatoms = elements & _ORGANIC_DONORS
+    hydrogen_omitted_carbon_skeleton = (
+        "C" in elements
+        and bool(organic_heteroatoms)
+        and composition.amount("C")
+        > sum(composition.amount(symbol) for symbol in organic_heteroatoms)
+    )
+    if hydrogen_supported_organic or hydrogen_omitted_carbon_skeleton:
+        inferred_without_hydrogen = not hydrogen_supported_organic
         if metals:
             family = (
                 "coordination.metal_organic_discrete"
@@ -132,9 +141,18 @@ def classify_composition(
                 domain=ChemicalDomain.METAL_ORGANIC,
                 family=family,
                 reference=reference,
-                code="chemistry.metal_organic_composition",
-                message="Metal plus carbon-hydrogen composition selects metal-organic analysis.",
-                confidence=0.7,
+                code=(
+                    "chemistry.metal_organic_carbon_skeleton_candidate"
+                    if inferred_without_hydrogen
+                    else "chemistry.metal_organic_composition"
+                ),
+                message=(
+                    "Carbon-rich donor composition without reported hydrogen selects "
+                    "metal-organic candidate analysis."
+                    if inferred_without_hydrogen
+                    else "Metal plus carbon-hydrogen composition selects metal-organic analysis."
+                ),
+                confidence=0.6 if inferred_without_hydrogen else 0.7,
             )
         return _result(
             elements=elements,
@@ -142,9 +160,18 @@ def classify_composition(
             domain=ChemicalDomain.ORGANIC,
             family="organic.molecular",
             reference=reference,
-            code="chemistry.organic_composition",
-            message="Carbon-hydrogen composition selects molecular organic analysis.",
-            confidence=0.8,
+            code=(
+                "chemistry.organic_carbon_skeleton_candidate"
+                if inferred_without_hydrogen
+                else "chemistry.organic_composition"
+            ),
+            message=(
+                "Carbon-rich composition without reported hydrogen selects molecular "
+                "organic candidate analysis."
+                if inferred_without_hydrogen
+                else "Carbon-hydrogen composition selects molecular organic analysis."
+            ),
+            confidence=0.65 if inferred_without_hydrogen else 0.8,
         )
 
     if metals == elements:
