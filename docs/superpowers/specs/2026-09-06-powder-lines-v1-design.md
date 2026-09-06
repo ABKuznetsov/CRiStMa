@@ -49,15 +49,25 @@ relative weights remain available for provenance.
 The built-in Cu K-alpha preset contains separate K-alpha1 and K-alpha2
 components. Its immutable packaged values are generated from a pinned xraylib
 release and commit using line energies and radiative rates, then stored with
-the source version, conversion convention, checksum, and license notice.
-xraylib is a reference-data build dependency only and is not imported at
-runtime.
+the source version, conversion convention, checksum, and license notice. Its
+provenance explicitly records `energy_source`, `radiative_rate_source`,
+`energy_to_wavelength_formula`, `hc_value`, `hc_units`, `xraylib_version`,
+`xraylib_commit`, and `resource_checksum`. xraylib is a reference-data build
+dependency only and is not imported at runtime.
 
 ## Powder families and Friedel grouping
 
 A powder family contains either one crystallographic reflection orbit or the
 two orbits connected by `friedel_mate_id`. Each pair is consumed once, using a
 deterministic family identifier derived from the sorted reflection IDs.
+
+The calculator defensively validates Friedel links even though `ReflectionSet`
+already enforces them at model construction. A non-null mate ID must identify
+a member of the source `StructureFactorSet`, and the two links must be
+reciprocal. A missing mate raises `DiffractionInvariantError` with code
+`diffraction.powder.missing_friedel_mate`; a non-reciprocal link raises the
+corresponding `diffraction.powder.nonreciprocal_friedel_link` invariant error.
+Neither case may degrade to a singleton family.
 
 For family members `i`, the intrinsic family strength is
 
@@ -81,7 +91,7 @@ first-order Bragg condition is reachable:
 
 ```text
 two_theta_deg = degrees(2 * asin(wavelength_angstrom / (2 * d_spacing)))
-line_intensity = normalized_component_weight * family_strength
+intrinsic_line_intensity = normalized_component_weight * family_strength
 ```
 
 If `wavelength_angstrom / (2 * d_spacing) > 1`, that component produces no
@@ -110,13 +120,21 @@ K-alpha1 and K-alpha2 therefore separate increasingly at high angles.
 - parent `family_id` and `radiation_component_id`;
 - wavelength and normalized radiation weight;
 - `two_theta_deg`;
-- intrinsic line intensity.
+- `intrinsic_line_intensity`.
 
 `PowderLineSet` retains the source `StructureFactorSet`, spectrum, diagnostics,
 provenance, and inherited `COMPLETE` or `INCOMPLETE` reflection-search status.
-Families are ordered by their first emitted `two_theta_deg`, then family ID.
-Lines within a family follow the declared spectrum component order. Derived
-flat and angle-sorted views may be provided without changing stored identity.
+For every family, `family_sort_angle` is the minimum `two_theta_deg` among its
+emitted lines. Families are ordered by `(family_sort_angle, family_id)`, so
+reordering otherwise identical spectrum components cannot change family
+order. Lines within a family follow the declared spectrum component order.
+Derived flat and angle-sorted views may be provided without changing stored
+identity.
+
+The public scientific API consistently names this value
+`intrinsic_line_intensity`, never simply `intensity`, because it excludes
+Lorentz-polarization, preferred orientation, absorption, instrument response,
+and profile integration.
 
 ## Errors and diagnostics
 
@@ -153,5 +171,6 @@ Tests cover model validation, spectrum weight normalization, Cu K-alpha
 provenance, an analytical Bragg-angle case, high-angle doublet separation,
 multiplicity, Friedel grouping, extinction omission, allowed zero-strength
 families, unreachable Bragg conditions, inherited incomplete status,
-deterministic ordering, package contents, and absence of a runtime xraylib
-dependency.
+missing and non-reciprocal Friedel-link failures, spectrum-order-independent
+family ordering, deterministic line ordering, package contents, and absence
+of a runtime xraylib dependency.
