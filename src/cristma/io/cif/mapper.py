@@ -904,6 +904,50 @@ def _metadata(block: CifBlock) -> dict[str, object]:
     return values
 
 
+def _isotropic_adp_fallback(
+    displacement: DisplacementParameters | None,
+) -> DisplacementParameters | None:
+    """Retain reported U_iso_or_equiv when anisotropic ADP is unusable."""
+
+    if (
+        displacement is None
+        or displacement.kind != "U_aniso"
+        or displacement.isotropic is None
+        or displacement.isotropic.value is None
+    ):
+        return None
+    return DisplacementParameters(
+        kind="U_iso",
+        isotropic=displacement.isotropic,
+        reported_kind="U_iso_or_equiv",
+    )
+
+
+def _site_orbit_result(
+    site: IndependentSite,
+    symmetry: SpaceGroupDefinition,
+    catalog_setting: SpaceGroupSetting | None,
+    cell: UnitCell,
+    structure_id: str,
+) -> tuple[int, tuple[Diagnostic, ...]]:
+    if catalog_setting is None:
+        expanded = expand_orbit(
+            site,
+            symmetry.operations,
+            cell=cell,
+            structure_id=structure_id,
+        )
+        return len(expanded), ()
+    orbit = build_orbit(
+        site,
+        catalog_setting,
+        cell=cell,
+        structure_id=structure_id,
+    )
+    assignment = assign_wyckoff(orbit, catalog_setting)
+    return orbit.multiplicity, assignment.diagnostics
+
+
 def map_cif_structures(
     document: CifDocument,
     *,
@@ -952,13 +996,18 @@ def map_cif_structures(
                         stabilizer,
                     )
                 except SymmetryConsistencyError as error:
-                    site = replace(site, displacement=None)
+                    fallback = _isotropic_adp_fallback(site.displacement)
+                    site = replace(site, displacement=fallback)
                     diagnostics.append(
                         Diagnostic(
                             Severity.WARNING,
                             "cif.map.adp_symmetry_inconsistent",
                             f"{site.label}: {error}; anisotropic displacement was "
-                            "omitted while retaining the coordinate site.",
+                            + (
+                                "replaced by reported U_iso_or_equiv."
+                                if fallback is not None
+                                else "omitted while retaining the coordinate site."
+                            ),
                         )
                     )
                     symmetrized = None
@@ -974,24 +1023,37 @@ def map_cif_structures(
                             "angstrom^2).",
                         )
                     )
-                if catalog_setting is None:
-                    expanded = expand_orbit(
+                try:
+                    calculated_multiplicity, orbit_diagnostics = _site_orbit_result(
                         site,
-                        symmetry.operations,
-                        cell=cell,
-                        structure_id=structure_id,
-                    )
-                    calculated_multiplicity = len(expanded)
-                else:
-                    orbit = build_orbit(
-                        site,
+                        symmetry,
                         catalog_setting,
-                        cell=cell,
-                        structure_id=structure_id,
+                        cell,
+                        structure_id,
                     )
-                    assignment = assign_wyckoff(orbit, catalog_setting)
-                    diagnostics.extend(assignment.diagnostics)
-                    calculated_multiplicity = orbit.multiplicity
+                except SymmetryConsistencyError as error:
+                    fallback = _isotropic_adp_fallback(site.displacement)
+                    site = replace(site, displacement=fallback)
+                    diagnostics.append(
+                        Diagnostic(
+                            Severity.WARNING,
+                            "cif.map.adp_symmetry_inconsistent",
+                            f"{site.label}: {error}; anisotropic displacement was "
+                            + (
+                                "replaced by reported U_iso_or_equiv."
+                                if fallback is not None
+                                else "omitted while retaining the coordinate site."
+                            ),
+                        )
+                    )
+                    calculated_multiplicity, orbit_diagnostics = _site_orbit_result(
+                        site,
+                        symmetry,
+                        catalog_setting,
+                        cell,
+                        structure_id,
+                    )
+                diagnostics.extend(orbit_diagnostics)
             except SymmetryConsistencyError as error:
                 diagnostics.append(
                     Diagnostic(

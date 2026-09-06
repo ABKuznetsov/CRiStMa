@@ -224,6 +224,10 @@ available when a reported anisotropic displacement tensor conflicts with site
 symmetry, and extends composition grammar to hydrogen-omitted organic and
 metal-organic structures. The local beta3 development line also adds
 neutral-atom X-ray structure factors with explicit scattering provenance. The
+`0.1.0b4` local development release keeps a usable coordinate structure when
+an anisotropic ADP fails the final orbit-consistency check: it retains a
+reported `U_iso_or_equiv` when available, otherwise omits only that ADP, and
+returns a warning instead of rejecting the complete CIF. The
 implemented scientific core is covered by automated tests and is ready for
 evaluation and integration. Until the first stable release, public APIs may
 still change when required to correct or clarify scientific contracts.
