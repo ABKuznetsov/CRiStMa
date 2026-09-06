@@ -33,6 +33,15 @@ from .powder_models import (
     RadiationSpectrumProvenance,
     XRayTubeTarget,
 )
+from .profile_models import (
+    CalculatedProfile,
+    ConstantWidthProfile,
+    PowderProfileProvenance,
+    ProfileIntensityBasis,
+    TchProfile,
+    UniformTwoThetaGrid,
+)
+from .profiles import PowderProfileCalculator
 from .reciprocal import ReciprocalMetric
 from .reflections import ReflectionGenerator
 from .structure_factor_models import (
@@ -46,6 +55,8 @@ from .structure_factors import StructureFactorCalculator
 __all__ = [
     "DiffractionInvariantError",
     "BraggBrentanoGeometry",
+    "CalculatedProfile",
+    "ConstantWidthProfile",
     "CorrectedPowderLine",
     "CorrectedPowderLineSet",
     "ExtinctionAnalyzer",
@@ -58,7 +69,10 @@ __all__ = [
     "PowderLineCalculator",
     "PowderLineProvenance",
     "PowderLineSet",
+    "PowderProfileCalculator",
+    "PowderProfileProvenance",
     "PowderReflectionFamily",
+    "ProfileIntensityBasis",
     "PowderCorrectionCalculator",
     "PowderCorrectionProvenance",
     "RadiationComponent",
@@ -76,6 +90,8 @@ __all__ = [
     "StructureFactorCalculator",
     "StructureFactorProvenance",
     "StructureFactorSet",
+    "TchProfile",
+    "UniformTwoThetaGrid",
     "XRayScatteringContext",
     "XRayTubeTarget",
 ]

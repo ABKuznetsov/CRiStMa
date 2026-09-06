@@ -313,11 +313,52 @@ The default polarization fraction is `0.5`, corresponding to unpolarized
 laboratory X-rays; synchrotron polarization must be provided explicitly.
 These are relative calculated intensities, not an absolute detector signal.
 
-Preferred orientation, absorption, instrument response, peak profiles, and
-comparison with experiment are not part of this result. `RadiationProbe`
+Preferred orientation, absorption, and comparison with experiment are not
+part of this line result. `RadiationProbe`
 already distinguishes X-rays from neutrons, but neutron powder intensities
 will only be enabled together with a separate nuclear scattering-length
 context; CrIStMa never substitutes X-ray atomic form factors for neutrons.
+
+## Calculated powder profile
+
+A minimal final forward layer can place intrinsic or corrected powder lines
+on an explicit uniform grid. If no instrument calibration is available, the
+caller supplies one constant Gaussian FWHM:
+
+```python
+from cristma.diffraction import (
+    ConstantWidthProfile,
+    PowderProfileCalculator,
+    UniformTwoThetaGrid,
+)
+
+profile = PowderProfileCalculator().calculate(
+    corrected,
+    UniformTwoThetaGrid(5.0, 120.0, 0.01),
+    ConstantWidthProfile(fwhm_deg=0.10),
+)
+```
+
+An instrument profile stored by a consuming application can instead provide
+explicit GSAS-style continuous-wave `U`, `V`, `W`, `X`, and `Y` values:
+
+```python
+from cristma.diffraction import TchProfile
+
+instrument = TchProfile(u=U, v=V, w=W, x=X, y=Y)
+profile = PowderProfileCalculator().calculate(
+    corrected,
+    grid,
+    instrument,
+    zero_shift_deg=zero_shift,
+)
+```
+
+CrIStMa has no built-in instrument preset and does not read refinement project
+files. Every peak kernel is area-normalized and evaluated only in a local
+window. Profile v1 represents **instrument broadening only**. Crystallite size,
+microstrain, preferred orientation, absorption, background, asymmetry,
+experimental matching, and refinement remain separate future layers.
 
 ## Design principles
 
@@ -354,10 +395,11 @@ The current development version adds reciprocal metrics, bounded reflection
 generation, exact systematic absences, reciprocal symmetry orbits,
 crystallographic multiplicity, Friedel relations, neutral-atom structure
 factors, intrinsic multi-component powder lines, selectable X-ray sources, and
-Bragg–Brentano Lorentz–polarization corrections to the published beta's
+Bragg–Brentano Lorentz–polarization corrections, plus minimal instrument-only
+calculated profiles on explicit grids, to the published beta's
 structural I/O, symmetry, geometry, crystal chemistry, and topology layers. It
-does not yet calculate sample corrections, broadened diffraction profiles,
-neutron structure factors, experimental matching, or structure refinement.
+does not yet calculate sample broadening or corrections, neutron structure
+factors, experimental matching, or structure refinement.
 
 ## Roadmap
 
@@ -366,7 +408,7 @@ Planned scientific layers are developed as independent milestones:
 1. energy-dependent and additional scattering contexts;
 2. additional powder geometries, sample corrections, and explicit instrument
    models;
-3. calculated diffraction profiles on explicit grids and neutron scattering;
+3. sample-broadening contributions and neutron scattering;
 4. additional structural transforms, hierarchy and topology tools, and
    refinement built over the same forward calculations.
 
