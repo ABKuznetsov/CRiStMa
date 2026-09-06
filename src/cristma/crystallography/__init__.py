@@ -50,6 +50,7 @@ from .pair_canonical import (
     PairInstanceOwner,
     canonical_instance_owner,
     canonical_pair_relation,
+    periodic_endpoint_instance,
 )
 
 __all__ = [
@@ -94,4 +95,5 @@ __all__ = [
     "geometric_contacts",
     "identity_relation",
     "invert_periodic_relation",
+    "periodic_endpoint_instance",
 ]

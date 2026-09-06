@@ -22,6 +22,7 @@ from .orbit_contacts import (
     OrientationMode,
     ResolvedContactOrbit,
 )
+from .incidence_orbits import ContactIncidenceBuilder, ContactIncidenceOrbit
 from .polyhedra import (
     CoordinationPolyhedron,
     CoordinationPolyhedronOrbit,
@@ -82,6 +83,8 @@ __all__ = [
     "ComponentPairInterpretation",
     "ContactClassification",
     "ContactInterpretation",
+    "ContactIncidenceBuilder",
+    "ContactIncidenceOrbit",
     "ContactOrbitResolution",
     "ContactOrbitResolver",
     "CoordinationShell",

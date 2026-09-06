@@ -57,7 +57,7 @@ def canonical_pair_relation(
     return min(descriptors)
 
 
-def _endpoint_instance(
+def periodic_endpoint_instance(
     site_id: str,
     relation: PeriodicSymmetryRelation,
     mapping: AsymmetricUnitMapping,
@@ -87,8 +87,8 @@ def canonical_instance_owner(
 ) -> PairInstanceOwner:
     """Remove global lattice translation and endpoint direction from an instance."""
 
-    first = _endpoint_instance(first_site_id, first_relation, mapping)
-    second = _endpoint_instance(second_site_id, second_relation, mapping)
+    first = periodic_endpoint_instance(first_site_id, first_relation, mapping)
+    second = periodic_endpoint_instance(second_site_id, second_relation, mapping)
 
     def anchored(
         owner: EndpointInstance,
@@ -246,4 +246,5 @@ __all__ = [
     "build_symmetry_pair_table",
     "canonical_instance_owner",
     "canonical_pair_relation",
+    "periodic_endpoint_instance",
 ]
