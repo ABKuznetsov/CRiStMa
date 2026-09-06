@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal, InvalidOperation
 import math
+import re
 
 import numpy as np
 
@@ -31,6 +32,9 @@ from cristma.symmetry.orbit import SpaceGroupDefinition, expand_orbit
 from . import names
 from .document import CifBlock, CifDocument, CifLoop, CifScalar
 from .tokens import CifToken
+
+
+_STRAY_TRANSLATION_SUFFIX = re.compile(r"(?<=\d)[tT](?=\s*(?:,|$))")
 
 
 def _scalar(block: CifBlock, aliases: tuple[str, ...]) -> CifScalar | None:
@@ -194,6 +198,45 @@ def _same_operation_set(
     }
 
 
+def _parse_symmetry_operation(
+    token: CifToken,
+    operation_id: str,
+    diagnostics: list[Diagnostic],
+) -> AffineOperation | None:
+    try:
+        return parse_xyz_operation(token.value, operation_id=operation_id)
+    except ValueError as original_error:
+        repaired = _STRAY_TRANSLATION_SUFFIX.sub("", token.value)
+        if repaired != token.value:
+            try:
+                operation = parse_xyz_operation(repaired, operation_id=operation_id)
+            except ValueError:
+                pass
+            else:
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.WARNING,
+                        "cif.map.symmetry_operation_repaired",
+                        (
+                            f"Removed a non-standard trailing 't' from fractional "
+                            f"translations in {token.value!r}"
+                        ),
+                        token.span,
+                        recovery=repaired,
+                    )
+                )
+                return operation
+        diagnostics.append(
+            Diagnostic(
+                Severity.ERROR,
+                "cif.map.symmetry_operation_invalid",
+                str(original_error),
+                token.span,
+            )
+        )
+        return None
+
+
 def _symmetry(
     block: CifBlock,
     diagnostics: list[Diagnostic],
@@ -245,19 +288,13 @@ def _symmetry(
     else:
         parsed = []
         for index, token in enumerate(operation_tokens, start=1):
-            try:
-                parsed.append(
-                    parse_xyz_operation(token.value, operation_id=f"op:{index}")
-                )
-            except ValueError as exc:
-                diagnostics.append(
-                    Diagnostic(
-                        Severity.ERROR,
-                        "cif.map.symmetry_operation_invalid",
-                        str(exc),
-                        token.span,
-                    )
-                )
+            operation = _parse_symmetry_operation(
+                token,
+                f"op:{index}",
+                diagnostics,
+            )
+            if operation is not None:
+                parsed.append(operation)
         if len(parsed) != len(operation_tokens):
             return None
         operations = tuple(parsed)
@@ -360,8 +397,6 @@ def _can_merge_mixed(group: list[IndependentSite], candidate: IndependentSite) -
         for component in components
     ):
         return False
-    if math.fsum(float(component.occupancy.value) for component in components) > 1.0 + 1e-6:
-        return False
     if len({site.displacement for site in sites}) > 1:
         return False
 
@@ -370,24 +405,6 @@ def _can_merge_mixed(group: list[IndependentSite], candidate: IndependentSite) -
     explicit_disorder = None not in assemblies and len(assemblies) == 1 and len(groups) == 1
     matching_identity = len({_label_identity(site) for site in sites}) == 1
     return explicit_disorder or matching_identity
-
-
-def _same_explicit_disorder_model(
-    group: list[IndependentSite],
-    candidate: IndependentSite,
-) -> bool:
-    sites = [*group, candidate]
-    assemblies = {site.disorder_assembly for site in sites}
-    groups = {site.disorder_group for site in sites}
-    return None not in assemblies and len(assemblies) == 1 and len(groups) == 1
-
-
-def _combined_occupancy(group: list[IndependentSite], candidate: IndependentSite) -> float:
-    return math.fsum(
-        float(component.occupancy.value)
-        for site in (*group, candidate)
-        for component in site.components
-    )
 
 
 def _merge_coincident_sites(
@@ -406,18 +423,6 @@ def _merge_coincident_sites(
             candidate = sites[candidate_index]
             if not _coincident(site, candidate):
                 continue
-            if (
-                _same_explicit_disorder_model(group, candidate)
-                and _combined_occupancy(group, candidate) > 1.0 + 1e-12
-            ):
-                diagnostics.append(
-                    Diagnostic(
-                        Severity.ERROR,
-                        "cif.map.occupancy_total_exceeds_one",
-                        "Explicit disorder components have total occupancy above one",
-                    )
-                )
-                return None
             if _can_merge_mixed(group, candidate):
                 group.append(candidate)
                 consumed.add(candidate_index)
@@ -436,16 +441,42 @@ def _merge_coincident_sites(
         wyckoff_values = {item.wyckoff for item in group}
         multiplicities = {item.reported_multiplicity for item in group}
         source_rows = tuple(item.metadata["source_row"] for item in group)
+        components = tuple(
+            component
+            for item in group
+            for component in item.components
+        )
+        total_occupancy = math.fsum(
+            float(component.occupancy.value) for component in components
+        )
+        if total_occupancy > 1.0 + 1e-12:
+            components = tuple(
+                replace(
+                    component,
+                    occupancy=replace(
+                        component.occupancy,
+                        value=float(component.occupancy.value) / total_occupancy,
+                    ),
+                )
+                for component in components
+            )
+            diagnostics.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "cif.map.occupancy_total_normalized",
+                    (
+                        f"Coincident site components total {total_occupancy:g}; "
+                        "occupancies were normalized proportionally"
+                    ),
+                    recovery="proportional normalization to total occupancy 1.0",
+                )
+            )
         merged.append(
             replace(
                 site,
                 id=f"{site.id.rsplit(':', 1)[0]}:mixed:{','.join(map(str, source_rows))}",
                 label="/".join(item.label for item in group),
-                components=tuple(
-                    component
-                    for item in group
-                    for component in item.components
-                ),
+                components=components,
                 wyckoff=next(iter(wyckoff_values)) if len(wyckoff_values) == 1 else None,
                 reported_multiplicity=(
                     next(iter(multiplicities)) if len(multiplicities) == 1 else None
@@ -761,6 +792,7 @@ def _sites(
             continue
 
         occupancy_token = _token(row, atom_loop, names.OCCUPANCY)
+        reported_occupancy_value: float | None = None
         if occupancy_token is None:
             occupancy = MeasuredValue(1.0, None, None)
             diagnostics.append(
@@ -776,38 +808,57 @@ def _sites(
             try:
                 occupancy = parse_measured_value(occupancy_token.raw)
             except ValueError as exc:
+                occupancy = MeasuredValue(1.0, None, occupancy_token.raw)
                 diagnostics.append(
                     Diagnostic(
-                        Severity.ERROR,
+                        Severity.WARNING,
                         "cif.map.occupancy_invalid",
-                        str(exc),
+                        f"{exc}; using occupancy 1.0 for {label}",
                         occupancy_token.span,
+                        recovery="1.0",
                     )
                 )
-                block_failed = True
-                continue
             if occupancy.value is None:
+                occupancy = replace(occupancy, value=1.0)
                 diagnostics.append(
                     Diagnostic(
-                        Severity.ERROR,
+                        Severity.WARNING,
                         "cif.map.occupancy_missing",
-                        f"Occupancy is unknown for {label}",
+                        f"Occupancy is unknown for {label}; using 1.0",
                         occupancy_token.span,
+                        recovery="1.0",
                     )
                 )
-                block_failed = True
-                continue
-            if not 0 <= occupancy.value <= 1:
+            if occupancy.value > 1:
+                reported_occupancy_value = float(occupancy.value)
+                occupancy = replace(occupancy, value=1.0)
                 diagnostics.append(
                     Diagnostic(
-                        Severity.ERROR,
-                        "cif.map.occupancy_out_of_range",
-                        f"Occupancy is outside [0, 1] for {label}: {occupancy.value}",
+                        Severity.WARNING,
+                        "cif.map.occupancy_normalized_to_one",
+                        (
+                            f"Occupancy exceeds one for {label}: "
+                            f"{reported_occupancy_value}; using 1.0"
+                        ),
                         occupancy_token.span,
+                        recovery="1.0",
                     )
                 )
-                block_failed = True
-                continue
+            elif occupancy.value < 0:
+                reported_occupancy_value = float(occupancy.value)
+                occupancy = replace(occupancy, value=0.0)
+                diagnostics.append(
+                    Diagnostic(
+                        Severity.WARNING,
+                        "cif.map.occupancy_normalized_to_zero",
+                        (
+                            f"Occupancy is below zero for {label}: "
+                            f"{reported_occupancy_value}; using 0.0"
+                        ),
+                        occupancy_token.span,
+                        recovery="0.0",
+                    )
+                )
 
         oxidation_token = _token(row, atom_loop, names.OXIDATION)
         multiplicity_token = _token(row, atom_loop, names.MULTIPLICITY)
@@ -844,6 +895,16 @@ def _sites(
                 reported_kind="B",
             )
 
+        component_metadata: dict[str, object] = {
+            "reported_type_symbol": (
+                type_token.value if type_token is not None else None
+            ),
+        }
+        if reported_occupancy_value is not None:
+            component_metadata["reported_occupancy_value"] = (
+                reported_occupancy_value
+            )
+
         try:
             sites.append(
                 IndependentSite(
@@ -854,11 +915,7 @@ def _sites(
                             element,
                             occupancy,
                             oxidation_state=oxidation,
-                            metadata={
-                                "reported_type_symbol": type_token.value
-                                if type_token is not None
-                                else None,
-                            },
+                            metadata=component_metadata,
                         ),
                     ),
                     fractional=coordinates,

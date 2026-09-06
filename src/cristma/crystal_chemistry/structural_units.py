@@ -129,7 +129,9 @@ class StructuralUnitBuilder:
         units: list[StructuralUnit] = []
         represented_atom_ids: set[str] = set()
         polyhedron_by_center = {
-            polyhedron.center_atom_id: polyhedron for polyhedron in polyhedra
+            polyhedron.center_atom_id: polyhedron
+            for polyhedron in polyhedra
+            if polyhedron.status is ResolutionStatus.RESOLVED
         }
 
         for shell in sorted(

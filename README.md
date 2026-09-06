@@ -148,6 +148,18 @@ model = cristma.read("molecule.pdb").structures[0]
 CrIStMa implements these readers natively. Gemmi, pymatgen, PyXtal, CrysPy,
 GSAS-II, SHELX, and graphical frameworks are not required at runtime.
 
+Recoverable source-property problems do not discard otherwise usable
+coordinates. CIF occupancies outside their physical `[0, 1]` interval are
+retained in their reported raw form, normalized to the nearest bound for
+calculation, and reported by a warning diagnostic. Overfilled coincident mixed
+positions are normalized proportionally. Fractional coordinates are periodic
+and are therefore not clamped to `[0, 1]`; reported ADP values likewise keep
+their own physical convention and are not treated as occupancies. Atom-site
+loops are mapped by tag name rather than column position. A non-standard
+trailing `t` attached to a fractional symmetry translation (for example
+`z+1/2t`) is removed only after strict parsing fails, and every repaired
+operation produces a warning with the exact recovered expression.
+
 ## Reflection generation
 
 The first diffraction layer generates complete reciprocal-space reflection
