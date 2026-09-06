@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 import hashlib
+import math
 
-from cristma.chemistry import Composition
+from cristma.chemistry import Composition, InteractionLayer
 from cristma.diagnostics import Diagnostic, Severity
 from cristma.structure import AtomicView, CrystalStructure, ExpandedAtom, PeriodicAtomRef
 
@@ -36,11 +37,40 @@ def _subtract(left: Translation, right: Translation) -> Translation:
 
 
 def _eligible(connection: StructuralConnection) -> bool:
-    return connection.connection_kind in {
+    topology_is_eligible = connection.connection_kind in {
         StructuralConnectionKind.SHARED_VERTEX,
         StructuralConnectionKind.SHARED_EDGE,
         StructuralConnectionKind.SHARED_FACE,
     }
+    layers = set(connection.interaction_layers)
+    chemistry_is_eligible = not layers or bool(layers.intersection({
+        InteractionLayer.STRUCTURAL,
+        InteractionLayer.INTRA_SUBSYSTEM,
+        InteractionLayer.INTRAMOLECULAR,
+    }))
+    return topology_is_eligible and chemistry_is_eligible
+
+
+def _has_cycle_candidate(
+    connections: tuple[StructuralConnection, ...],
+) -> bool:
+    """Return whether the finite quotient multigraph can contain a cycle."""
+
+    parents: dict[str, str] = {}
+
+    def find(item: str) -> str:
+        parents.setdefault(item, item)
+        if parents[item] != item:
+            parents[item] = find(parents[item])
+        return parents[item]
+
+    for connection in connections:
+        first_root = find(connection.first_unit_id)
+        second_root = find(connection.second_unit_id)
+        if first_root == second_root:
+            return True
+        parents[max(first_root, second_root)] = min(first_root, second_root)
+    return False
 
 
 def _normalized_tokens(
@@ -158,14 +188,18 @@ def _materialize_ring(
         for atom_ref in unit_by_id[unit_ref.unit_id].atom_refs
     }
     atom_by_id = {atom.id: atom for atom in atomic_view.atoms}
-    amounts: dict[str, float] = {}
+    amount_terms: dict[str, list[float]] = {}
     for atom_ref in atom_refs:
         atom = atom_by_id[atom_ref.atom_id]
         for component in atom.components:
             amount = float(component.occupancy.value)
             if amount > 0:
                 symbol = component.species.require_element()
-                amounts[symbol] = amounts.get(symbol, 0.0) + amount
+                amount_terms.setdefault(symbol, []).append(amount)
+    amounts = {
+        symbol: math.fsum(sorted(terms))
+        for symbol, terms in amount_terms.items()
+    }
 
     connector_refs: set[PeriodicAtomRef] = set()
     for index, connection_id in enumerate(connection_ids):
@@ -190,7 +224,7 @@ def _materialize_ring(
         )),
         composition=Composition.from_mapping(amounts),
         translation_sum=_ZERO_TRANSLATION,
-        provenance=(("method", "cristma.ring_finder:1"),),
+        provenance=(("method", "cristma.ring_finder:2"),),
     )
 
 
@@ -309,6 +343,8 @@ class RingFinder:
                 all_connections[item]
                 for item in eligible_block.connection_ids
             )
+            if not _has_cycle_candidate(block_connections):
+                continue
             for connection_id in eligible_block.connection_ids:
                 removed = all_connections[connection_id]
                 search = find_shortest_return_paths(
@@ -351,7 +387,7 @@ class RingFinder:
             (),
             status,
             tuple(diagnostics),
-            (("method", "cristma.ring_finder:1"),),
+            (("method", "cristma.ring_finder:2"),),
         )
 
     def find(

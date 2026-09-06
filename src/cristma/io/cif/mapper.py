@@ -10,6 +10,7 @@ import re
 import numpy as np
 
 from cristma.chemistry.elements import normalize_element
+from cristma.chemistry.species import IsotopeSpecies
 from cristma.core.cell import UnitCell
 from cristma.crystallography.catalog import SpaceGroupCatalog
 from cristma.crystallography.orbit import assign_wyckoff, build_orbit
@@ -35,6 +36,15 @@ from .tokens import CifToken
 
 
 _STRAY_TRANSLATION_SUFFIX = re.compile(r"(?<=\d)[tT](?=\s*(?:,|$))")
+
+
+def _cif_species(value: str) -> str | IsotopeSpecies:
+    """Map CIF's conventional deuterium symbol without confusing element labels."""
+
+    match = re.match(r"[A-Za-z]+", value.strip())
+    if match is not None and match.group(0).casefold() == "d":
+        return IsotopeSpecies("H", 2)
+    return normalize_element(value)
 
 
 def _scalar(block: CifBlock, aliases: tuple[str, ...]) -> CifScalar | None:
@@ -739,7 +749,6 @@ def _sites(
         return None
 
     sites: list[IndependentSite] = []
-    block_failed = False
     for row_index, row in enumerate(atom_loop.row_tokens):
         label_token = _token(row, atom_loop, names.ATOM_LABEL)
         coordinate_tokens = tuple(
@@ -755,30 +764,30 @@ def _sites(
         except ValueError as exc:
             diagnostics.append(
                 Diagnostic(
-                    Severity.ERROR,
+                    Severity.WARNING,
                     "cif.map.coordinate_invalid",
                     str(exc),
                     label_token.span if label_token is not None else block.data_token.span,
+                    recovery="Atom row omitted; remaining valid sites were preserved.",
                 )
             )
-            block_failed = True
             continue
         if len(coordinates) != 3 or any(value.value is None for value in coordinates):
             diagnostics.append(
                 Diagnostic(
-                    Severity.ERROR,
+                    Severity.WARNING,
                     "cif.map.coordinate_missing",
                     f"Atom row {row_index + 1} has incomplete fractional coordinates",
                     label_token.span if label_token is not None else block.data_token.span,
+                    recovery="Atom row omitted; remaining valid sites were preserved.",
                 )
             )
-            block_failed = True
             continue
 
         label = label_token.value if label_token is not None else f"site{row_index + 1}"
         type_token = _token(row, atom_loop, names.ATOM_TYPE)
         try:
-            element = normalize_element(type_token.value if type_token is not None else label)
+            element = _cif_species(type_token.value if type_token is not None else label)
         except ValueError as exc:
             diagnostics.append(
                 Diagnostic(
@@ -788,7 +797,6 @@ def _sites(
                     (type_token or label_token).span,
                 )
             )
-            block_failed = True
             continue
 
         occupancy_token = _token(row, atom_loop, names.OCCUPANCY)
@@ -878,7 +886,6 @@ def _sites(
                     label_token.span,
                 )
             )
-            block_failed = True
             continue
 
         displacement = None
@@ -940,10 +947,7 @@ def _sites(
                     label_token.span,
                 )
             )
-            block_failed = True
-
-    if block_failed:
-        return None
+            continue
     with_anisotropic = _attach_anisotropic_displacements(
         block,
         tuple(sites),

@@ -63,6 +63,8 @@ class AtomicView(Generic[TAtom]):
             ):
                 raise ValueError("fractional coordinates must contain three finite values per atom")
             fractional = _immutable_rows(numeric_rows)
+        elif not self.atoms and any(self.periodic) and self.cell is not None:
+            fractional = _immutable_rows(())
         object.__setattr__(self, "fractional", fractional)
 
         if any(self.periodic) and (self.cell is None or fractional is None):
