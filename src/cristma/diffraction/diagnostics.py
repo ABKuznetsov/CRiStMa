@@ -29,6 +29,13 @@ STRUCTURE_FACTOR_EXTINCT_NONZERO = (
 STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED = (
     "diffraction.structure_factor.anisotropic_adp_approximated_by_ueq"
 )
+POWDER_MISSING_FRIEDEL_MATE = "diffraction.powder.missing_friedel_mate"
+POWDER_NONRECIPROCAL_FRIEDEL_LINK = (
+    "diffraction.powder.nonreciprocal_friedel_link"
+)
+POWDER_FRIEDEL_D_SPACING_MISMATCH = (
+    "diffraction.powder.friedel_d_spacing_mismatch"
+)
 
 
 def _freeze(value: Any) -> Any:
@@ -60,6 +67,9 @@ __all__ = [
     "INCONSISTENT_PHASE_BUCKETS",
     "NON_INTEGRAL_RECIPROCAL_ACTION",
     "ORBIT_METRIC_MISMATCH",
+    "POWDER_FRIEDEL_D_SPACING_MISMATCH",
+    "POWDER_MISSING_FRIEDEL_MATE",
+    "POWDER_NONRECIPROCAL_FRIEDEL_LINK",
     "SEARCH_LIMIT_REACHED",
     "STRUCTURE_FACTOR_CELL_MISMATCH",
     "STRUCTURE_FACTOR_ANISOTROPIC_ADP_APPROXIMATED",
