@@ -84,6 +84,7 @@ from .structural_blocks import (
 )
 from .ring_finder import RingFinder
 from .rings import (
+    PeriodicUnitOrbitRef,
     PeriodicUnitRef,
     RingAnalysisResult,
     RingAnalysisStatus,
@@ -156,6 +157,7 @@ __all__ = [
     "StructuralBlockOrbit",
     "StructuralBlockResult",
     "PeriodicUnitRef",
+    "PeriodicUnitOrbitRef",
     "RingAnalysisResult",
     "RingAnalysisStatus",
     "RingFinder",

@@ -448,6 +448,20 @@ stores unit-orbit IDs, connection-orbit IDs, exact periodic generators, rank,
 classification, diagnostics, and provenance; expanded unit or atom instances
 are not scientific block state.
 
+Ring search lifts this finite quotient graph only as bounded exact affine
+states. A ring is a shortest chordless return path whose closing relation is
+the removed structural edge. `StructuralRingOrbit` is the primary result and
+stores periodic unit-orbit references, connection-orbit IDs, connector site
+references, its parent block, scope, provenance, and multiplicity in the
+reference cell. It never stores symmetry-expanded ring instances.
+
+Cycle identity is invariant under cyclic permutation, reversal, a common
+lattice translation, and the exact space-group action. Multiplicity is the
+number of distinct reference-cell images under that action. Direct contacts
+and pure coordination packing are ineligible for structural rings; only
+shared-unit connections in structural, intra-subsystem, or intramolecular
+layers enter this calculation.
+
 A three-dimensional framework may contain scientifically defined child layers,
 chains, rings, or FBBs. Arbitrary subgraphs are not reported as motifs. Pure
 coordination packing such as NaCl must not create structural rings, while an

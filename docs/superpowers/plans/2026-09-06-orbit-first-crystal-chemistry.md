@@ -51,7 +51,7 @@ Existing modules modified during migration:
 - `src/cristma/crystal_chemistry/representation.py` — representation selection operates on orbit graph records.
 - `src/cristma/crystal_chemistry/periodic_connectivity.py` — translation rank from orbit relations.
 - `src/cristma/crystal_chemistry/structural_blocks.py` — blocks and block orbits from orbit-first components.
-- `src/cristma/crystal_chemistry/ring_finder.py`, `_ring_search.py`, `_ring_symmetry.py`, and `rings.py` — ring search and identity from orbit relations without expanded contacts.
+- `src/cristma/crystal_chemistry/ring_finder.py`, `_ring_search.py`, and `rings.py` — ring search and identity from orbit relations without expanded contacts.
 - `tools/smoke_cif_corpus.py` — acceptance route uses `ContactAnalyzer` and explicit materialization only for reported instance counts.
 
 Legacy modules removed at cutover:
@@ -1114,7 +1114,7 @@ git commit -m "Build orbit-first structural connectivity"
 **Files:**
 - Modify: `src/cristma/crystal_chemistry/ring_finder.py`
 - Modify: `src/cristma/crystal_chemistry/_ring_search.py`
-- Modify: `src/cristma/crystal_chemistry/_ring_symmetry.py`
+- Delete: `src/cristma/crystal_chemistry/_ring_symmetry.py`
 - Modify: `src/cristma/crystal_chemistry/rings.py`
 - Test: `tests/orbit_first/test_orbit_blocks_and_rings.py`
 
@@ -1122,7 +1122,7 @@ git commit -m "Build orbit-first structural connectivity"
 - Consumes: orbit-first structural graph, selected representation, periodic components, and exact relations.
 - Produces: block orbits and ring orbits whose parent and member identities are already symmetry-native.
 
-- [ ] **Step 1: Write failing scientific ring regressions**
+- [x] **Step 1: Write failing scientific ring regressions**
 
 ```python
 def test_nacl_coordination_packing_has_no_structural_rings():
@@ -1130,8 +1130,8 @@ def test_nacl_coordination_packing_has_no_structural_rings():
 
 def test_k7_keeps_one_isolated_borate_ring_orbit():
     result = analyze_structure(k7)
-    assert len(result.rings) == 18
     assert len(result.ring_orbits) == 1
+    assert result.ring_orbits[0].multiplicity_in_reference_cell == 18
 
 def test_natrolite_framework_ring_analysis_is_preserved():
     result = analyze_structure(natrolite)
@@ -1139,13 +1139,13 @@ def test_natrolite_framework_ring_analysis_is_preserved():
     assert result.ring_orbits
 ```
 
-- [ ] **Step 2: Run block/ring tests and verify RED**
+- [x] **Step 2: Run block/ring tests and verify RED**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_orbit_blocks_and_rings.py`
 
 Expected: existing finders require expanded blocks, units, or contacts.
 
-- [ ] **Step 3: Migrate block and ring identity to orbit relations**
+- [x] **Step 3: Migrate block and ring identity to orbit relations**
 
 ```python
 blocks = StructuralBlockFinder().find(representation, connectivity)
@@ -1154,16 +1154,16 @@ rings = RingFinder().find(representation, blocks)
 
 Remove atomic-view and expanded-structure arguments from scientific ring identity. Search cycles in the structural orbit graph, retaining exact accumulated relation translations. Keep pure coordination edges excluded from structural rings. Build `parent_block_orbit_id` directly rather than grouping expanded rings after search.
 
-- [ ] **Step 4: Verify deterministic rings and no combinatorial regression**
+- [x] **Step 4: Verify deterministic rings and no combinatorial regression**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_orbit_blocks_and_rings.py`
 
 Assert ring IDs and ordering survive operation reordering. Retain the acyclic precheck. Benchmark NaCl, K7, and natrolite and ensure orbit-first traversal does not materialize all symmetry-expanded rings during scientific analysis.
 
-- [ ] **Step 5: Commit orbit-first blocks and rings**
+- [x] **Step 5: Commit orbit-first rings**
 
 ```bash
-git add src/cristma/crystal_chemistry/structural_blocks.py src/cristma/crystal_chemistry/ring_finder.py src/cristma/crystal_chemistry/_ring_search.py src/cristma/crystal_chemistry/_ring_symmetry.py src/cristma/crystal_chemistry/rings.py tests/orbit_first/test_orbit_blocks_and_rings.py
+git add src/cristma/crystal_chemistry/ring_finder.py src/cristma/crystal_chemistry/_ring_search.py src/cristma/crystal_chemistry/_ring_symmetry.py src/cristma/crystal_chemistry/rings.py tests/orbit_first/test_orbit_blocks_and_rings.py
 git commit -m "Analyze structural blocks and rings by orbit"
 ```
 

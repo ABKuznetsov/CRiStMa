@@ -1,306 +1,169 @@
-"""Structural-ring discovery over existing crystal-chemistry blocks."""
-
+"""Bounded structural-ring discovery directly on the symmetry quotient graph."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-import hashlib
-import math
-
-from cristma.chemistry import Composition, InteractionLayer
+from cristma.chemistry import InteractionLayer
+from cristma.crystallography import PeriodicSymmetryRelation
+from cristma.crystallography.symmetry_context import _digest
 from cristma.diagnostics import Diagnostic, Severity
-from cristma.structure import AtomicView, CrystalStructure, ExpandedAtom, PeriodicAtomRef
-
-from ._ring_search import _LiftedPath, find_shortest_return_paths
+from ._ring_search import find_shortest_return_paths
 from .representation import StructuralRepresentation
 from .rings import (
-    PeriodicUnitRef,
+    PeriodicUnitOrbitRef,
     RingAnalysisResult,
     RingAnalysisStatus,
     RingSearchPolicy,
-    StructuralRing,
+    StructuralRingOrbit,
     StructuralRingScope,
 )
 from .structural_blocks import StructuralBlock, StructuralBlockResult
-from .structural_graph import StructuralConnection, StructuralConnectionKind
+from .structural_graph import StructuralConnectionKind, StructuralConnectionOrbit
 
 
-Translation = tuple[int, int, int]
-_ZERO_TRANSLATION: Translation = (0, 0, 0)
-
-
-def _add(left: Translation, right: Translation) -> Translation:
-    return (left[0] + right[0], left[1] + right[1], left[2] + right[2])
-
-
-def _subtract(left: Translation, right: Translation) -> Translation:
-    return (left[0] - right[0], left[1] - right[1], left[2] - right[2])
-
-
-def _eligible(connection: StructuralConnection) -> bool:
-    topology_is_eligible = connection.connection_kind in {
+def _eligible(edge: StructuralConnectionOrbit) -> bool:
+    return edge.relation_type in {
         StructuralConnectionKind.SHARED_VERTEX,
         StructuralConnectionKind.SHARED_EDGE,
         StructuralConnectionKind.SHARED_FACE,
-    }
-    layers = set(connection.interaction_layers)
-    chemistry_is_eligible = not layers or bool(layers.intersection({
+    } and bool(set(edge.interaction_layers) & {
         InteractionLayer.STRUCTURAL,
         InteractionLayer.INTRA_SUBSYSTEM,
         InteractionLayer.INTRAMOLECULAR,
-    }))
-    return topology_is_eligible and chemistry_is_eligible
+    })
 
 
-def _has_cycle_candidate(
-    connections: tuple[StructuralConnection, ...],
-) -> bool:
-    """Return whether the finite quotient multigraph can contain a cycle."""
-
+def _has_cycle_candidate(edges) -> bool:
     parents: dict[str, str] = {}
 
-    def find(item: str) -> str:
+    def find(item):
         parents.setdefault(item, item)
         if parents[item] != item:
             parents[item] = find(parents[item])
         return parents[item]
 
-    for connection in connections:
-        first_root = find(connection.first_unit_id)
-        second_root = find(connection.second_unit_id)
-        if first_root == second_root:
+    for edge in edges:
+        first, second = find(edge.first_unit_orbit_id), find(edge.second_unit_orbit_id)
+        if first == second:
             return True
-        parents[max(first_root, second_root)] = min(first_root, second_root)
+        parents[max(first, second)] = min(first, second)
     return False
 
 
-def _normalized_tokens(
-    unit_refs: tuple[PeriodicUnitRef, ...],
-    connection_ids: tuple[str, ...],
-) -> tuple[tuple[str, Translation, str], ...]:
-    origin = unit_refs[0].cell_translation
-    return tuple(
-        (unit_ref.unit_id, _subtract(unit_ref.cell_translation, origin), connection_id)
-        for unit_ref, connection_id in zip(unit_refs, connection_ids, strict=True)
-    )
-
-
-def _canonical_cycle_key(
-    unit_refs: tuple[PeriodicUnitRef, ...],
-    connection_ids: tuple[str, ...],
-) -> tuple[tuple[str, Translation, str], ...]:
-    """Canonicalize rotation, reversal, and a common periodic translation."""
-
-    count = len(unit_refs)
-    candidates: list[tuple[tuple[str, Translation, str], ...]] = []
-    for offset in range(count):
-        vertices = unit_refs[offset:] + unit_refs[:offset]
-        edges = connection_ids[offset:] + connection_ids[:offset]
-        candidates.append(_normalized_tokens(vertices, edges))
-
-    reversed_vertices = (unit_refs[0], *reversed(unit_refs[1:]))
-    reversed_edges = (connection_ids[-1], *reversed(connection_ids[:-1]))
-    for offset in range(count):
-        vertices = reversed_vertices[offset:] + reversed_vertices[:offset]
-        edges = reversed_edges[offset:] + reversed_edges[:offset]
-        candidates.append(_normalized_tokens(vertices, edges))
-    return min(candidates)
-
-
-def _connection_joins(
-    connection: StructuralConnection,
-    first: PeriodicUnitRef,
-    second: PeriodicUnitRef,
-) -> bool:
+def _joins(edge, first, second, context) -> bool:
     return (
-        connection.first_unit_id == first.unit_id
-        and connection.second_unit_id == second.unit_id
-        and _add(first.cell_translation, connection.lattice_translation)
-        == second.cell_translation
+        edge.first_unit_orbit_id == first.unit_orbit_id
+        and edge.second_unit_orbit_id == second.unit_orbit_id
+        and first.periodic_relation.compose(edge.periodic_relation, context) == second.periodic_relation
     ) or (
-        connection.second_unit_id == first.unit_id
-        and connection.first_unit_id == second.unit_id
-        and _subtract(first.cell_translation, connection.lattice_translation)
-        == second.cell_translation
+        edge.second_unit_orbit_id == first.unit_orbit_id
+        and edge.first_unit_orbit_id == second.unit_orbit_id
+        and first.periodic_relation.compose(edge.periodic_relation.inverse(context), context) == second.periodic_relation
     )
 
 
-def _is_chordless(
-    unit_refs: tuple[PeriodicUnitRef, ...],
-    connections: tuple[StructuralConnection, ...],
-) -> bool:
-    count = len(unit_refs)
-    for first_index in range(count):
-        for second_index in range(first_index + 1, count):
-            if second_index == first_index + 1 or (
-                first_index == 0 and second_index == count - 1
-            ):
+def _is_chordless(refs, edges, context) -> bool:
+    count = len(refs)
+    for first in range(count):
+        for second in range(first + 1, count):
+            if second == first + 1 or (first == 0 and second == count - 1):
                 continue
-            if any(
-                _connection_joins(connection, unit_refs[first_index], unit_refs[second_index])
-                for connection in connections
-            ):
+            if any(_joins(edge, refs[first], refs[second], context) for edge in edges):
                 return False
     return True
 
 
-def _first_unit_image(
-    connection: StructuralConnection,
-    first: PeriodicUnitRef,
-    second: PeriodicUnitRef,
-) -> Translation:
-    if (
-        connection.first_unit_id == first.unit_id
-        and connection.second_unit_id == second.unit_id
-        and _add(first.cell_translation, connection.lattice_translation)
-        == second.cell_translation
-    ):
-        return first.cell_translation
-    if (
-        connection.second_unit_id == first.unit_id
-        and connection.first_unit_id == second.unit_id
-        and _subtract(first.cell_translation, connection.lattice_translation)
-        == second.cell_translation
-    ):
-        return second.cell_translation
-    raise ValueError("ring connection does not join its adjacent periodic units")
+def _action_relation(operation_key, context):
+    return PeriodicSymmetryRelation(operation_key, (0, 0, 0))
 
 
-def _translated_atom_ref(reference: PeriodicAtomRef, shift: Translation) -> PeriodicAtomRef:
-    return PeriodicAtomRef(reference.atom_id, _add(reference.cell_translation, shift))
-
-
-def _materialize_ring(
-    key: tuple[tuple[str, Translation, str], ...],
-    block: StructuralBlock,
-    representation: StructuralRepresentation,
-    atomic_view: AtomicView[ExpandedAtom],
-) -> StructuralRing:
-    unit_by_id = {unit.unit_id: unit for unit in representation.units}
-    connection_by_id = {
-        connection.connection_id: connection for connection in representation.connections
-    }
-    unit_refs = tuple(PeriodicUnitRef(unit_id, translation) for unit_id, translation, _ in key)
-    connection_ids = tuple(connection_id for _, _, connection_id in key)
-
-    atom_refs = {
-        _translated_atom_ref(atom_ref, unit_ref.cell_translation)
-        for unit_ref in unit_refs
-        for atom_ref in unit_by_id[unit_ref.unit_id].atom_refs
-    }
-    atom_by_id = {atom.id: atom for atom in atomic_view.atoms}
-    amount_terms: dict[str, list[float]] = {}
-    for atom_ref in atom_refs:
-        atom = atom_by_id[atom_ref.atom_id]
-        for component in atom.components:
-            amount = float(component.occupancy.value)
-            if amount > 0:
-                symbol = component.species.require_element()
-                amount_terms.setdefault(symbol, []).append(amount)
-    amounts = {
-        symbol: math.fsum(sorted(terms))
-        for symbol, terms in amount_terms.items()
-    }
-
-    connector_refs: set[PeriodicAtomRef] = set()
-    for index, connection_id in enumerate(connection_ids):
-        first = unit_refs[index]
-        second = unit_refs[(index + 1) % len(unit_refs)]
-        connection = connection_by_id[connection_id]
-        first_image = _first_unit_image(connection, first, second)
-        connector_refs.update(
-            _translated_atom_ref(atom_ref, first_image)
-            for atom_ref in connection.shared_atom_refs
-        )
-
-    digest = hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:24]
-    return StructuralRing(
-        ring_id=f"ring:{digest}",
-        parent_block_id=block.block_id,
-        representation_id=representation.representation_id,
-        unit_refs=unit_refs,
-        connection_ids=connection_ids,
-        connector_atom_refs=tuple(sorted(
-            connector_refs, key=lambda item: (item.atom_id, item.cell_translation)
-        )),
-        composition=Composition.from_mapping(amounts),
-        translation_sum=_ZERO_TRANSLATION,
-        provenance=(("method", "cristma.ring_finder:2"),),
+def _lattice_normalized_tokens(refs, edge_ids, context):
+    shift = tuple(-x for x in refs[0].periodic_relation.lattice_translation)
+    translation = PeriodicSymmetryRelation(context.identity_operation_key, shift)
+    normalized = tuple(
+        PeriodicUnitOrbitRef(ref.unit_orbit_id, translation.compose(ref.periodic_relation, context))
+        for ref in refs
     )
-
-
-def _limit_diagnostic(
-    connection: StructuralConnection,
-    limit_name: str | None,
-) -> Diagnostic:
-    return Diagnostic(
-        Severity.WARNING,
-        "crystal_chemistry.rings.search_limit_reached",
-        f"Ring search reached {limit_name or 'an unknown limit'} at {connection.connection_id}.",
-        recovery="Increase the explicit RingSearchPolicy limit and repeat the analysis.",
-    )
-
-
-def _classify_ring_scopes(
-    rings: tuple[StructuralRing, ...],
-) -> tuple[StructuralRing, ...]:
-    """Separate local rings from larger circuits using their own edge evidence."""
-
-    shortest_by_connection: dict[str, int] = {}
-    for ring in rings:
-        for connection_id in ring.connection_ids:
-            shortest_by_connection[connection_id] = min(
-                ring.size,
-                shortest_by_connection.get(connection_id, ring.size),
-            )
     return tuple(
-        replace(
-            ring,
-            scope=(
-                StructuralRingScope.FRAMEWORK
-                if any(
-                    shortest_by_connection[connection_id] < ring.size
-                    for connection_id in ring.connection_ids
-                )
-                else StructuralRingScope.LOCAL
-            ),
+        (ref.unit_orbit_id, ref.periodic_relation.operation_key,
+         ref.periodic_relation.lattice_translation, edge_id)
+        for ref, edge_id in zip(normalized, edge_ids, strict=True)
+    )
+
+
+def _orientation_keys(refs, edge_ids, context):
+    count = len(refs)
+    keys = []
+    for direction in (1, -1):
+        for start in range(count):
+            indices = tuple((start + direction * step) % count for step in range(count))
+            ordered_refs = tuple(refs[index] for index in indices)
+            ordered_edges = tuple(
+                edge_ids[index if direction == 1 else (index - 1) % count]
+                for index in indices
+            )
+            keys.append(_lattice_normalized_tokens(ordered_refs, ordered_edges, context))
+    return tuple(keys)
+
+
+def _canonical_cycle_key(refs, edge_ids, context, *, quotient_symmetry: bool):
+    actions = context.operation_keys if quotient_symmetry else (context.identity_operation_key,)
+    candidates = []
+    for key in actions:
+        action = _action_relation(key, context)
+        transformed = tuple(
+            PeriodicUnitOrbitRef(ref.unit_orbit_id, action.compose(ref.periodic_relation, context))
+            for ref in refs
         )
+        candidates.extend(_orientation_keys(transformed, edge_ids, context))
+    return min(candidates)
+
+
+def _refs_from_key(key):
+    return tuple(
+        PeriodicUnitOrbitRef(unit_id, PeriodicSymmetryRelation(operation_key, translation))
+        for unit_id, operation_key, translation, _ in key
+    )
+
+
+def _multiplicity(refs, edge_ids, representation):
+    context = representation._symmetry_context
+    images = set()
+    for key in context.operation_keys:
+        action = _action_relation(key, context)
+        transformed = tuple(
+            PeriodicUnitOrbitRef(ref.unit_orbit_id, action.compose(ref.periodic_relation, context))
+            for ref in refs
+        )
+        images.add(min(_orientation_keys(transformed, edge_ids, context)))
+    return len(images)
+
+
+def _scope(rings):
+    shortest: dict[str, int] = {}
+    for ring in rings:
+        for edge_id in ring.connection_orbit_ids:
+            shortest[edge_id] = min(shortest.get(edge_id, ring.size), ring.size)
+    return tuple(
+        replace(ring, scope=(
+            StructuralRingScope.FRAMEWORK
+            if any(shortest[x] < ring.size for x in ring.connection_orbit_ids)
+            else StructuralRingScope.LOCAL
+        ))
         for ring in rings
     )
 
 
-def _validate_inputs(
-    structure: CrystalStructure,
-    atomic_view: AtomicView[ExpandedAtom],
-    representation: StructuralRepresentation,
-    blocks: StructuralBlockResult,
-) -> None:
-    if blocks.representation_id != representation.representation_id:
-        raise ValueError("ring blocks belong to another structural representation")
-    if atomic_view.cell is None or not any(atomic_view.periodic):
-        raise ValueError("structural-ring analysis requires a periodic atomic view")
-    if structure.cell != atomic_view.cell:
-        raise ValueError("atomic view belongs to another unit cell")
-    unit_ids = {unit.unit_id for unit in representation.units}
-    connection_ids = {item.connection_id for item in representation.connections}
-    atom_ids = set(atomic_view.ids)
-    if any(
-        not set(block.unit_ids) <= unit_ids
-        or not set(block.connection_ids) <= connection_ids
-        for block in blocks.blocks
-    ):
-        raise ValueError("structural block references unknown representation objects")
-    if any(
-        atom_ref.atom_id not in atom_ids
-        for unit in representation.units
-        for atom_ref in unit.atom_refs
-    ):
-        raise ValueError("structural unit references an atom absent from the atomic view")
+def _limit(edge, name):
+    return Diagnostic(
+        Severity.WARNING,
+        "crystal_chemistry.rings.search_limit_reached",
+        f"Ring search reached {name or 'an unknown limit'} at {edge.connection_orbit_id}.",
+        recovery="Increase the explicit RingSearchPolicy limit and repeat the analysis.",
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class RingFinder:
-    """Find locally shortest finite rings without repeating chemistry inference."""
-
     policy: RingSearchPolicy = field(default_factory=RingSearchPolicy)
 
     def get_config(self) -> dict[str, int]:
@@ -309,135 +172,62 @@ class RingFinder:
     def clone(self, **changes: object) -> "RingFinder":
         return replace(self, **changes)
 
-    def find_instances(
-        self,
-        structure: CrystalStructure,
-        atomic_view: AtomicView[ExpandedAtom],
-        representation: StructuralRepresentation,
-        blocks: StructuralBlockResult,
-    ) -> RingAnalysisResult:
-        _validate_inputs(structure, atomic_view, representation, blocks)
-        all_connections = {
-            item.connection_id: item for item in representation.connections
-        }
-        eligible_connections = tuple(
-            item for item in representation.connections if _eligible(item)
-        )
-        eligible_ids = {item.connection_id for item in eligible_connections}
-        eligible_representation = replace(
-            representation,
-            connections=eligible_connections,
-        )
-        found: dict[tuple[tuple[str, Translation, str], ...], StructuralRing] = {}
+    def find(self, representation: StructuralRepresentation,
+             blocks: StructuralBlockResult) -> RingAnalysisResult:
+        if blocks.representation_id != representation.representation_id:
+            raise ValueError("ring blocks belong to another representation")
+        all_edges = {x.connection_orbit_id: x for x in representation.connection_orbits}
+        eligible_ids = {key for key, edge in all_edges.items() if _eligible(edge)}
+        found: dict[tuple, tuple[StructuralBlock, tuple]] = {}
         diagnostics: list[Diagnostic] = []
-        complete = True
-
+        context = representation._symmetry_context
         for block in blocks.blocks:
-            eligible_block = replace(
-                block,
-                connection_ids=tuple(
-                    item for item in block.connection_ids if item in eligible_ids
-                ),
-            )
-            block_connections = tuple(
-                all_connections[item]
-                for item in eligible_block.connection_ids
-            )
-            if not _has_cycle_candidate(block_connections):
+            edge_ids = tuple(x for x in block.connection_orbit_ids if x in eligible_ids)
+            edges = tuple(all_edges[x] for x in edge_ids)
+            if not _has_cycle_candidate(edges):
                 continue
-            for connection_id in eligible_block.connection_ids:
-                removed = all_connections[connection_id]
+            eligible_block = replace(block, connection_orbit_ids=edge_ids)
+            eligible_representation = replace(representation, connection_orbits=edges)
+            for edge_id in edge_ids:
+                removed = all_edges[edge_id]
                 search = find_shortest_return_paths(
-                    eligible_representation,
-                    eligible_block,
-                    removed,
-                    self.policy,
+                    eligible_representation, eligible_block, removed, self.policy
                 )
                 if not search.complete:
-                    complete = False
-                    diagnostics.append(_limit_diagnostic(removed, search.limit_name))
+                    diagnostics.append(_limit(removed, search.limit_name))
                 for path in search.paths:
-                    unit_refs = path.states
-                    connection_ids = tuple(step.connection_id for step in path.steps) + (
-                        removed.connection_id,
-                    )
-                    if len(unit_refs) < 3 or len(set(unit_refs)) != len(unit_refs):
+                    refs = path.states
+                    cycle_edges = tuple(x.connection_orbit_id for x in path.steps) + (edge_id,)
+                    if len(refs) < 3 or len(set(refs)) != len(refs) or not _is_chordless(refs, edges, context):
                         continue
-                    if not _is_chordless(unit_refs, block_connections):
-                        continue
-                    key = _canonical_cycle_key(unit_refs, connection_ids)
-                    if key not in found:
-                        found[key] = _materialize_ring(
-                            key,
-                            block,
-                            eligible_representation,
-                            atomic_view,
-                        )
-
-        status = (
-            RingAnalysisStatus.COMPLETE
-            if complete
-            else RingAnalysisStatus.INCOMPLETE
-        )
-        rings = _classify_ring_scopes(
-            tuple(found[key] for key in sorted(found))
-        )
+                    key = _canonical_cycle_key(refs, cycle_edges, context, quotient_symmetry=True)
+                    found.setdefault(key, (block, cycle_edges))
+        rings = []
+        for key, (block, _) in sorted(found.items()):
+            refs = _refs_from_key(key)
+            edge_ids = tuple(item[3] for item in key)
+            connector_refs = tuple(sorted({
+                site
+                for edge_id in edge_ids
+                for site in all_edges[edge_id].connector_site_refs
+            }))
+            ring_id = "structural-ring-orbit:" + _digest({
+                "representation_id": representation.representation_id,
+                "parent_block_id": block.block_id,
+                "cycle": key,
+            })
+            rings.append(StructuralRingOrbit(
+                ring_id, block.block_id, representation.representation_id,
+                refs, edge_ids, connector_refs,
+                _multiplicity(refs, edge_ids, representation),
+                provenance=(("method", "cristma.ring_finder:3"),),
+            ))
+        ordered = tuple(sorted(_scope(tuple(rings)), key=lambda x: x.ring_orbit_id))
         return RingAnalysisResult(
-            rings,
-            (),
-            status,
-            tuple(diagnostics),
-            (("method", "cristma.ring_finder:2"),),
-        )
-
-    def find(
-        self,
-        structure: CrystalStructure,
-        atomic_view: AtomicView[ExpandedAtom],
-        representation: StructuralRepresentation,
-        blocks: StructuralBlockResult,
-    ) -> RingAnalysisResult:
-        """Find instances and group them by the structure's actual symmetry."""
-
-        from ._ring_symmetry import build_ring_orbits
-
-        instances = self.find_instances(
-            structure, atomic_view, representation, blocks
-        )
-        block_orbit_by_id = {
-            block.block_id: orbit.block_orbit_id
-            for orbit in blocks.block_orbits
-            for block in orbit.blocks
-        }
-        if block_orbit_by_id:
-            instances = replace(
-                instances,
-                rings=tuple(
-                    replace(
-                        ring,
-                        parent_block_orbit_id=block_orbit_by_id[ring.parent_block_id],
-                    )
-                    for ring in instances.rings
-                ),
-            )
-        orbits, symmetry_diagnostics = build_ring_orbits(
-            structure,
-            atomic_view,
-            representation,
-            instances.rings,
-            blocks,
-        )
-        diagnostics = instances.diagnostics + symmetry_diagnostics
-        status = (
-            RingAnalysisStatus.INCOMPLETE
-            if diagnostics
-            else instances.status
-        )
-        return replace(
-            instances,
-            orbits=orbits,
-            status=status,
-            diagnostics=diagnostics,
+            ordered,
+            RingAnalysisStatus.INCOMPLETE if diagnostics else RingAnalysisStatus.COMPLETE,
+            tuple(dict.fromkeys(diagnostics)),
+            (("method", "cristma.ring_finder:3"), ("policy", self.get_config())),
         )
 
 
