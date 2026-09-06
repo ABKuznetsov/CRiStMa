@@ -8,11 +8,20 @@ from .contacts import (
     EvidenceStatus,
     ResolutionStatus,
     ResolvedContact,
-    ResolvedContactOrbit,
+    ResolvedContactOrbit as LegacyResolvedContactOrbit,
     SecondaryEvidence,
     ShellAlternative,
 )
 from .policy import ShellResolutionPolicy
+from .orbit_contacts import (
+    ContactInterpretation,
+    ContactOrbitResolution,
+    ContactOrbitResolver,
+    EndpointRole,
+    EndpointRoles,
+    OrientationMode,
+    ResolvedContactOrbit,
+)
 from .polyhedra import (
     CoordinationPolyhedron,
     CoordinationPolyhedronOrbit,
@@ -72,12 +81,19 @@ from .rings import (
 __all__ = [
     "ComponentPairInterpretation",
     "ContactClassification",
+    "ContactInterpretation",
+    "ContactOrbitResolution",
+    "ContactOrbitResolver",
     "CoordinationShell",
     "CoordinationShellResolver",
     "CoordinationPolyhedron",
     "CoordinationPolyhedronOrbit",
     "CrystalChemistryResolution",
     "EvidenceStatus",
+    "EndpointRole",
+    "EndpointRoles",
+    "LegacyResolvedContactOrbit",
+    "OrientationMode",
     "ResolutionStatus",
     "ResolvedContact",
     "ResolvedContactOrbit",
