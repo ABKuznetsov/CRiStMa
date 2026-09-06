@@ -27,12 +27,24 @@ from .periodic_relation import (
     identity_relation,
     invert_periodic_relation,
 )
+from .asu_mapping import (
+    AsymmetricUnitMapper,
+    AsymmetricUnitMapping,
+    AsymmetricUnitMappingInvariantError,
+    FractionalPosition,
+    SiteImage,
+    SiteOrbitMapping,
+)
 
 __all__ = [
     "AffineCoordinateMap",
+    "AsymmetricUnitMapper",
+    "AsymmetricUnitMapping",
+    "AsymmetricUnitMappingInvariantError",
     "DEFAULT_METRIC_TOLERANCE",
     "DirectBasisConvention",
     "ExactFractionalPosition",
+    "FractionalPosition",
     "SpaceGroupSetting",
     "SpaceGroupCatalog",
     "SymmetryContext",
@@ -43,6 +55,8 @@ __all__ = [
     "LatticeTranslation",
     "PeriodicSymmetryRelation",
     "SiteSymmetry",
+    "SiteImage",
+    "SiteOrbitMapping",
     "WyckoffAssignment",
     "WyckoffPosition",
     "assign_wyckoff",
