@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
+import hashlib
+from importlib.resources import files
+import json
 import math
 from numbers import Real
 
@@ -19,6 +23,15 @@ def _positive_finite(value: float, name: str) -> float:
     if not math.isfinite(normalized) or normalized <= 0.0:
         raise ValueError(f"{name} must be finite and positive")
     return normalized
+
+
+def _canonical_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("ascii")
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +154,47 @@ class RadiationSpectrum:
 
         total = math.fsum(item.relative_weight for item in self.components)
         return tuple(item.relative_weight / total for item in self.components)
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def copper_k_alpha(cls) -> "RadiationSpectrum":
+        """Load the packaged Cu K-alpha1/K-alpha2 reference spectrum."""
+
+        resource = files("cristma.reference_data").joinpath(
+            "resources", "xray", "xray_radiation.json"
+        )
+        payload = json.loads(resource.read_text(encoding="ascii"))
+        metadata = payload["metadata"]
+        components = payload["components"]
+        checksum = hashlib.sha256(_canonical_bytes(components)).hexdigest()
+        if checksum != metadata["resource_checksum"]:
+            raise ValueError("X-ray radiation resource checksum mismatch")
+        provenance = RadiationSpectrumProvenance(
+            dataset_id=metadata["dataset_id"],
+            dataset_version=metadata["version"],
+            source=metadata["source"],
+            energy_source=metadata["energy_source"],
+            radiative_rate_source=metadata["radiative_rate_source"],
+            energy_to_wavelength_formula=metadata["energy_to_wavelength_formula"],
+            hc_value=metadata["hc_value"],
+            hc_units=metadata["hc_units"],
+            xraylib_version=metadata["xraylib_version"],
+            xraylib_commit=metadata["xraylib_commit"],
+            resource_checksum=metadata["resource_checksum"],
+            generator=metadata["generator"],
+        )
+        return cls(
+            tuple(
+                RadiationComponent(
+                    component_id=item["component_id"],
+                    label=item["label"],
+                    wavelength_angstrom=item["wavelength_angstrom"],
+                    relative_weight=item["relative_weight"],
+                )
+                for item in components
+            ),
+            provenance,
+        )
 
 
 __all__ = [

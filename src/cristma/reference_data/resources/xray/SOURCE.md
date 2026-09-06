@@ -19,3 +19,17 @@ Report UCRL-50400, Vol. 6, Rev. 5.
 
 The installed CrIStMa package does not import or require xraylib. The upstream
 BSD-style license is reproduced in `XRAYLIB_LICENSE.txt`.
+
+## Cu K-alpha radiation preset
+
+`xray_radiation.json` contains separate Cu K-alpha1 and K-alpha2 line energies
+and radiative rates extracted through xraylib 4.3.0 at the same pinned commit.
+Wavelengths are calculated as
+`lambda_angstrom = 12.398419843320026 keV angstrom / energy_keV`. The resource
+stores the original energies, relative radiative rates, conversion constant,
+generator version, upstream version and commit, and a SHA-256 checksum over
+the canonical component data.
+
+The generator is `tools/build_xray_radiation.py`, version 1. xraylib is used
+only while regenerating the resource and remains absent from runtime
+dependencies.
