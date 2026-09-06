@@ -11,11 +11,24 @@ from .orbit import (
     build_orbit,
 )
 from .local_geometry import GeometricContact, geometric_contacts
+from .symmetry_context import (
+    DEFAULT_METRIC_TOLERANCE,
+    DirectBasisConvention,
+    SymmetryContext,
+    SymmetryContextInvariantError,
+    SymmetrySourceKind,
+    canonical_operation_key,
+)
 
 __all__ = [
     "AffineCoordinateMap",
+    "DEFAULT_METRIC_TOLERANCE",
+    "DirectBasisConvention",
     "SpaceGroupSetting",
     "SpaceGroupCatalog",
+    "SymmetryContext",
+    "SymmetryContextInvariantError",
+    "SymmetrySourceKind",
     "CrystallographicOrbit",
     "GeometricContact",
     "SiteSymmetry",
@@ -23,5 +36,6 @@ __all__ = [
     "WyckoffPosition",
     "assign_wyckoff",
     "build_orbit",
+    "canonical_operation_key",
     "geometric_contacts",
 ]
