@@ -43,15 +43,6 @@ class StructuralRepresentation:
         if any(x.first_unit_orbit_id not in known or x.second_unit_orbit_id not in known for x in self.connection_orbits):
             raise ValueError("representation connection references an excluded unit")
 
-    @property
-    def units(self) -> tuple[StructuralUnitOrbit, ...]:
-        return self.unit_orbits
-
-    @property
-    def connections(self) -> tuple[StructuralConnectionOrbit, ...]:
-        return self.connection_orbits
-
-
 def _matches(layers, roles, policy: StructuralSelectionPolicy) -> bool:
     return bool(set(layers) & policy.included_layers) and (
         not roles or bool(set(roles) & policy.included_shell_roles)

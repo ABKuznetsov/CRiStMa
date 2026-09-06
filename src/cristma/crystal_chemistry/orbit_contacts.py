@@ -20,7 +20,7 @@ from cristma.diagnostics import Diagnostic, Severity
 from cristma.reference_data import ReferenceData
 from cristma.structure import CrystalStructure, SiteComponent
 
-from .contacts import (
+from .models import (
     ComponentPairInterpretation,
     EvidenceStatus,
     ResolutionStatus,

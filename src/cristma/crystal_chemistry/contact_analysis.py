@@ -17,7 +17,7 @@ from cristma.diagnostics import Diagnostic
 from cristma.reference_data import ReferenceData
 from cristma.structure import CrystalStructure
 
-from .contacts import ResolutionStatus
+from .models import ResolutionStatus
 from .incidence_orbits import ContactIncidenceBuilder, ContactIncidenceOrbit
 from .orbit_contacts import ContactOrbitResolver, ResolvedContactOrbit
 from .policy import ShellResolutionPolicy
@@ -123,6 +123,21 @@ class ContactAnalysisResult:
         )
         if self.status is not expected:
             raise ValueError("contact-analysis status does not match dependent results")
+
+    def materialize_contacts(self, region, **filters):
+        """Project immutable contact orbits outward into a requested periodic region."""
+
+        from .materialization import ContactMaterializer
+
+        return ContactMaterializer().materialize(self, region, **filters)
+
+    @property
+    def contacts(self):
+        """Temporary read-only reference-cell compatibility view."""
+
+        from .materialization import ReferenceCell
+
+        return self.materialize_contacts(ReferenceCell())
 
 
 def _search_cutoff(

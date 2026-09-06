@@ -186,15 +186,41 @@ absent = reflection_set.systematically_absent
 Systematic absences are derived from exact symmetry-operation phases, not from
 group-name heuristics or expected-reflection tables.
 
-## Coordination polyhedra
+## Orbit-first crystal chemistry
 
-Resolved coordination shells expose calculated polyhedra directly through
-`CrystalChemistryResolution.polyhedra` and symmetry-equivalent families through
-`polyhedron_orbits`. Each result retains oriented periodic atom references,
-coordination number, occupancy-weighted ligand composition, convex-hull faces,
-bond-length statistics, the Baur distortion index, edge-angle population
-dispersion, volume, geometric centroid, centre offset, diagnostics and
-provenance.
+Direct-space crystal chemistry starts from independent sites and an explicit,
+validated symmetry context. Symmetry orbits are the scientific results;
+expanded contact instances are created only for a consumer-requested region.
+
+```python
+from cristma.chemistry import ChemistryAnalyzer, Composition
+from cristma.crystallography import SymmetryContext
+from cristma.crystal_chemistry import (
+    ContactAnalyzer,
+    PolyhedronOrbitBuilder,
+    ReferenceCell,
+    ShellResolutionPolicy,
+)
+
+context = SymmetryContext.from_definition(crystal.space_group, crystal.cell)
+chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(crystal))
+result = ContactAnalyzer(
+    ShellResolutionPolicy(1.60, 0.01, 0.08, 0.01, 2.0)
+).analyze(crystal, context, chemistry.grammar)
+polyhedra = PolyhedronOrbitBuilder().build(result)
+
+# Outward-only compatibility/materialization boundary:
+reference_cell_contacts = result.materialize_contacts(ReferenceCell())
+assert result.contacts == reference_cell_contacts
+```
+
+`ContactAnalysisResult` exposes pair orbits, chemically resolved contact
+orbits, oriented incidence orbits, coordination-shell alternatives, explicit
+status, diagnostics, configuration and provenance. Polyhedron orbits retain
+oriented periodic atom references, coordination number, occupancy-weighted
+ligand composition, convex-hull faces, bond-length statistics, the Baur
+distortion index, edge-angle population dispersion, volume, geometric
+centroid and centre offset.
 
 The canonical face signature represents the complete vertex-edge-face
 incidence graph. Shape descriptors are not guessed for open or degenerate
@@ -205,32 +231,23 @@ applications.
 
 ## Structural hierarchy
 
-The hierarchy layer groups calculated structural units and blocks by the exact
-space-group action when the structure and its atomic view are supplied:
+The hierarchy remains on the same finite symmetry quotient graph. No stage
+below consumes materialized contacts or an expanded atomic view:
 
 ```python
-view = crystal.atomic_view()
-units = StructuralUnitBuilder().build(
-    resolution,
-    resolution.polyhedra,
-    structure=crystal,
-    atomic_view=view,
-)
-blocks = StructuralBlockFinder().find(
-    representation,
-    connectivity,
-    structure=crystal,
-    atomic_view=view,
-)
-rings = RingFinder().find(crystal, view, representation, blocks)
+units = StructuralUnitBuilder().build(result, polyhedra)
+graph = StructuralGraphBuilder().build(result, polyhedra)
+representation = StructuralRepresentationBuilder(selection_policy).build(graph)
+connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
+blocks = StructuralBlockFinder().find(representation, connectivity)
+rings = RingFinder().find(representation, blocks)
 ```
 
-The results expose stable `unit_orbit_id` and `block_orbit_id` values,
-`unit_orbits` and `block_orbits`, and each ring orbit identifies its parent
-block orbit. `StructuralUnitGeometry` records only geometry determined from the
-calculated periodic atom positions: points, linear groups, planar polygons, or
-closed polyhedra with canonical vertex and face references. Rendering meshes,
-colours, visibility, tree grouping, and interactive comparison remain outside
+The results expose stable unit, connection, block and ring orbit identities.
+Periodic rank comes from exact affine cycle translations, not geometric
+heuristics. `StructuralUnitGeometry` records only calculated points, linear
+groups, planar polygons, or closed polyhedra. Rendering meshes, colours,
+visibility, tree grouping, matching and interactive comparison remain outside
 CrIStMa.
 
 ## X-ray structure factors

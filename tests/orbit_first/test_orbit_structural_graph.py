@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import fields, replace
 from fractions import Fraction
 
 import pytest
@@ -124,6 +124,55 @@ def test_one_physical_contact_orbit_creates_only_one_connection_orbit() -> None:
     )
 
     assert len(sources) == len(set(sources))
+
+
+def test_multiple_unit_orbits_may_share_one_independent_center() -> None:
+    cell = _cell(10.0, 10.0, 10.0)
+    structure = CrystalStructure(
+        "multiple-shell-contexts",
+        cell,
+        (
+            _site("Ca", (0.0, 0.0, 0.0), "Ca"),
+            _site("O1", (0.2, 0.0, 0.0), "O"),
+            _site("O2", (0.3, 0.0, 0.0), "O"),
+        ),
+    )
+    context = SymmetryContext.from_operations((IDENTITY,), cell)
+    request = CandidateInteraction(
+        ("Ca",), ("O",), GrammarOperation.CENTRE_LIGAND_SHELL,
+        InteractionLayer.STRUCTURAL, InteractionPriority.PRIMARY,
+        ("Ca",), ("O",), (ChemicalEvidence("fixture", "pair"),),
+    )
+    grammar = CompositionGrammar(
+        DecompositionMode.STRUCTURAL_ANION_SUBSYSTEM,
+        (request,), 1.0, (ChemicalEvidence("fixture", "grammar"),), (), "fixture",
+    )
+    result = ContactAnalyzer(
+        ShellResolutionPolicy(1.6, 0.01, 0.08, 0.01, 2.0)
+    ).analyze(structure, context, grammar)
+    shell = result.coordination_shell_orbits[0]
+    duplicate = replace(
+        shell,
+        shell_orbit_id=shell.shell_orbit_id + ":second-context",
+    )
+    result = replace(
+        result,
+        coordination_shell_orbits=(shell, duplicate),
+    )
+
+    polyhedra = PolyhedronOrbitBuilder().build(result)
+    graph = StructuralGraphBuilder().build(result, polyhedra)
+
+    ca_units = tuple(
+        unit for unit in graph.unit_orbits
+        if unit.center_independent_site_id == "Ca"
+    )
+    assert len(ca_units) == 2
+    assert all(
+        connection.first_unit_orbit_id in {unit.unit_orbit_id for unit in graph.unit_orbits}
+        and connection.second_unit_orbit_id in {unit.unit_orbit_id for unit in graph.unit_orbits}
+        for connection in graph.connection_orbits
+    )
 
 
 def test_structural_units_do_not_store_expanded_contact_identity() -> None:

@@ -7,7 +7,7 @@ import math
 
 from cristma.reference_data import ShannonRadiusRecord
 
-from .contacts import EvidenceStatus
+from .models import EvidenceStatus
 
 
 @dataclass(frozen=True, slots=True)

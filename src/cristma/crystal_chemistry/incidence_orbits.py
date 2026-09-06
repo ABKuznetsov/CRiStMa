@@ -16,7 +16,7 @@ from cristma.crystallography import (
 from cristma.crystallography.symmetry_context import _digest
 from cristma.structure import CrystalStructure
 
-from .contacts import ResolutionStatus, SecondaryEvidence
+from .models import ResolutionStatus, SecondaryEvidence
 from .orbit_contacts import (
     ContactInterpretation,
     EndpointRole,

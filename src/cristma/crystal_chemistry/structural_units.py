@@ -9,7 +9,7 @@ from cristma.chemistry import InteractionLayer
 from cristma.diagnostics import Diagnostic
 from cristma.structure import PeriodicAtomRef
 from .contact_analysis import ContactAnalysisResult
-from .contacts import ResolutionStatus
+from .models import ResolutionStatus
 from .polyhedron_orbits import PolyhedronOrbitBuildResult, _source_image
 from .shell_orbits import ShellRole
 
@@ -86,18 +86,6 @@ class StructuralUnitOrbit:
         if self.kind is StructuralUnitKind.ATOM and (self.source_shell_orbit_id or self.source_polyhedron_orbit_id):
             raise ValueError("atom unit cannot reference shell geometry")
 
-    @property
-    def unit_id(self) -> str:
-        return self.unit_orbit_id
-
-    @property
-    def atom_refs(self) -> tuple[PeriodicAtomRef, ...]:
-        return self.constituent_site_refs
-
-
-StructuralUnit = StructuralUnitOrbit
-
-
 @dataclass(frozen=True, slots=True)
 class StructuralUnitBuildResult:
     unit_orbits: tuple[StructuralUnitOrbit, ...]
@@ -108,11 +96,6 @@ class StructuralUnitBuildResult:
         ids = tuple(item.unit_orbit_id for item in self.unit_orbits)
         if tuple(sorted(ids)) != ids or len(set(ids)) != len(ids):
             raise ValueError("structural-unit orbit IDs must be unique and sorted")
-
-    @property
-    def units(self) -> tuple[StructuralUnitOrbit, ...]:
-        return self.unit_orbits
-
 
 def _ordered_planar_face(coordinates) -> tuple[int, ...]:
     """Return a deterministic non-self-intersecting boundary of coplanar points."""
@@ -202,5 +185,5 @@ class StructuralUnitBuilder:
                                          (("method", "cristma.structural_unit_builder:3"),))
 
 
-__all__ = ["StructuralUnit", "StructuralUnitBuildResult", "StructuralUnitBuilder",
+__all__ = ["StructuralUnitBuildResult", "StructuralUnitBuilder",
            "StructuralUnitGeometry", "StructuralUnitGeometryKind", "StructuralUnitKind", "StructuralUnitOrbit"]

@@ -10,7 +10,7 @@ from cristma.crystallography import PairTableStatus, SymmetryPairTable
 from cristma.crystallography.symmetry_context import _digest
 from cristma.diagnostics import Diagnostic, Severity
 
-from .contacts import EvidenceStatus, ResolutionStatus, SecondaryEvidence
+from .models import EvidenceStatus, ResolutionStatus, SecondaryEvidence
 from .incidence_orbits import ContactIncidenceOrbit
 from .orbit_contacts import OrientationMode, ResolvedContactOrbit
 from .policy import ShellResolutionPolicy

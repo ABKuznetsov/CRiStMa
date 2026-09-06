@@ -10,10 +10,11 @@ import sys
 import cristma
 from cristma.chemistry import ChemistryAnalyzer, Composition, InteractionLayer
 from cristma.crystal_chemistry import (
-    ContactClassification,
-    CoordinationShellResolver,
+    ContactAnalyzer,
     PeriodicConnectivityAnalyzer,
+    PolyhedronOrbitBuilder,
     RingFinder,
+    ShellRole,
     ShellResolutionPolicy,
     StructuralBlockFinder,
     StructuralGraphBuilder,
@@ -21,6 +22,7 @@ from cristma.crystal_chemistry import (
     StructuralSelectionPolicy,
     StructuralUnitBuilder,
 )
+from cristma.crystallography import SymmetryContext
 from cristma.structure import CrystalStructure
 
 
@@ -34,7 +36,7 @@ _SELECTION_POLICY = StructuralSelectionPolicy(
             InteractionLayer.INTRA_SUBSYSTEM,
         }
     ),
-    included_classifications=frozenset({ContactClassification.PRIMARY}),
+    included_shell_roles=frozenset({ShellRole.PRIMARY}),
 )
 
 
@@ -65,44 +67,42 @@ def analyze_file(path: Path, *, include_rings: bool = True) -> list[dict[str, ob
     for index, structure in enumerate(loaded.structures):
         if not isinstance(structure, CrystalStructure):
             raise TypeError("corpus entry is not a CrystalStructure")
-        view = structure.atomic_view()
+        if not structure.sites:
+            output.append(
+                {
+                    "file": path.name,
+                    "structure_index": index,
+                    "status": "not_applicable",
+                    "sites": 0,
+                    "atoms": 0,
+                    "contacts": 0,
+                    "polyhedra": 0,
+                    "units": 0,
+                    "unit_orbits": 0,
+                    "unit_geometries": 0,
+                    "blocks": 0,
+                    "rings": 0 if include_rings else None,
+                    "ring_orbits": 0 if include_rings else None,
+                    "diagnostics": sorted({item.code for item in loaded.diagnostics}),
+                }
+            )
+            continue
         chemistry = ChemistryAnalyzer().analyze(Composition.from_structure(structure))
-        resolution = CoordinationShellResolver(_SHELL_POLICY).resolve(
-            structure,
-            chemistry.grammar,
+        context = SymmetryContext.from_definition(structure.space_group, structure.cell)
+        resolution = ContactAnalyzer(_SHELL_POLICY).analyze(
+            structure, context, chemistry.grammar,
         )
-        units = StructuralUnitBuilder().build(
-            resolution,
-            resolution.polyhedra,
-            structure=structure,
-            atomic_view=view,
-        )
-        graph = StructuralGraphBuilder().build(units.units, resolution.contacts)
+        polyhedra = PolyhedronOrbitBuilder().build(resolution)
+        units = StructuralUnitBuilder().build(resolution, polyhedra)
+        graph = StructuralGraphBuilder().build(resolution, polyhedra)
         representation = StructuralRepresentationBuilder(_SELECTION_POLICY).build(graph)
         connectivity = PeriodicConnectivityAnalyzer().analyze(representation)
-        blocks = StructuralBlockFinder().find(
-            representation,
-            connectivity,
-            structure=structure,
-            atomic_view=view,
-        )
+        blocks = StructuralBlockFinder().find(representation, connectivity)
         rings = (
-            RingFinder().find(structure, view, representation, blocks)
+            RingFinder().find(representation, blocks)
             if include_rings
             else None
         )
-        if len({unit.unit_id for orbit in units.unit_orbits for unit in orbit.units}) != len(
-            units.units
-        ):
-            raise ValueError("structural-unit orbit coverage is inconsistent")
-        if len({block.block_id for orbit in blocks.block_orbits for block in orbit.blocks}) != len(
-            blocks.blocks
-        ):
-            raise ValueError("structural-block orbit coverage is inconsistent")
-        if rings is not None and any(
-            not ring.parent_block_orbit_id for ring in rings.rings
-        ):
-            raise ValueError("ring lacks its parent structural-block orbit")
         diagnostic_codes = sorted(
             {
                 item.code
@@ -121,16 +121,20 @@ def analyze_file(path: Path, *, include_rings: bool = True) -> list[dict[str, ob
                 "structure_index": index,
                 "status": resolution.status.value,
                 "sites": len(structure.sites),
-                "atoms": len(view.atoms),
+                "atoms": len(structure.atomic_view().atoms),
                 "contacts": len(resolution.contacts),
-                "polyhedra": len(resolution.polyhedra),
-                "units": len(units.units),
+                "polyhedra": len(polyhedra.polyhedra),
+                "units": len(units.unit_orbits),
                 "unit_orbits": len(units.unit_orbits),
-                "unit_geometries": sum(unit.geometry is not None for unit in units.units),
+                "unit_geometries": sum(
+                    unit.representative_geometry is not None
+                    for unit in units.unit_orbits
+                ),
                 "blocks": len(blocks.blocks),
-                "block_orbits": len(blocks.block_orbits),
-                "rings": None if rings is None else len(rings.rings),
-                "ring_orbits": None if rings is None else len(rings.orbits),
+                "rings": None if rings is None else sum(
+                    ring.multiplicity_in_reference_cell for ring in rings.ring_orbits
+                ),
+                "ring_orbits": None if rings is None else len(rings.ring_orbits),
                 "diagnostics": diagnostic_codes,
             }
         )

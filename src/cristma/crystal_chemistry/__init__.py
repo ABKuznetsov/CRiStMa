@@ -1,16 +1,10 @@
 """Reusable inorganic crystal-chemistry calculations and results."""
 
-from .contacts import (
+from .models import (
     ComponentPairInterpretation,
-    ContactClassification,
-    CoordinationShell,
-    CrystalChemistryResolution,
     EvidenceStatus,
     ResolutionStatus,
-    ResolvedContact,
-    ResolvedContactOrbit as LegacyResolvedContactOrbit,
     SecondaryEvidence,
-    ShellAlternative,
 )
 from .policy import ShellResolutionPolicy
 from .orbit_contacts import (
@@ -38,18 +32,21 @@ from .polyhedra import (
     CoordinationPolyhedron,
     CoordinationPolyhedronOrbit,
     FaceSignature,
-    PolyhedronBuildResult,
-    PolyhedronBuilder,
     PolyhedronVertex,
     canonical_face_signature,
     polyhedron_face_signature,
     unique_hull_edges,
 )
 from .polyhedron_orbits import PolyhedronOrbitBuildResult, PolyhedronOrbitBuilder
-from .resolver import CoordinationShellResolver
+from .materialization import (
+    CellRange,
+    ContactMaterializer,
+    ReferenceCell,
+    ResolvedContact,
+    ShellMembership,
+)
 from .shannon_distance import ShannonDistanceCheck, ShannonDistanceValidator
 from .structural_units import (
-    StructuralUnit,
     StructuralUnitBuildResult,
     StructuralUnitBuilder,
     StructuralUnitGeometry,
@@ -58,7 +55,6 @@ from .structural_units import (
     StructuralUnitOrbit,
 )
 from .structural_graph import (
-    StructuralConnection,
     StructuralConnectionKind,
     StructuralConnectionOrbit,
     StructuralGraphBuilder,
@@ -79,24 +75,22 @@ from .structural_blocks import (
     StructuralBlock,
     StructuralBlockClassification,
     StructuralBlockFinder,
-    StructuralBlockOrbit,
     StructuralBlockResult,
 )
 from .ring_finder import RingFinder
 from .rings import (
     PeriodicUnitOrbitRef,
-    PeriodicUnitRef,
     RingAnalysisResult,
     RingAnalysisStatus,
     RingSearchPolicy,
-    StructuralRing,
     StructuralRingOrbit,
     StructuralRingScope,
 )
 
 __all__ = [
     "ComponentPairInterpretation",
-    "ContactClassification",
+    "CellRange",
+    "ContactMaterializer",
     "ContactInterpretation",
     "ContactIncidenceBuilder",
     "ContactIncidenceOrbit",
@@ -104,42 +98,34 @@ __all__ = [
     "ContactAnalyzer",
     "ContactOrbitResolution",
     "ContactOrbitResolver",
-    "CoordinationShell",
     "CoordinationShellAlternative",
     "CoordinationShellOrbit",
     "CoordinationShellOrbitResolver",
-    "CoordinationShellResolver",
     "CoordinationPolyhedron",
     "CoordinationPolyhedronOrbit",
-    "CrystalChemistryResolution",
     "EvidenceStatus",
     "EndpointRole",
     "EndpointRoles",
-    "LegacyResolvedContactOrbit",
     "OrientationMode",
     "ResolutionStatus",
     "ResolvedContact",
     "ResolvedContactOrbit",
-    "PolyhedronBuildResult",
-    "PolyhedronBuilder",
     "PolyhedronOrbitBuildResult",
     "PolyhedronOrbitBuilder",
     "PolyhedronVertex",
     "FaceSignature",
     "SecondaryEvidence",
-    "ShellAlternative",
+    "ShellMembership",
     "ShellRole",
     "ShellResolutionPolicy",
     "ShannonDistanceCheck",
     "ShannonDistanceValidator",
-    "StructuralUnit",
     "StructuralUnitBuildResult",
     "StructuralUnitBuilder",
     "StructuralUnitGeometry",
     "StructuralUnitGeometryKind",
     "StructuralUnitKind",
     "StructuralUnitOrbit",
-    "StructuralConnection",
     "StructuralConnectionKind",
     "StructuralConnectionOrbit",
     "StructuralGraphBuilder",
@@ -154,17 +140,15 @@ __all__ = [
     "StructuralBlock",
     "StructuralBlockClassification",
     "StructuralBlockFinder",
-    "StructuralBlockOrbit",
     "StructuralBlockResult",
-    "PeriodicUnitRef",
     "PeriodicUnitOrbitRef",
     "RingAnalysisResult",
     "RingAnalysisStatus",
     "RingFinder",
     "RingSearchPolicy",
-    "StructuralRing",
     "StructuralRingOrbit",
     "StructuralRingScope",
+    "ReferenceCell",
     "polyhedron_face_signature",
     "canonical_face_signature",
     "unique_hull_edges",

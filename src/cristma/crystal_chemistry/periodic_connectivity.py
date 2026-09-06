@@ -28,19 +28,6 @@ class PeriodicComponent:
         if self.rank not in range(4) or self.rank != len(self.periodic_generators):
             raise ValueError("periodic rank and exact generator count disagree")
 
-    @property
-    def unit_ids(self):
-        return self.unit_orbit_ids
-
-    @property
-    def connection_ids(self):
-        return self.connection_orbit_ids
-
-    @property
-    def periodic_rank(self):
-        return self.rank
-
-
 @dataclass(frozen=True, slots=True)
 class PeriodicConnectivityResult:
     representation_id: str

@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-import hashlib
+from dataclasses import dataclass, field
 from itertools import combinations
-import json
 import math
 
 import numpy as np
 
-from cristma.diagnostics import Diagnostic, Severity
-from cristma.structure import AtomicView, PeriodicAtomRef
-
-from .contacts import CoordinationShell, ResolutionStatus, ResolvedContact
+from cristma.diagnostics import Diagnostic
+from cristma.structure import PeriodicAtomRef
+from .models import ResolutionStatus
 
 
 FaceSignature = tuple[int, tuple[tuple[int, ...], ...]]
@@ -140,84 +137,6 @@ class CoordinationPolyhedronOrbit:
     @property
     def representative(self) -> CoordinationPolyhedron:
         return self.polyhedra[0]
-
-
-@dataclass(frozen=True, slots=True)
-class PolyhedronBuildResult:
-    status: ResolutionStatus
-    polyhedron: CoordinationPolyhedron | None
-    diagnostics: tuple[Diagnostic, ...]
-
-    @classmethod
-    def from_polyhedron(cls, polyhedron: CoordinationPolyhedron) -> "PolyhedronBuildResult":
-        return cls(polyhedron.status, polyhedron, polyhedron.diagnostics)
-
-    @classmethod
-    def resolved(cls, polyhedron: CoordinationPolyhedron) -> "PolyhedronBuildResult":
-        return cls.from_polyhedron(polyhedron)
-
-    @classmethod
-    def failure(
-        cls,
-        status: ResolutionStatus,
-        code: str,
-        message: str,
-    ) -> "PolyhedronBuildResult":
-        return cls(status, None, (Diagnostic(Severity.WARNING, code, message),))
-
-
-def _oriented_contact(
-    center_atom_id: str,
-    contact: ResolvedContact,
-) -> tuple[PeriodicAtomRef, tuple[float, float, float]]:
-    geometric = contact.geometric_contact
-    translation = geometric.cell_translation or (0, 0, 0)
-    if center_atom_id == geometric.first_atom_id:
-        return PeriodicAtomRef(geometric.second_atom_id, translation), geometric.vector_cartesian
-    if center_atom_id == geometric.second_atom_id:
-        return (
-            PeriodicAtomRef(
-                geometric.first_atom_id,
-                tuple(-value for value in translation),
-            ),
-            tuple(-value for value in geometric.vector_cartesian),
-        )
-    raise ValueError("coordination-shell contact does not contain its centre")
-
-
-def _polyhedron_vertices(
-    shell: CoordinationShell,
-    view: AtomicView,
-) -> tuple[PolyhedronVertex, ...]:
-    atoms = {atom.id: atom for atom in view.atoms}
-    if shell.center_atom_id not in atoms:
-        raise ValueError("coordination-shell centre is absent from the atomic view")
-    vertices: list[PolyhedronVertex] = []
-    for contact in shell.contacts:
-        atom_ref, vector = _oriented_contact(shell.center_atom_id, contact)
-        ligand = atoms.get(atom_ref.atom_id)
-        if ligand is None:
-            raise ValueError("coordination-shell ligand is absent from the atomic view")
-        occupancy = math.fsum(
-            float(component.occupancy.value) for component in ligand.components
-        )
-        vertices.append(PolyhedronVertex(
-            atom_ref=atom_ref,
-            incidence_orbit_id=(
-                "legacy-incidence:" + contact.geometric_contact.contact_id
-            ),
-            resolved_contact_orbit_id=contact.contact_orbit_id,
-            local_cartesian=tuple(float(value) for value in vector),
-            distance=float(contact.geometric_contact.distance),
-            occupancy=occupancy,
-        ))
-    return tuple(vertices)
-
-
-def _local_vertices(vertices: tuple[PolyhedronVertex, ...]) -> np.ndarray:
-    return np.asarray(
-        tuple(item.local_cartesian for item in vertices), dtype=float
-    ).reshape((-1, 3))
 
 
 def _ordered_face(
@@ -415,181 +334,10 @@ def polyhedron_face_signature(polyhedron: CoordinationPolyhedron) -> FaceSignatu
     return polyhedron.face_signature
 
 
-def _polyhedron_id(center_atom_id: str, vertices: tuple[PolyhedronVertex, ...]) -> str:
-    payload = json.dumps(
-        (
-            center_atom_id,
-            tuple(sorted(
-                (
-                    item.atom_ref.atom_id,
-                    item.atom_ref.cell_translation,
-                    item.incidence_orbit_id,
-                )
-                for item in vertices
-            )),
-        ),
-        ensure_ascii=True,
-        separators=(",", ":"),
-    ).encode("ascii")
-    return f"polyhedron:{hashlib.sha256(payload).hexdigest()}"
-
-
-def _ligand_composition(
-    vertices: tuple[PolyhedronVertex, ...],
-    view: AtomicView,
-) -> tuple[tuple[str, float], ...]:
-    atoms = {atom.id: atom for atom in view.atoms}
-    totals: dict[str, list[float]] = {}
-    for vertex in vertices:
-        for component in atoms[vertex.atom_ref.atom_id].components:
-            if float(component.occupancy.value) <= 0:
-                continue
-            label = component.element or component.species.label
-            totals.setdefault(label, []).append(float(component.occupancy.value))
-    return tuple(
-        (label, math.fsum(values)) for label, values in sorted(totals.items())
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PolyhedronBuilder:
-    tolerance: float = 1e-9
-
-    def __post_init__(self) -> None:
-        if not math.isfinite(self.tolerance) or self.tolerance <= 0:
-            raise ValueError("polyhedron tolerance must be positive and finite")
-
-    def get_config(self) -> dict[str, float]:
-        return {"tolerance": self.tolerance}
-
-    def clone(self, **changes: float) -> "PolyhedronBuilder":
-        return replace(self, **changes)
-
-    def build(
-        self,
-        shell: CoordinationShell,
-        view: AtomicView,
-    ) -> PolyhedronBuildResult:
-        if shell.status is not ResolutionStatus.RESOLVED:
-            return PolyhedronBuildResult.failure(
-                shell.status,
-                "crystal_chemistry.polyhedron.open_coordination_shell",
-                f"polyhedron cannot be completed from a {shell.status.value} shell",
-            )
-        vertices = _polyhedron_vertices(shell, view)
-        local = _local_vertices(vertices)
-        distances = tuple(item.distance for item in vertices)
-        mean, minimum, maximum, distortion = _bond_length_metrics(distances)
-        diagnostics: list[Diagnostic] = []
-        atoms = {atom.id: atom for atom in view.atoms}
-        if any(item.occupancy < 1.0 - 1e-12 for item in vertices):
-            diagnostics.append(Diagnostic(
-                Severity.WARNING,
-                PARTIAL_OCCUPANCY,
-                "Polyhedron contains a partially occupied ligand vertex",
-            ))
-        if any(len(atoms[item.atom_ref.atom_id].components) > 1 for item in vertices):
-            diagnostics.append(Diagnostic(
-                Severity.WARNING,
-                MIXED_POSITION,
-                "Polyhedron contains a mixed ligand position",
-            ))
-
-        faces: tuple[tuple[int, ...], ...] = ()
-        face_signature: FaceSignature | None = None
-        angle_dispersion: float | None = None
-        volume: float | None = None
-        centroid: tuple[float, float, float] | None = None
-        center_offset: float | None = None
-        status = ResolutionStatus.RESOLVED
-        is_three_dimensional = (
-            len(local) >= 4
-            and np.linalg.matrix_rank(local[1:] - local[0], tol=self.tolerance) >= 3
-        )
-        if is_three_dimensional:
-            try:
-                faces = _convex_hull_faces(local, self.tolerance)
-                face_signature = canonical_face_signature(len(vertices), faces)
-                angle_dispersion = _edge_angle_dispersion_deg(
-                    local, unique_hull_edges(faces)
-                )
-                calculated_volume, calculated_centroid = _volume_and_centroid(local, faces)
-                volume = calculated_volume
-                centroid = tuple(float(value) for value in calculated_centroid)
-                center_offset = float(np.linalg.norm(calculated_centroid))
-            except ValueError as error:
-                status = ResolutionStatus.INCOMPLETE
-                diagnostics.append(Diagnostic(
-                    Severity.WARNING,
-                    GEOMETRY_DEGENERATE,
-                    str(error),
-                ))
-        else:
-            status = ResolutionStatus.INCOMPLETE
-            diagnostics.append(Diagnostic(
-                Severity.WARNING,
-                GEOMETRY_DEGENERATE,
-                "Coordination shell is not a closed three-dimensional polyhedron",
-            ))
-        if distortion is None or angle_dispersion is None:
-            diagnostics.append(Diagnostic(
-                Severity.WARNING,
-                DESCRIPTOR_UNAVAILABLE,
-                "One or more polyhedron descriptors are unavailable",
-            ))
-
-        polyhedron = CoordinationPolyhedron(
-            polyhedron_id=_polyhedron_id(shell.center_atom_id, vertices),
-            polyhedron_orbit_id="",
-            source_site_id=shell.source_site_id,
-            center_atom_id=shell.center_atom_id,
-            coordination_number=len(vertices),
-            ligand_composition=_ligand_composition(vertices, view),
-            vertices=vertices,
-            faces=faces,
-            face_signature=face_signature,
-            mean_bond_length=mean,
-            min_bond_length=minimum,
-            max_bond_length=maximum,
-            bond_length_distortion=distortion,
-            edge_angle_dispersion_deg=angle_dispersion,
-            volume=volume,
-            geometric_centroid=centroid,
-            center_offset=center_offset,
-            status=status,
-            provenance=(
-                *shell.provenance,
-                ("method", "cristma.polyhedron_builder:2"),
-                ("tolerance", self.tolerance),
-                ("bond_distortion", "Baur mean absolute relative deviation"),
-                ("edge_angle_dispersion", "population standard deviation in degrees"),
-            ),
-            local_vertices=tuple(item.local_cartesian for item in vertices),
-            shell_provenance=shell.provenance,
-            diagnostics=tuple(dict.fromkeys(diagnostics)),
-        )
-        return PolyhedronBuildResult.from_polyhedron(polyhedron)
-
-    def validate_orbit(
-        self,
-        polyhedra: tuple[CoordinationPolyhedron, ...],
-    ) -> tuple[Diagnostic, ...]:
-        signatures = {item.face_signature for item in polyhedra}
-        if len(signatures) <= 1:
-            return ()
-        return (Diagnostic(
-            Severity.ERROR,
-            "crystal_chemistry.polyhedron.symmetry_inconsistent",
-            "symmetry-equivalent centres have different face incidence graphs",
-        ),)
-
-
 __all__ = [
     "CoordinationPolyhedron",
     "CoordinationPolyhedronOrbit",
     "FaceSignature",
-    "PolyhedronBuildResult",
-    "PolyhedronBuilder",
     "PolyhedronVertex",
     "canonical_face_signature",
     "polyhedron_face_signature",

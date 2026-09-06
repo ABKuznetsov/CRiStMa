@@ -47,26 +47,6 @@ class StructuralConnectionOrbit:
         if self.multiplicity_in_reference_cell <= 0:
             raise ValueError("structural connection multiplicity must be positive")
 
-    @property
-    def connection_id(self) -> str:
-        return self.connection_orbit_id
-
-    @property
-    def first_unit_id(self) -> str:
-        return self.first_unit_orbit_id
-
-    @property
-    def second_unit_id(self) -> str:
-        return self.second_unit_orbit_id
-
-    @property
-    def connection_kind(self) -> StructuralConnectionKind:
-        return self.relation_type
-
-
-StructuralConnection = StructuralConnectionOrbit
-
-
 @dataclass(frozen=True, slots=True)
 class StructuralUnitGraph:
     unit_orbits: tuple[StructuralUnitOrbit, ...]
@@ -87,15 +67,6 @@ class StructuralUnitGraph:
         known = set(unit_ids)
         if any(x.first_unit_orbit_id not in known or x.second_unit_orbit_id not in known for x in self.connection_orbits):
             raise ValueError("structural connection references an unknown unit orbit")
-
-    @property
-    def units(self) -> tuple[StructuralUnitOrbit, ...]:
-        return self.unit_orbits
-
-    @property
-    def connections(self) -> tuple[StructuralConnectionOrbit, ...]:
-        return self.connection_orbits
-
 
 def _shell_roles_by_contact(result: ContactAnalysisResult) -> dict[str, set[ShellRole]]:
     incidence_by_id = {x.incidence_orbit_id: x for x in result.contact_incidence_orbits}
@@ -126,25 +97,15 @@ class StructuralGraphBuilder:
     def build(self, contact_result: ContactAnalysisResult,
               polyhedra: PolyhedronOrbitBuildResult) -> StructuralUnitGraph:
         unit_result = StructuralUnitBuilder().build(contact_result, polyhedra)
-        unit_by_site = {x.center_independent_site_id: x for x in unit_result.unit_orbits}
-        if len(unit_by_site) != len(unit_result.unit_orbits):
-            raise ValueError("each independent site must own exactly one structural-unit orbit")
+        units_by_site: dict[str, list[StructuralUnitOrbit]] = {}
+        for unit in unit_result.unit_orbits:
+            units_by_site.setdefault(unit.center_independent_site_id, []).append(unit)
         geometry_by_id = {x.geometry_orbit_id: x for x in contact_result.pair_table.contact_orbits}
         roles_by_contact = _shell_roles_by_contact(contact_result)
-        connections: list[StructuralConnectionOrbit] = []
+        connections: dict[str, StructuralConnectionOrbit] = {}
         context = contact_result._symmetry_context
         for resolved in contact_result.contact_orbits:
             geometry = geometry_by_id[resolved.geometry_orbit_id]
-            first = unit_by_site[geometry.first_independent_site_id]
-            second = unit_by_site[geometry.second_independent_site_id]
-            relation = geometry.canonical_relation
-            if second.unit_orbit_id < first.unit_orbit_id:
-                first, second = second, first
-                relation = relation.inverse(context)
-            if first.unit_orbit_id == second.unit_orbit_id:
-                identity = relation.operation_key == context.identity_operation_key and relation.lattice_translation == (0, 0, 0)
-                if identity:
-                    continue
             interpretations = resolved.interpretations
             layers = tuple(sorted({x.interaction_layer for x in interpretations}, key=lambda x: x.value))
             contact_roles = roles_by_contact.get(resolved.resolved_contact_orbit_id, set())
@@ -152,26 +113,54 @@ class StructuralGraphBuilder:
             relation_type = StructuralConnectionKind.SHARED_VERTEX if is_shared else StructuralConnectionKind.DIRECT_CONTACT
             roles = tuple(sorted(contact_roles, key=lambda item: item.value))
             connector_refs = tuple(sorted({geometry.first_independent_site_id, geometry.second_independent_site_id})) if is_shared else ()
-            payload = {
-                "first": first.unit_orbit_id, "second": second.unit_orbit_id,
-                "relation": (relation.operation_key, relation.lattice_translation),
-                "source": resolved.resolved_contact_orbit_id,
-            }
-            connections.append(StructuralConnectionOrbit(
-                "structural-connection-orbit:" + _digest(payload), first.unit_orbit_id, second.unit_orbit_id,
-                relation, relation_type, connector_refs, layers, roles,
-                (resolved.resolved_contact_orbit_id,), tuple(sorted(x.interpretation_id for x in interpretations)),
-                geometry.multiplicity_in_reference_cell,
-                (("method", "cristma.structural_graph_builder:2"),),
-            ))
+            endpoint_units = []
+            for site_id in (
+                geometry.first_independent_site_id,
+                geometry.second_independent_site_id,
+            ):
+                available = tuple(units_by_site[site_id])
+                participants = tuple(
+                    unit for unit in available
+                    if resolved.resolved_contact_orbit_id
+                    in unit.source_resolved_contact_orbit_ids
+                )
+                endpoint_units.append(participants or available)
+            for first_source in endpoint_units[0]:
+                for second_source in endpoint_units[1]:
+                    first, second = first_source, second_source
+                    relation = geometry.canonical_relation
+                    if second.unit_orbit_id < first.unit_orbit_id:
+                        first, second = second, first
+                        relation = relation.inverse(context)
+                    if first.unit_orbit_id == second.unit_orbit_id:
+                        identity = relation.operation_key == context.identity_operation_key and relation.lattice_translation == (0, 0, 0)
+                        if identity:
+                            continue
+                    payload = {
+                        "first": first.unit_orbit_id, "second": second.unit_orbit_id,
+                        "relation": (relation.operation_key, relation.lattice_translation),
+                        "source": resolved.resolved_contact_orbit_id,
+                    }
+                    connection = StructuralConnectionOrbit(
+                        "structural-connection-orbit:" + _digest(payload), first.unit_orbit_id, second.unit_orbit_id,
+                        relation, relation_type, connector_refs, layers, roles,
+                        (resolved.resolved_contact_orbit_id,), tuple(sorted(x.interpretation_id for x in interpretations)),
+                        geometry.multiplicity_in_reference_cell,
+                        (("method", "cristma.structural_graph_builder:3"),),
+                    )
+                    existing = connections.setdefault(
+                        connection.connection_orbit_id, connection
+                    )
+                    if existing != connection:
+                        raise ValueError("structural connection identity collision")
         return StructuralUnitGraph(
             unit_result.unit_orbits,
-            tuple(sorted(connections, key=lambda x: x.connection_orbit_id)),
+            tuple(sorted(connections.values(), key=lambda x: x.connection_orbit_id)),
             unit_result.diagnostics,
-            (("method", "cristma.structural_graph_builder:2"),),
+            (("method", "cristma.structural_graph_builder:3"),),
             _symmetry_context=context,
         )
 
 
-__all__ = ["StructuralConnection", "StructuralConnectionKind", "StructuralConnectionOrbit",
+__all__ = ["StructuralConnectionKind", "StructuralConnectionOrbit",
            "StructuralGraphBuilder", "StructuralUnitGraph"]

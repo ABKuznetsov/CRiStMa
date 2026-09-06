@@ -1183,7 +1183,7 @@ git commit -m "Analyze structural blocks and rings by orbit"
 - Consumes: all orbit-first components from Tasks 1–12.
 - Produces: the final public `ContactAnalyzer -> ContactAnalysisResult` route and compatibility materializers; removes the second scientific API.
 
-- [ ] **Step 1: Write failing public API and architecture tests**
+- [x] **Step 1: Write failing public API and architecture tests**
 
 ```python
 def test_public_contact_route_is_orbit_first():
@@ -1198,13 +1198,13 @@ def test_legacy_expanded_first_symbols_are_not_public():
 
 The architecture test must import and exercise the production API. Do not merely grep source text. A separate static import-boundary check may supplement it to ensure scientific modules do not import materialized `ResolvedContact`.
 
-- [ ] **Step 2: Run cutover tests and verify RED**
+- [x] **Step 2: Run cutover tests and verify RED**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_public_orbit_api.py tests/orbit_first/test_no_expanded_scientific_route.py`
 
 Expected: legacy symbols still exist and production smoke route still uses them.
 
-- [ ] **Step 3: Switch exports and smoke route in one change**
+- [x] **Step 3: Switch exports and smoke route in one change**
 
 ```python
 context = SymmetryContext.from_definition(structure.space_group, structure.cell)
@@ -1214,11 +1214,11 @@ polyhedra = PolyhedronOrbitBuilder().build(result)
 
 Update public exports and the corpus smoke tool. Update README examples to show explicit context creation, orbit-first analysis, and outward-only materialization. Do not add consumer-specific migration code.
 
-- [ ] **Step 4: Delete legacy expanded-first code**
+- [x] **Step 4: Delete legacy expanded-first code**
 
 Remove `resolver.py`, `contact_orbits.py`, `_coalesce_resolved_contacts`, expanded shell construction, and old stored-contact result models. Move only still-valid small value types such as `ComponentPairInterpretation`, `SecondaryEvidence`, and `ResolutionStatus` into their orbit-first owner modules. Remove all scientific imports of materialized `ResolvedContact`.
 
-- [ ] **Step 5: Run public and architecture tests**
+- [x] **Step 5: Run public and architecture tests**
 
 Run: `python3.11 -m pytest -q tests/orbit_first/test_public_orbit_api.py tests/orbit_first/test_no_expanded_scientific_route.py`
 

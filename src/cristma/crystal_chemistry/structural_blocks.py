@@ -50,31 +50,12 @@ class StructuralBlock:
         if tuple(sorted(set(self.connection_orbit_ids))) != self.connection_orbit_ids:
             raise ValueError("block connection-orbit IDs must be unique and sorted")
 
-    @property
-    def periodic_rank(self) -> int:
-        return self.rank
-
-
-@dataclass(frozen=True, slots=True)
-class StructuralBlockOrbit:
-    """Compatibility wrapper: a quotient block is already one symmetry orbit."""
-    block_orbit_id: str
-    representative_block_id: str
-    blocks: tuple[StructuralBlock, ...]
-    diagnostics: tuple[Diagnostic, ...] = ()
-
-    def __post_init__(self) -> None:
-        if len(self.blocks) != 1 or self.blocks[0].block_id != self.representative_block_id:
-            raise ValueError("orbit-first structural block has exactly one quotient representative")
-
-
 @dataclass(frozen=True, slots=True)
 class StructuralBlockResult:
     representation_id: str
     blocks: tuple[StructuralBlock, ...]
     diagnostics: tuple[Diagnostic, ...] = ()
     provenance: tuple[tuple[str, object], ...] = ()
-    block_orbits: tuple[StructuralBlockOrbit, ...] = ()
 
     def __post_init__(self) -> None:
         ids = tuple(x.block_id for x in self.blocks)
@@ -95,9 +76,7 @@ class StructuralBlockFinder:
         return self
 
     def find(self, representation: StructuralRepresentation,
-             connectivity: PeriodicConnectivityResult, **legacy_materialization_inputs: object) -> StructuralBlockResult:
-        if legacy_materialization_inputs:
-            raise TypeError("structural blocks no longer accept materialized structure or atomic views")
+             connectivity: PeriodicConnectivityResult) -> StructuralBlockResult:
         if connectivity.representation_id != representation.representation_id:
             raise ValueError("connectivity belongs to another structural representation")
         known_units = {x.unit_orbit_id for x in representation.unit_orbits}
@@ -124,11 +103,9 @@ class StructuralBlockFinder:
         if seen != known_units:
             raise ValueError("periodic connectivity does not cover every selected unit orbit")
         ordered = tuple(sorted(blocks, key=lambda x: x.block_id))
-        orbits = tuple(StructuralBlockOrbit("structural-block-orbit:" + x.block_id, x.block_id, (x,)) for x in ordered)
         return StructuralBlockResult(representation.representation_id, ordered,
-                                     provenance=(("method", "cristma.structural_block_finder:3"),),
-                                     block_orbits=orbits)
+                                     provenance=(("method", "cristma.structural_block_finder:3"),))
 
 
 __all__ = ["StructuralBlock", "StructuralBlockClassification", "StructuralBlockFinder",
-           "StructuralBlockOrbit", "StructuralBlockResult"]
+           "StructuralBlockResult"]

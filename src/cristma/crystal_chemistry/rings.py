@@ -79,20 +79,6 @@ class StructuralRingOrbit:
     def size(self) -> int:
         return len(self.unit_orbit_refs)
 
-    @property
-    def orbit_id(self) -> str:
-        return self.ring_orbit_id
-
-    @property
-    def parent_block_orbit_id(self) -> str:
-        return "structural-block-orbit:" + self.parent_block_id
-
-
-# A ring is a symmetry orbit in the scientific core. Instances belong to a later materializer.
-StructuralRing = StructuralRingOrbit
-PeriodicUnitRef = PeriodicUnitOrbitRef
-
-
 @dataclass(frozen=True, slots=True)
 class RingAnalysisResult:
     ring_orbits: tuple[StructuralRingOrbit, ...]
@@ -107,10 +93,5 @@ class RingAnalysisResult:
         if self.status is RingAnalysisStatus.INCOMPLETE and not self.diagnostics:
             raise ValueError("incomplete ring analysis requires diagnostics")
 
-    @property
-    def orbits(self) -> tuple[StructuralRingOrbit, ...]:
-        return self.ring_orbits
-
-
-__all__ = ["PeriodicUnitOrbitRef", "PeriodicUnitRef", "RingAnalysisResult", "RingAnalysisStatus",
-           "RingSearchPolicy", "StructuralRing", "StructuralRingOrbit", "StructuralRingScope"]
+__all__ = ["PeriodicUnitOrbitRef", "RingAnalysisResult", "RingAnalysisStatus",
+           "RingSearchPolicy", "StructuralRingOrbit", "StructuralRingScope"]
