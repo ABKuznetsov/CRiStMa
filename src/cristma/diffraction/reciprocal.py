@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import math
 from typing import Iterator
 
@@ -11,6 +12,17 @@ import numpy as np
 from cristma.core import UnitCell
 
 from .models import MillerIndex
+
+
+def cell_fingerprint(cell: UnitCell) -> str:
+    """Hash the six numerical cell values used by diffraction calculations."""
+
+    if not isinstance(cell, UnitCell):
+        raise TypeError("cell must be UnitCell")
+    measured = (cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma)
+    values = tuple(float(item.value) for item in measured)
+    serialized = "|".join(value.hex() for value in values).encode("ascii")
+    return hashlib.sha256(serialized).hexdigest()
 
 
 def _positive_finite(value: float, name: str) -> float:
@@ -150,4 +162,9 @@ def enumerate_integer_ellipsoid(
     return IntegerEllipsoidResult(indices, tested, len(indices), complete)
 
 
-__all__ = ["IntegerEllipsoidResult", "ReciprocalMetric", "enumerate_integer_ellipsoid"]
+__all__ = [
+    "IntegerEllipsoidResult",
+    "ReciprocalMetric",
+    "cell_fingerprint",
+    "enumerate_integer_ellipsoid",
+]

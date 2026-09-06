@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-import hashlib
 import math
 from typing import Any
 
@@ -30,7 +29,7 @@ from .models import (
     ReflectionSet,
     ReflectionSetStatus,
 )
-from .reciprocal import ReciprocalMetric, enumerate_integer_ellipsoid
+from .reciprocal import ReciprocalMetric, cell_fingerprint, enumerate_integer_ellipsoid
 
 
 GENERATOR_METHOD = "bounded_integer_ellipsoid"
@@ -50,11 +49,6 @@ def _positive_finite(value: float, name: str) -> float:
 def _cell_values(cell: UnitCell) -> tuple[float, float, float, float, float, float]:
     measured = (cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma)
     return tuple(float(item.value) for item in measured)  # type: ignore[arg-type]
-
-
-def _cell_fingerprint(cell: UnitCell) -> str:
-    serialized = "|".join(value.hex() for value in _cell_values(cell)).encode("ascii")
-    return hashlib.sha256(serialized).hexdigest()
 
 
 def _rotation_key(operation: AffineOperation) -> tuple[tuple[object, ...], ...]:
@@ -277,7 +271,7 @@ class ReflectionGenerator:
             method=GENERATOR_METHOD,
             version=GENERATOR_VERSION,
             space_group_setting_id=space_group.setting_id,
-            cell_fingerprint=_cell_fingerprint(cell),
+            cell_fingerprint=cell_fingerprint(cell),
             d_min=d_min,
             reciprocal_convention=RECIPROCAL_CONVENTION,
             boundary_tolerance=self.boundary_tolerance,
