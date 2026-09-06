@@ -23,6 +23,17 @@ from .orbit_contacts import (
     ResolvedContactOrbit,
 )
 from .incidence_orbits import ContactIncidenceBuilder, ContactIncidenceOrbit
+from .shell_orbits import (
+    CoordinationShellAlternative,
+    CoordinationShellOrbit,
+    CoordinationShellOrbitResolver,
+    ShellRole,
+)
+from .contact_analysis import (
+    ContactAnalysisResult,
+    ContactAnalyzer,
+    aggregate_contact_analysis_status,
+)
 from .polyhedra import (
     CoordinationPolyhedron,
     CoordinationPolyhedronOrbit,
@@ -85,9 +96,14 @@ __all__ = [
     "ContactInterpretation",
     "ContactIncidenceBuilder",
     "ContactIncidenceOrbit",
+    "ContactAnalysisResult",
+    "ContactAnalyzer",
     "ContactOrbitResolution",
     "ContactOrbitResolver",
     "CoordinationShell",
+    "CoordinationShellAlternative",
+    "CoordinationShellOrbit",
+    "CoordinationShellOrbitResolver",
     "CoordinationShellResolver",
     "CoordinationPolyhedron",
     "CoordinationPolyhedronOrbit",
@@ -106,6 +122,7 @@ __all__ = [
     "FaceSignature",
     "SecondaryEvidence",
     "ShellAlternative",
+    "ShellRole",
     "ShellResolutionPolicy",
     "ShannonDistanceCheck",
     "ShannonDistanceValidator",
@@ -142,4 +159,5 @@ __all__ = [
     "polyhedron_face_signature",
     "canonical_face_signature",
     "unique_hull_edges",
+    "aggregate_contact_analysis_status",
 ]
